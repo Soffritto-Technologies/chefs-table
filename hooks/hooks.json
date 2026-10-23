@@ -1,16 +1,61 @@
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook SessionStart", "timeout": 10 }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook SessionStart",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "PreToolUse": [
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PreToolUse", "timeout": 5 }] }
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PreToolUse",
+            "timeout": 5
+          }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Artifact|Agent", "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PostToolUse", "timeout": 5 }] }
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PostToolUse",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook SubagentStop",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook Stop", "timeout": 30 }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook Stop",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

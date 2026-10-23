@@ -413,32 +413,27 @@ function onPreToolUse(payload) {
 }
 
 /**
- * Adds a finished helper's tokens to the running map job. Never throws: a metering problem must not break the chat.
+ * Hook: SubagentStop. Meters a finished map-job helper from its own transcript, so helpers running in the
+ * background are counted too (their Agent tool result carries no token totals). Each helper is counted once.
  *
- * @param {string} projectDir - Absolute project directory.
- * @param {Record<string, string>} p - Session paths (for the error log).
- * @param {Record<string, any>} payload - PostToolUse payload for the Agent tool.
+ * @param {Record<string, any>} payload - SubagentStop payload (agent_id, agent_transcript_path).
  * @returns {void}
  */
-function meterHelper(projectDir, p, payload) {
-  try {
-    const tokens = payload.tool_response?.totalTokens;
-    if (typeof tokens !== 'number' || !(tokens > 0) || M.loadJob(projectDir)?.phase !== 'stir') return;
-    M.recordTokens(projectDir, { tokens, unitId: M.parseUnitMarker(payload.tool_input?.prompt) });
-  } catch (err) {
-    S.logError(p, 'PostToolUse', err);
-  }
+function onSubagentStop(payload) {
+  const projectDir = S.findProjectDir(payload.cwd || process.cwd());
+  if (!projectDir || M.loadJob(projectDir)?.phase !== 'stir') return;
+  const file = payload.agent_transcript_path;
+  if (typeof file !== 'string' || !file.endsWith('.jsonl') || !existsSync(file)) return;
+  const usage = M.transcriptUsage(readFileSync(file, 'utf8'));
+  if (!usage.unitId || usage.total <= 0) return;
+  M.recordTokens(projectDir, { tokens: usage.total, unitId: usage.unitId, agentId: payload.agent_id });
 }
 
-/** Hook: PostToolUse on edit tools, Artifact and Agent. Records touched files, approvals, publishes and helper tokens. */
+/** Hook: PostToolUse on edit tools and Artifact. Records touched files, approvals and publishes. */
 function onPostToolUse(payload) {
   const projectDir = S.findProjectDir(payload.cwd || process.cwd());
   if (!projectDir) return;
   const p = S.paths(projectDir, payload.session_id);
-  if (payload.tool_name === 'Agent') {
-    meterHelper(projectDir, p, payload);
-    return;
-  }
   const input = payload.tool_input || {};
   if (payload.tool_name === 'Artifact') {
     if (input.action && input.action !== 'publish') return;
@@ -860,7 +855,13 @@ function cmdSync(args) {
   console.log(`SYNC new=${diff.newPages.length} changed_journeys=${targets.changedJourneys.length} units=${units.length}`);
 }
 
-const HOOKS = { SessionStart: onSessionStart, PreToolUse: onPreToolUse, PostToolUse: onPostToolUse, Stop: onStop };
+const HOOKS = {
+  SessionStart: onSessionStart,
+  PreToolUse: onPreToolUse,
+  PostToolUse: onPostToolUse,
+  SubagentStop: onSubagentStop,
+  Stop: onStop,
+};
 
 /**
  * Entry point.

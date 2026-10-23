@@ -1109,14 +1109,20 @@ function stirAll(project) {
 }
 
 /**
- * Fires the PostToolUse hook for a finished helper.
+ * Fires the SubagentStop hook for a finished helper, with a transcript like the one Claude Code writes.
  *
  * @param {object} project - Test project.
- * @param {object} fields - Overrides for tool_input and tool_response.
+ * @param {object} fields - The helper's prompt, tokens, agent id, or a raw transcript to use instead.
  * @returns {void}
  */
-function helperDone(project, { prompt, response = { status: 'completed', totalTokens: 1234 } }) {
-  new Chat(project).fire('PostToolUse', { tool_name: 'Agent', tool_input: { description: 'Map a part', subagent_type: 'general-purpose', prompt }, tool_response: response, tool_use_id: 'toolu_03' });
+function helperDone(project, { prompt, tokens = 1234, agentId = `agent-${Math.random().toString(16).slice(2)}`, transcript } = {}) {
+  const file = path.join(project.dir, '.journeys', `${agentId}.jsonl`);
+  const lines = transcript ?? [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: prompt } }),
+    JSON.stringify({ type: 'assistant', message: { id: 'msg_1', role: 'assistant', usage: { input_tokens: tokens, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 } } }),
+  ].join('\n');
+  project.write(path.relative(project.dir, file), lines);
+  new Chat(project).fire('SubagentStop', { agent_id: agentId, agent_type: 'general-purpose', agent_transcript_path: file, stop_hook_active: false });
 }
 
 describe('first-map pipeline: chop and stir', () => {
@@ -1320,13 +1326,32 @@ describe('first-map pipeline: budget and hooks', () => {
     assert.match(run(project, 'stir', 'next'), /^BUDGET_REACHED /);
   });
 
-  it('counts a helper without a marker toward the job but not toward a unit', () => {
+  it('ignores helpers that are not working on a map unit, and counts each helper once', () => {
     const project = makeProject();
     run(project, 'chop');
     helperDone(project, { prompt: 'Look around and tell me what you see' });
-    const job = jobOf(project);
-    assert.equal(job.usedTokens, 1234);
-    assert.ok(job.units.every((u) => u.tokens === 0));
+    assert.equal(jobOf(project).usedTokens, 0, 'no unit marker: not a map helper');
+    const [id] = run(project, 'stir', 'next').trim().split('\n').map((line) => line.split(' ')[1]);
+    helperDone(project, { prompt: `[chefs-table unit ${id}]`, agentId: 'same-agent' });
+    helperDone(project, { prompt: `[chefs-table unit ${id}]`, agentId: 'same-agent' });
+    assert.equal(jobOf(project).usedTokens, 1234, 'a repeated SubagentStop for the same helper is not counted twice');
+  });
+
+  it('sums every API message once: fresh input, cache reads and output', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    const [id] = run(project, 'stir', 'next').trim().split('\n').map((line) => line.split(' ')[1]);
+    const usage = (n) => ({ input_tokens: n, cache_creation_input_tokens: 10, cache_read_input_tokens: 100, output_tokens: 1 });
+    const transcript = [
+      JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: `[chefs-table unit ${id}]\nRead the brief` }] } }),
+      JSON.stringify({ type: 'assistant', message: { id: 'm1', usage: usage(5) } }),
+      JSON.stringify({ type: 'assistant', message: { id: 'm1', usage: usage(5) } }),
+      'not json',
+      JSON.stringify({ type: 'assistant', message: { id: 'm2', usage: usage(7) } }),
+    ].join('\n');
+    helperDone(project, { transcript });
+    assert.equal(jobOf(project).usedTokens, (5 + 10 + 100 + 1) + (7 + 10 + 100 + 1));
+    assert.equal(jobOf(project).units.find((u) => u.id === id).tokens, 234);
   });
 
   it('ignores helpers when no job is stirring, or when the usage is not a number', () => {
@@ -1334,9 +1359,10 @@ describe('first-map pipeline: budget and hooks', () => {
     helperDone(project, { prompt: '[chefs-table unit area-home]' });
     assert.equal(project.exists(`${BUILD}/job.json`), false, 'no job: nothing is created');
     run(project, 'chop');
-    for (const totalTokens of ['1234', null, -5, 0, undefined]) {
-      helperDone(project, { prompt: '[chefs-table unit area-home]', response: { status: 'completed', totalTokens } });
-    }
+    for (const tokens of [0, -5]) helperDone(project, { prompt: '[chefs-table unit area-home]', tokens });
+    helperDone(project, { transcript: '' });
+    new Chat(project).fire('SubagentStop', { agent_id: 'x', agent_transcript_path: '/no/such/file.jsonl' });
+    new Chat(project).fire('SubagentStop', { agent_id: 'y', agent_transcript_path: 42 });
     assert.equal(jobOf(project).usedTokens, 0);
     for (const { id } of jobOf(project).units) run(project, 'stir', 'fail', id, 'skipped');
     assert.equal(run(project, 'stir', 'next').trim(), 'STIR_DONE');
