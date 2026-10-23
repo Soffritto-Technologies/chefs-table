@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+coverage/
+*.log
+.journeys/.session/
+.journeys/.local.json
+*.tmp-*
+.journeys/.anchor-cache.json

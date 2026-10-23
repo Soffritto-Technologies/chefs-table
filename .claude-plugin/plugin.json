@@ -1,0 +1,8 @@
+{
+  "name": "journeymap",
+  "version": "0.1.0",
+  "description": "A live, zoomable map of your app's user journeys. Claude plans changes on the map, asks before building over an existing flow, and keeps the map current every turn.",
+  "author": { "name": "journeymap contributors" },
+  "license": "MIT",
+  "keywords": ["user-journeys", "visualization", "qa", "non-technical"]
+}

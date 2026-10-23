@@ -1,0 +1,11 @@
+{
+  "name": "journeymap",
+  "owner": { "name": "journeymap contributors" },
+  "plugins": [
+    {
+      "name": "journeymap",
+      "source": "./",
+      "description": "A live, zoomable map of your app's user journeys that Claude Code keeps up to date as it builds."
+    }
+  ]
+}
