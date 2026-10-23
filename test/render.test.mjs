@@ -8,7 +8,7 @@ import { buildViewModel, escapeJsonForHtml, renderHtml, viewModelHash } from '..
 import { OTHER_AREA_ID } from '../lib/types.mjs';
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../templates/journeys.html', import.meta.url));
-const SAMPLE = JSON.parse(readFileSync(new URL('./fixtures/sample-journeys.json', import.meta.url), 'utf8'));
+const SAMPLE = JSON.parse(readFileSync(new URL('../fixtures/sample-journeys.json', import.meta.url), 'utf8'));
 
 /**
  * Makes a minimal step.

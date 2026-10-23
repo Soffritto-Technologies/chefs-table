@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildViewModel, renderHtml } from '../lib/render.mjs';
 
-const FIXTURE = fileURLToPath(new URL('../test/fixtures/sample-journeys.json', import.meta.url));
+const FIXTURE = fileURLToPath(new URL('../fixtures/sample-journeys.json', import.meta.url));
 const OUTPUT = fileURLToPath(new URL('../docs/sample.html', import.meta.url));
 
 const PLANNED_JOURNEY = {

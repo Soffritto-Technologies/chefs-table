@@ -910,13 +910,13 @@ describe('CLI', () => {
     assert.equal(project.json('.journeys/journeys.json').version, 1);
     assert.equal(project.json('.journeys/journeys.json').app, path.basename(project.dir));
     assert.equal(project.json('.journeys/config.json').root, undefined);
-    assert.deepEqual(project.read('.gitignore').split('\n').filter(Boolean), ['.journeys/.session/', '.journeys/.local.json', '.journeys/.anchor-cache.json']);
+    assert.deepEqual(project.read('.gitignore').split('\n').filter(Boolean), ['.journeys/.session/', '.journeys/.local.json', '.journeys/.anchor-cache.json', '.journeys/build/']);
 
     project.writeDoc(baseDoc());
     const second = runCli(project, ['init']);
     assert.equal(second.status, 0);
     assert.equal(project.json('.journeys/journeys.json').journeys.length, 2, 'does not overwrite the map');
-    assert.deepEqual(project.read('.gitignore').split('\n').filter(Boolean), ['.journeys/.session/', '.journeys/.local.json', '.journeys/.anchor-cache.json']);
+    assert.deepEqual(project.read('.gitignore').split('\n').filter(Boolean), ['.journeys/.session/', '.journeys/.local.json', '.journeys/.anchor-cache.json', '.journeys/build/']);
   });
 
   it('init works from a terminal, where Claude Code has not set a session id', () => {
@@ -1043,5 +1043,336 @@ describe('CLI', () => {
     const none = runCli(project, []);
     assert.equal(none.status, 0);
     assert.match(none.stdout, /^Usage: journeys /);
+  });
+});
+
+/* ───────────── First-map pipeline: chop → stir → check (resumable, budgeted) ───────────── */
+
+import { setGitHead, unitOutput } from './helpers/project.mjs';
+
+const BUILD = '.journeys/build';
+const SHA_A = 'a'.repeat(40);
+const SHA_B = 'b'.repeat(40);
+
+/**
+ * Runs a CLI command that must succeed.
+ *
+ * @param {object} project - Test project.
+ * @param {...string} args - CLI arguments.
+ * @returns {string} stdout.
+ */
+function run(project, ...args) {
+  const result = runCli(project, args);
+  assert.equal(result.status, 0, `${args.join(' ')}: ${result.stderr}${result.stdout}`);
+  return result.stdout;
+}
+
+/**
+ * Reads the current map job.
+ *
+ * @param {object} project - Test project.
+ * @returns {any} job.json.
+ */
+function jobOf(project) {
+  return project.json(`${BUILD}/job.json`);
+}
+
+/**
+ * Plays the helpers: writes an output for every unit a `stir next` handed out and submits it.
+ *
+ * @param {object} project - Test project.
+ * @param {string} stdout - Output of `stir next`.
+ * @returns {string[]} The unit ids finished.
+ */
+function finishWave(project, stdout) {
+  const ids = [...stdout.matchAll(/^UNIT (\S+) /gm)].map((match) => match[1]);
+  for (const id of ids) {
+    project.write(`${BUILD}/units/${id}.out.json`, JSON.stringify(unitOutput(jobOf(project).units.find((u) => u.id === id))));
+    assert.match(run(project, 'stir', 'submit', id), new RegExp(`^UNIT_OK ${id}\n`));
+  }
+  return ids;
+}
+
+/**
+ * Runs stir waves until the CLI says STIR_DONE.
+ *
+ * @param {object} project - Test project.
+ * @returns {void}
+ */
+function stirAll(project) {
+  for (let wave = 0; wave < 10; wave += 1) {
+    const out = run(project, 'stir', 'next', '--count', '3');
+    if (/^STIR_DONE$/m.test(out)) return;
+    finishWave(project, out);
+  }
+  assert.fail('stir never finished');
+}
+
+/**
+ * Fires the PostToolUse hook for a finished helper.
+ *
+ * @param {object} project - Test project.
+ * @param {object} fields - Overrides for tool_input and tool_response.
+ * @returns {void}
+ */
+function helperDone(project, { prompt, response = { status: 'completed', totalTokens: 1234 } }) {
+  new Chat(project).fire('PostToolUse', { tool_name: 'Agent', tool_input: { description: 'Map a part', subagent_type: 'general-purpose', prompt }, tool_response: response, tool_use_id: 'toolu_03' });
+}
+
+describe('first-map pipeline: chop and stir', () => {
+  it('chop scans the code, writes a stable inventory and starts a job', () => {
+    const project = makeProject();
+    const out = run(project, 'chop');
+    const { units } = jobOf(project);
+    assert.match(out, /^Found 4 pages in 4 areas/);
+    assert.match(out, new RegExp(`^UNITS ${units.length}$`, 'm'));
+    assert.match(out, /^EST_TOKENS \d+$/m);
+    assert.ok(units.length >= 4 && units.every((u) => u.status === 'pending' && u.attempts === 0 && u.tokens === 0));
+    const inventory = project.read('.journeys/inventory.json');
+    assert.deepEqual(JSON.parse(inventory).pages.map((p) => p.route).sort(), ['/', '/blog/:param', '/checkout', '/legacy']);
+    run(project, 'chop', '--restart');
+    assert.equal(project.read('.journeys/inventory.json'), inventory, 'same code gives the same file');
+  });
+
+  it('chop resumes an unfinished job, and a new budget replaces the old one', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    finishWave(project, run(project, 'stir', 'next'));
+    const again = run(project, 'chop', '--budget-tokens', '777');
+    assert.match(again, /^RESUMED 1\/4$/m);
+    assert.match(again, /Picking up an unfinished map job: 1 of 4 work units are done\./);
+    assert.equal(jobOf(project).budget.tokens, 777);
+    assert.deepEqual(jobOf(project).units.map((u) => u.status).sort(), ['done', 'pending', 'pending', 'pending']);
+    assert.doesNotMatch(run(project, 'chop', '--restart'), /RESUMED/);
+    assert.ok(jobOf(project).units.every((u) => u.status === 'pending'));
+  });
+
+  it('chop warns when a percent limit has no starting percentage', () => {
+    const project = makeProject();
+    assert.match(run(project, 'chop', '--budget-percent', '10'), /no --start-percent was given/);
+  });
+
+  it('stir next hands out units whose briefs start with the marker, and gives crashed work back', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    const lines = run(project, 'stir', 'next', '--count', '2').trim().split('\n');
+    assert.equal(lines.length, 2);
+    for (const line of lines) {
+      const [, id, brief] = /^UNIT (\S+) (.+)$/.exec(line);
+      assert.equal(brief, project.abs(`${BUILD}/units/${id}.brief.md`));
+      assert.ok(project.read(`${BUILD}/units/${id}.brief.md`).startsWith(`[chefs-table unit ${id}]\n`));
+    }
+    assert.equal(jobOf(project).units.filter((u) => u.status === 'in_progress').length, 2);
+    run(project, 'stir', 'next', '--count', '1');
+    assert.deepEqual(jobOf(project).units.map((u) => [u.status, u.attempts]), [['in_progress', 2], ['pending', 1], ['pending', 0], ['pending', 0]]);
+  });
+
+  it('stir submit accepts valid output and explains invalid output', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    const id = /^UNIT (\S+)/.exec(run(project, 'stir', 'next'))[1];
+    const bad = unitOutput(jobOf(project).units[0]);
+    bad.journeys[0].steps[0].anchor = fileAnchor('/etc/passwd');
+    project.write(`${BUILD}/units/${id}.out.json`, JSON.stringify(bad));
+    const rejected = runCli(project, ['stir', 'submit', id]);
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stdout, new RegExp(`^UNIT_INVALID ${id}\n- .*not a full path`));
+    assert.equal(jobOf(project).units[0].status, 'in_progress');
+    finishWave(project, `UNIT ${id} x`);
+    assert.equal(jobOf(project).units[0].status, 'done');
+    assert.equal(project.json('.journeys/journeys.json').journeys.length, 2, 'journeys.json changes only at check');
+  });
+
+  it('stir fail gives up on a unit, and stir needs a unit id', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    assert.equal(run(project, 'stir', 'fail', 'area-blog', 'could', 'not', 'read', 'it').trim(), 'UNIT_FAILED area-blog');
+    const unit = jobOf(project).units.find((u) => u.id === 'area-blog');
+    assert.deepEqual([unit.status, unit.failReason], ['failed', 'could not read it']);
+    assert.match(runCli(project, ['stir', 'fail', 'nope', 'x']).stderr, /no work unit "nope"/);
+    assert.match(runCli(project, ['stir', 'submit']).stderr, /Usage: journeys stir submit <id>/);
+    assert.match(runCli(project, ['stir']).stderr, /Usage: journeys stir/);
+  });
+
+  it('pipeline commands explain a missing job, a bad number and a missing project', () => {
+    const project = makeProject();
+    for (const args of [['stir', 'next'], ['budget'], ['check', '--coverage']]) {
+      const result = runCli(project, args);
+      assert.equal(result.status, 1, args.join(' '));
+      assert.match(result.stderr, /No (map job|inventory) yet\. Run: journeys chop/);
+    }
+    assert.match(runCli(project, ['sync']).stderr, /no saved inventory/);
+    assert.match(runCli(project, ['chop', '--budget-tokens', 'lots']).stderr, /--budget-tokens needs a number/);
+    const bare = makeProject({ doc: null, fixture: false });
+    for (const args of [['chop'], ['stir', 'next'], ['budget'], ['sync'], ['check', '--coverage']]) {
+      assert.match(runCli(bare, args).stderr, /Chef's Table is not set up here/);
+    }
+  });
+});
+
+describe('first-map pipeline: check, gaps and sync', () => {
+  it('runs the whole pipeline to MAP_DONE', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    stirAll(project);
+    assert.equal(jobOf(project).phase, 'check');
+    const out = run(project, 'check', '--coverage');
+    assert.match(out, /^COVERAGE 100$/m);
+    assert.match(out, /^MAP_DONE$/m);
+    assert.equal(jobOf(project).phase, 'done');
+    assert.equal(project.json(`${BUILD}/coverage.json`).percent, 100);
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.journeys.map((j) => j.id), ['browse', 'pay', 'j-area-blog', 'j-area-checkout', 'j-area-home', 'j-area-legacy']);
+    assert.deepEqual(doc.areas.map((a) => a.id).sort(), ['blog', 'checkout', 'home', 'legacy']);
+    assert.match(run(project, 'check'), /^VALID: 6 journeys/);
+  });
+
+  it('keeps the job open while units are still waiting', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    finishWave(project, run(project, 'stir', 'next'));
+    const out = run(project, 'check', '--coverage');
+    assert.match(out, /^COVERAGE 75$/m, 'the starting map already covers / and /checkout');
+    assert.match(out, /^Missing pages \(3 of 4 covered\):\n- \/legacy\n/m);
+    assert.match(out, /^PARTIAL 1\/4$/m);
+    assert.doesNotMatch(out, /GAPS|MAP_DONE/);
+    assert.equal(jobOf(project).phase, 'stir');
+    assert.equal(project.json('.journeys/journeys.json').journeys.length, 3, 'the finished unit is already merged');
+  });
+
+  it('adds gap units for failed pages once, then finishes instead of looping', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    finishWave(project, run(project, 'stir', 'next'));
+    for (const id of ['area-checkout', 'area-home', 'area-legacy']) run(project, 'stir', 'fail', id, 'gave up');
+    assert.match(run(project, 'check', '--coverage'), /^GAPS 1$/m);
+    assert.equal(jobOf(project).phase, 'stir');
+    const gaps = jobOf(project).units.filter((u) => u.kind === 'gap');
+    assert.deepEqual(gaps.map((u) => [u.id, u.routes]), [['gap-1', ['/legacy']]]);
+    run(project, 'stir', 'fail', 'gap-1', 'gave up again');
+    const last = run(project, 'check', '--coverage');
+    assert.match(last, /^COVERAGE 75$/m);
+    assert.match(last, /^MAP_DONE$/m);
+    assert.equal(jobOf(project).phase, 'done');
+  });
+
+  it('refuses to save a merged map that is invalid', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    const [id] = finishWave(project, run(project, 'stir', 'next'));
+    const before = project.read('.journeys/journeys.json');
+    project.write(`${BUILD}/units/${id}.out.json`, '{"journeys":[{"id":"x"}]}');
+    const result = runCli(project, ['check', '--coverage']);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /^INVALID\n- /);
+    assert.equal(project.read('.journeys/journeys.json'), before);
+  });
+
+  it('sync redoes only what changed, then reports nothing to do', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    stirAll(project);
+    run(project, 'check', '--coverage');
+    assert.equal(run(project, 'sync').trim(), 'SYNC_NOTHING');
+    project.write('app/gift/page.tsx', 'export default function Gift() {\n  return null;\n}\n');
+    project.write('src/components/Nav.tsx', `${project.read('src/components/Nav.tsx')}\n// edited\n`);
+    const out = run(project, 'sync', '--budget-tokens', '5000');
+    assert.match(out, /^SYNC new=1 changed_journeys=1 units=2$/m);
+    assert.match(out, /^UNITS 2$/m);
+    const job = jobOf(project);
+    assert.deepEqual([job.kind, job.phase, job.budget.tokens], ['sync', 'stir', 5000]);
+    assert.deepEqual(job.units.map((u) => u.kind), ['refresh', 'refresh']);
+    assert.deepEqual(job.units.flatMap((u) => u.routes).sort(), ['/checkout', '/gift']);
+    assert.match(run(project, 'sync'), /^RESUMED 0\/2$/m, 'an unfinished job is resumed, not replaced');
+    stirAll(project);
+    assert.match(run(project, 'check', '--coverage'), /^MAP_DONE$/m);
+    assert.equal(run(project, 'sync').trim(), 'SYNC_NOTHING', 'the baseline moved forward');
+  });
+});
+
+describe('first-map pipeline: budget and hooks', () => {
+  it('stops at the percent budget and resumes under a new window', () => {
+    const project = makeProject();
+    run(project, 'chop', '--budget-percent', '5', '--start-percent', '10');
+    assert.equal(run(project, 'budget', '--now-percent', '12'), 'BUDGET used=0 limit=none percent=10→12 of 5\n');
+    assert.match(run(project, 'stir', 'next', '--now-percent', '14'), /^UNIT /);
+    const stopped = run(project, 'stir', 'next', '--now-percent', '15');
+    assert.equal(stopped, 'BUDGET_REACHED This run has used 5 of your 5 allowed points of 5-hour usage (10% → 15%).\n');
+    assert.equal(jobOf(project).phase, 'stopped');
+    assert.match(run(project, 'budget'), /^BUDGET used=0 limit=none percent=10→15 of 5\nBUDGET_REACHED /);
+    assert.match(run(project, 'chop', '--budget-percent', '5', '--start-percent', '1'), /^RESUMED 0\/4$/m);
+    assert.match(run(project, 'stir', 'next', '--now-percent', '2'), /^UNIT /);
+    assert.equal(jobOf(project).phase, 'stir');
+  });
+
+  it('meters helper tokens through the hook and stops at the token budget', () => {
+    const project = makeProject();
+    run(project, 'chop', '--budget-tokens', '2000');
+    const [first, second] = run(project, 'stir', 'next', '--count', '2').trim().split('\n').map((line) => line.split(' ')[1]);
+    helperDone(project, { prompt: `[chefs-table unit ${first}]\nRead the brief at /x and follow it.` });
+    const job = jobOf(project);
+    assert.equal(job.usedTokens, 1234);
+    assert.deepEqual(job.units.map((u) => [u.id, u.tokens]).filter(([, t]) => t), [[first, 1234]]);
+    assert.equal(run(project, 'budget'), 'BUDGET used=1234 limit=2000 percent=none\n');
+    helperDone(project, { prompt: `[chefs-table unit ${second}]\nRead the brief` });
+    assert.equal(jobOf(project).usedTokens, 2468);
+    assert.match(run(project, 'budget'), /\nBUDGET_REACHED This run has used 2,468 of its 2,000 allowed tokens\.\n$/);
+    assert.match(run(project, 'stir', 'next'), /^BUDGET_REACHED /);
+  });
+
+  it('counts a helper without a marker toward the job but not toward a unit', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    helperDone(project, { prompt: 'Look around and tell me what you see' });
+    const job = jobOf(project);
+    assert.equal(job.usedTokens, 1234);
+    assert.ok(job.units.every((u) => u.tokens === 0));
+  });
+
+  it('ignores helpers when no job is stirring, or when the usage is not a number', () => {
+    const project = makeProject();
+    helperDone(project, { prompt: '[chefs-table unit area-home]' });
+    assert.equal(project.exists(`${BUILD}/job.json`), false, 'no job: nothing is created');
+    run(project, 'chop');
+    for (const totalTokens of ['1234', null, -5, 0, undefined]) {
+      helperDone(project, { prompt: '[chefs-table unit area-home]', response: { status: 'completed', totalTokens } });
+    }
+    assert.equal(jobOf(project).usedTokens, 0);
+    for (const { id } of jobOf(project).units) run(project, 'stir', 'fail', id, 'skipped');
+    assert.equal(run(project, 'stir', 'next').trim(), 'STIR_DONE');
+    assert.equal(jobOf(project).phase, 'check');
+    helperDone(project, { prompt: '[chefs-table unit area-home]' });
+    assert.equal(jobOf(project).usedTokens, 0, 'only the stir phase is metered');
+    project.write(`${BUILD}/job.json`, '{broken');
+    helperDone(project, { prompt: '[chefs-table unit area-home]' });
+  });
+
+  it('SessionStart says when the code moved since the last map and when a job is unfinished', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    project.write('.journeys/inventory.json', JSON.stringify({ ...project.json('.journeys/inventory.json'), head: SHA_A }));
+    setGitHead(project, SHA_B);
+    const context = (chat) => chat.start().stdout.hookSpecificOutput.additionalContext;
+    const moved = context(new Chat(project));
+    assert.match(moved, /Code changed since the last full map\. Run \/chefs-table:sync to refresh the affected journeys\./);
+    assert.match(moved, /An unfinished map job exists \(0 of 4 work units done\)\. Run \/chefs-table:map-app to resume\./);
+    setGitHead(project, SHA_A);
+    assert.doesNotMatch(context(new Chat(project)), /Code changed since/);
+    project.remove(BUILD);
+    const quiet = context(new Chat(project));
+    assert.doesNotMatch(quiet, /unfinished map job|Code changed/);
+  });
+
+  it('SessionStart keeps both notes inside the 2048-byte cap even with a long journey list', () => {
+    const many = Array.from({ length: 200 }, (_, i) => journey(`j${i}`, `Journey number ${i} with a fairly long title`, [step('a', `/page-${i}`, { anchor: fileAnchor('app/page.tsx') })]));
+    const project = makeProject({ doc: docOf(many) });
+    run(project, 'chop');
+    project.write('.journeys/inventory.json', JSON.stringify({ ...project.json('.journeys/inventory.json'), head: SHA_A }));
+    setGitHead(project, SHA_B);
+    const context = new Chat(project).start().stdout.hookSpecificOutput.additionalContext;
+    assert.ok(Buffer.byteLength(context) <= 2048, `${Buffer.byteLength(context)} bytes`);
+    assert.match(context, /Run \/chefs-table:sync/);
+    assert.match(context, /Run \/chefs-table:map-app to resume/);
+    assert.match(context, /… \d+ more journeys/);
   });
 });

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const BIN = join(ROOT, 'bin', 'journeys.mjs');
-export const FIXTURE = join(ROOT, 'test', 'fixtures', 'next-app');
+export const FIXTURE = join(ROOT, 'fixtures', 'next-app');
 export const DEFAULT_SID = 'sess-aaaa-1111';
 export const HOSTILE = '</script><img src=x onerror=alert(1)>';
 
@@ -240,7 +240,7 @@ export class Project {
  * @param {object} [options]
  * @param {object|string|null} [options.doc] - journeys.json to write (default {@link baseDoc}); null writes none.
  * @param {object} [options.config] - Optional `.journeys/config.json`.
- * @param {boolean} [options.fixture] - Copy test/fixtures/next-app first (default true).
+ * @param {boolean} [options.fixture] - Copy fixtures/next-app first (default true).
  * @returns {Project} The project; it is deleted by {@link cleanupProjects}.
  */
 export function makeProject({ doc = baseDoc(), config, fixture = true } = {}) {
@@ -512,4 +512,77 @@ export class Chat {
   stop({ active = false } = {}) {
     return this.fire('Stop', { stop_hook_active: active });
   }
+}
+
+/**
+ * A hand-made inventory (three pages, one form, one endpoint) for tests that must not depend on the scanner.
+ *
+ * @returns {object} A fresh Inventory each call.
+ */
+export function sampleInventory() {
+  return {
+    version: 1,
+    head: null,
+    pages: [
+      { route: '/', file: 'app/page.tsx', source: 'next', area: 'home' },
+      { route: '/checkout', file: 'app/(shop)/checkout/page.tsx', source: 'next', area: 'checkout' },
+      { route: '/blog/:param', file: 'app/blog/[id]/page.tsx', source: 'next', area: 'blog' },
+      { route: '/gift', file: 'app/gift/page.tsx', source: 'next', area: 'gift' },
+    ],
+    links: [],
+    items: [
+      { kind: 'form', file: 'app/(shop)/checkout/page.tsx', line: 12, detail: 'form with card number' },
+      { kind: 'endpoint', file: 'pages/api/pay.ts', line: 1, detail: 'POST /api/pay' },
+    ],
+    imports: {},
+    areas: [
+      { id: 'home', title: 'Home', routes: ['/'] },
+      { id: 'checkout', title: 'Checkout', routes: ['/checkout'] },
+      { id: 'blog', title: 'Blog', routes: ['/blog/:param'] },
+      { id: 'gift', title: 'Gifts', routes: ['/gift'] },
+    ],
+    files: {
+      'app/page.tsx': { bytes: 400, sha1: 'a1' },
+      'app/(shop)/checkout/page.tsx': { bytes: 4000, sha1: 'b2' },
+      'pages/api/pay.ts': { bytes: 200, sha1: 'c3' },
+      'app/blog/[id]/page.tsx': { bytes: 800, sha1: 'd4' },
+      'app/gift/page.tsx': { bytes: 600, sha1: 'e5' },
+    },
+  };
+}
+
+/**
+ * Work units that cover {@link sampleInventory}'s home, checkout and blog pages.
+ *
+ * @returns {object[]} Fresh WorkUnits each call.
+ */
+export function sampleUnits() {
+  const unit = (area, title, routes, files) => ({ id: `area-${area}`, kind: 'area', area, title, routes, files, estTokens: 100 * files.length });
+  return [
+    unit('home', 'Home', ['/'], ['app/page.tsx']),
+    unit('checkout', 'Checkout', ['/checkout'], ['app/(shop)/checkout/page.tsx', 'pages/api/pay.ts']),
+    unit('blog', 'Blog', ['/blog/:param'], ['app/blog/[id]/page.tsx']),
+  ];
+}
+
+/**
+ * What a helper would write for a work unit: one journey with a route step per page the unit covers.
+ *
+ * @param {{ id: string, area: string, title: string, routes: string[] }} unit - The work unit.
+ * @returns {object} Contents of units/<id>.out.json.
+ */
+export function unitOutput(unit) {
+  const steps = unit.routes.map((route, i) => step(`s${i}`, route, { next: i + 1 < unit.routes.length ? [`s${i + 1}`] : [] }));
+  return { areas: [{ id: unit.area, title: unit.title }], journeys: [journey(`j-${unit.id}`, `Journey ${unit.id}`, steps, { area: unit.area })] };
+}
+
+/**
+ * Points a project's fake `.git/HEAD` at a commit, so `readGitHead` sees a (detached) HEAD.
+ *
+ * @param {Project} project - The project.
+ * @param {string} sha - 40 hex characters.
+ * @returns {void}
+ */
+export function setGitHead(project, sha) {
+  project.write('.git/HEAD', `${sha}\n`);
 }

@@ -7,7 +7,7 @@
       { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PreToolUse", "timeout": 5 }] }
     ],
     "PostToolUse": [
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Artifact", "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PostToolUse", "timeout": 5 }] }
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Artifact|Agent", "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook PostToolUse", "timeout": 5 }] }
     ],
     "Stop": [
       { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/run.sh\" hook Stop", "timeout": 30 }] }

@@ -4,7 +4,7 @@ Deferred on purpose. Each item says why it waited and where to start.
 
 - **Route resolvers for SvelteKit, Remix and Nuxt**
   - **Why it waited:** Next.js file routes plus `path:` definitions cover most AI-built apps today. Other frameworks show as "unverified", which is honest but less useful.
-  - **Start in:** `lib/anchors.mjs` `routeFromNextFile`. Add a sibling per framework and a fixture under `test/fixtures/`.
+  - **Start in:** `lib/anchors.mjs` `routeFromNextFile`. Add a sibling per framework and a fixture under `fixtures/`.
 - **Time scrubber (v1.5)**
   - **What:** replay how the map changed turn by turn.
   - **Needs:** an append-only `.journeys/.session/<id>/history.jsonl` written at each Stop, plus a slider in `templates/journeys.html`.

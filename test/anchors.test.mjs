@@ -16,7 +16,7 @@ import {
 } from '../lib/anchors.mjs';
 import { DEFAULT_CONFIG } from '../lib/types.mjs';
 
-const fixture = (name) => path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', name);
+const fixture = (name) => path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', name);
 const NEXT = fixture('next-app');
 const VITE = fixture('vite-router');
 const DIRS = DEFAULT_CONFIG.routeDirs;
