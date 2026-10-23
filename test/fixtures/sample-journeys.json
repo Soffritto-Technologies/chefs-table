@@ -1,0 +1,403 @@
+{
+  "version": 1,
+  "app": "Petal & Stem",
+  "areas": [
+    { "id": "shop", "title": "Shopping", "say": "Finding flowers and paying for them" },
+    { "id": "account", "title": "Your account", "say": "Signing up, signing in and tracking orders" },
+    { "id": "studio", "title": "Running the shop", "say": "What the florist does behind the scenes" }
+  ],
+  "journeys": [
+    {
+      "id": "browse",
+      "title": "Browse and pick a bouquet",
+      "area": "shop",
+      "who": "Customer",
+      "steps": [
+        {
+          "id": "home",
+          "say": "Lands on the home page and sees this week's bouquets",
+          "screen": "/",
+          "anchor": { "type": "route", "value": "/" },
+          "next": ["occasion", "bouquet"],
+          "detail": {
+            "sees": "A big photo of the bouquet of the week, then a grid of six bouquets with prices.",
+            "does": "Scrolls, or taps an occasion such as Birthday or Sympathy.",
+            "rules": ["Sold-out bouquets are hidden", "Prices include delivery inside the city"],
+            "files": ["src/app/page.tsx", "src/components/BouquetGrid.tsx"]
+          }
+        },
+        {
+          "id": "occasion",
+          "say": "Filters bouquets by occasion",
+          "screen": "/shop/[occasion]",
+          "anchor": { "type": "route", "value": "/shop/[occasion]" },
+          "next": ["bouquet"],
+          "detail": {
+            "sees": "Only the bouquets for the chosen occasion, cheapest first.",
+            "does": "Picks one to look at more closely.",
+            "files": ["src/app/shop/[occasion]/page.tsx"]
+          }
+        },
+        {
+          "id": "bouquet",
+          "say": "Opens a bouquet, picks a size and adds it to the basket",
+          "screen": "/bouquets/[slug]",
+          "anchor": { "type": "route", "value": "/bouquets/[slug]" },
+          "next": [],
+          "detail": {
+            "sees": "Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.",
+            "does": "Chooses a size and taps Add to basket.",
+            "rules": ["Grand needs two days' notice", "The basket badge updates straight away"],
+            "saves": ["Basket item"],
+            "files": ["src/app/bouquets/[slug]/page.tsx", "src/lib/basket.ts"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "checkout",
+      "title": "Checkout",
+      "area": "shop",
+      "who": "Customer",
+      "steps": [
+        {
+          "id": "cart",
+          "say": "Reviews the basket",
+          "screen": "/cart",
+          "anchor": { "type": "route", "value": "/cart" },
+          "next": ["delivery"],
+          "detail": {
+            "sees": "Each bouquet with its size and price, and the total.",
+            "does": "Changes a quantity or taps Checkout.",
+            "rules": ["An empty basket shows a link back to the shop"],
+            "files": ["src/app/cart/page.tsx"]
+          }
+        },
+        {
+          "id": "delivery",
+          "say": "Chooses a delivery date and address",
+          "screen": "/checkout/delivery",
+          "anchor": { "type": "route", "value": "/checkout/delivery" },
+          "next": ["gift-note", "pay"],
+          "detail": {
+            "sees": "A calendar of available days and an address form.",
+            "does": "Picks a day, enters the address, and says whether it's a gift.",
+            "rules": ["Sundays are closed", "Orders after 2pm can't go out the same day"],
+            "saves": ["Delivery address", "Delivery date"],
+            "files": ["src/app/checkout/delivery/page.tsx", "src/lib/delivery-slots.ts"]
+          }
+        },
+        {
+          "id": "gift-note",
+          "say": "Adds a gift message for the card",
+          "screen": "/checkout/gift-note",
+          "anchor": { "type": "route", "value": "/checkout/gift-note" },
+          "next": ["pay"],
+          "detail": {
+            "sees": "A card preview and a message box.",
+            "does": "Writes a short message, up to 200 letters.",
+            "saves": ["Gift message"],
+            "files": ["src/app/checkout/gift-note/page.tsx"]
+          }
+        },
+        {
+          "id": "pay",
+          "say": "Pays for the order",
+          "screen": "/checkout/pay",
+          "anchor": { "type": "route", "value": "/checkout/pay" },
+          "next": ["confirmation"],
+          "subflow": "card-payment",
+          "detail": {
+            "sees": "The order total and the payment options.",
+            "does": "Pays by card or with a phone wallet.",
+            "rules": ["Nothing is charged until the bank says yes"],
+            "files": ["src/app/checkout/pay/page.tsx"]
+          }
+        },
+        {
+          "id": "confirmation",
+          "say": "Sees the order confirmation",
+          "screen": "/checkout/done",
+          "anchor": { "type": "route", "value": "/checkout/done" },
+          "next": ["receipt"],
+          "detail": {
+            "sees": "A thank-you message, the order number and the delivery day.",
+            "saves": ["Order"],
+            "files": ["src/app/checkout/done/page.tsx"]
+          }
+        },
+        {
+          "id": "receipt",
+          "say": "Gets a receipt by email",
+          "screen": null,
+          "anchor": { "type": "file", "value": "src/emails/receipt.tsx" },
+          "next": [],
+          "detail": {
+            "sees": "An email with the order, the delivery day and a link to track it.",
+            "files": ["src/emails/receipt.tsx"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-payment",
+      "title": "Card payment",
+      "who": "Customer",
+      "steps": [
+        {
+          "id": "card-details",
+          "say": "Enters card details",
+          "screen": "/checkout/pay",
+          "anchor": { "type": "file", "value": "src/components/CardForm.tsx" },
+          "next": ["bank-check"],
+          "detail": {
+            "sees": "Boxes for the card number, expiry date and security code.",
+            "does": "Types the card details and taps Pay.",
+            "rules": ["Card numbers never touch our servers"],
+            "files": ["src/components/CardForm.tsx"]
+          }
+        },
+        {
+          "id": "bank-check",
+          "say": "Confirms the payment with their bank",
+          "screen": "/checkout/pay/verify",
+          "anchor": { "type": "route", "value": "/checkout/pay/verify" },
+          "next": ["result"],
+          "detail": {
+            "sees": "Their bank's own check, usually a code by text message.",
+            "does": "Types the code from the bank.",
+            "files": ["src/app/checkout/pay/verify/page.tsx"]
+          }
+        },
+        {
+          "id": "result",
+          "say": "The payment goes through, or is declined",
+          "screen": "/checkout/pay",
+          "anchor": { "type": "file", "value": "src/lib/payments.ts" },
+          "next": ["card-details"],
+          "detail": {
+            "rules": ["Declined → the error stays on the page and they can try another card", "Approved → on to the confirmation"],
+            "saves": ["Payment"],
+            "files": ["src/lib/payments.ts"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign-up",
+      "title": "Create an account",
+      "area": "account",
+      "who": "New customer",
+      "steps": [
+        {
+          "id": "form",
+          "say": "Fills in name, email and password",
+          "screen": "/sign-up",
+          "anchor": { "type": "route", "value": "/sign-up" },
+          "next": ["verify-email"],
+          "detail": {
+            "sees": "A short form with three boxes.",
+            "does": "Fills it in and taps Create account.",
+            "rules": ["Passwords need at least 10 characters", "One account per email address"],
+            "saves": ["Customer"],
+            "files": ["src/app/sign-up/page.tsx", "src/lib/auth.ts"]
+          }
+        },
+        {
+          "id": "verify-email",
+          "say": "Clicks the link in the welcome email",
+          "screen": null,
+          "anchor": { "type": "file", "value": "src/emails/verify.tsx" },
+          "next": ["welcome"],
+          "detail": {
+            "sees": "A welcome email with a Confirm button.",
+            "does": "Taps the button.",
+            "rules": ["The link stops working after 24 hours"],
+            "files": ["src/emails/verify.tsx"]
+          }
+        },
+        {
+          "id": "welcome",
+          "say": "Lands on their new account page",
+          "screen": "/account",
+          "anchor": { "type": "route", "value": "/account" },
+          "next": [],
+          "detail": { "sees": "A hello message and their saved addresses.", "files": ["src/app/account/page.tsx"] }
+        }
+      ]
+    },
+    {
+      "id": "sign-in",
+      "title": "Sign in",
+      "area": "account",
+      "who": "Customer",
+      "steps": [
+        {
+          "id": "sign-in",
+          "say": "Enters email and password",
+          "screen": "/sign-in",
+          "anchor": { "type": "route", "value": "/sign-in" },
+          "next": ["account", "forgot"],
+          "detail": {
+            "does": "Types their email and password and taps Sign in.",
+            "rules": ["Five wrong tries locks sign-in for 15 minutes"],
+            "files": ["src/app/sign-in/page.tsx", "src/lib/auth.ts"]
+          }
+        },
+        {
+          "id": "forgot",
+          "say": "Resets a forgotten password",
+          "screen": "/forgot-password",
+          "anchor": { "type": "route", "value": "/forgot-password" },
+          "next": ["sign-in"],
+          "detail": { "does": "Asks for a reset link and chooses a new password.", "files": ["src/app/forgot-password/page.tsx"] }
+        },
+        {
+          "id": "account",
+          "say": "Sees their account",
+          "screen": "/account",
+          "anchor": { "type": "route", "value": "/account" },
+          "next": [],
+          "detail": { "files": ["src/app/account/page.tsx"] }
+        }
+      ]
+    },
+    {
+      "id": "track-order",
+      "title": "Track an order",
+      "area": "account",
+      "who": "Customer",
+      "steps": [
+        {
+          "id": "orders",
+          "say": "Opens the list of past orders",
+          "screen": "/account/orders",
+          "anchor": { "type": "route", "value": "/account/orders" },
+          "next": ["order"],
+          "detail": { "sees": "Orders newest first, each with its status.", "files": ["src/app/account/orders/page.tsx"] }
+        },
+        {
+          "id": "order",
+          "say": "Sees where the order is",
+          "screen": "/account/orders/[id]",
+          "anchor": { "type": "route", "value": "/account/orders/[id]" },
+          "next": ["reorder"],
+          "detail": {
+            "sees": "A timeline: Made, Out for delivery, Delivered.",
+            "rules": ["The courier's live map shows only on the delivery day"],
+            "files": ["src/app/account/orders/[id]/page.tsx"]
+          }
+        },
+        {
+          "id": "reorder",
+          "say": "Orders the same bouquet again",
+          "screen": "/cart",
+          "anchor": { "type": "route", "value": "/cart" },
+          "next": [],
+          "detail": { "does": "Taps Order again; the bouquet lands in the basket.", "saves": ["Basket item"], "files": ["src/lib/basket.ts"] }
+        }
+      ]
+    },
+    {
+      "id": "fulfil-orders",
+      "title": "Fulfil today's orders",
+      "area": "studio",
+      "who": "Florist",
+      "steps": [
+        {
+          "id": "queue",
+          "say": "Sees today's orders by delivery time",
+          "screen": "/studio/orders",
+          "anchor": { "type": "route", "value": "/studio/orders" },
+          "next": ["mark-made"],
+          "detail": {
+            "sees": "A list of today's orders, earliest delivery first, with gift messages.",
+            "rules": ["Only staff accounts can open the studio"],
+            "files": ["src/app/studio/orders/page.tsx"]
+          }
+        },
+        {
+          "id": "mark-made",
+          "say": "Marks a bouquet as made",
+          "screen": "/studio/orders/[id]",
+          "anchor": { "type": "route", "value": "/studio/orders/[id]" },
+          "next": ["hand-over"],
+          "detail": { "does": "Taps Made once the bouquet is wrapped.", "saves": ["Order status"], "files": ["src/app/studio/orders/[id]/page.tsx"] }
+        },
+        {
+          "id": "hand-over",
+          "say": "Hands it to the courier, and the customer is told",
+          "screen": "/studio/orders/[id]",
+          "anchor": { "type": "file", "value": "src/lib/notify.ts" },
+          "next": [],
+          "detail": {
+            "does": "Taps Out for delivery.",
+            "rules": ["The customer gets a text with the courier's arrival window"],
+            "saves": ["Order status"],
+            "files": ["src/lib/notify.ts"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "add-bouquet",
+      "title": "Add a new bouquet",
+      "area": "studio",
+      "who": "Florist",
+      "steps": [
+        {
+          "id": "details",
+          "say": "Enters the name, price and sizes",
+          "screen": "/studio/bouquets/new",
+          "anchor": { "type": "route", "value": "/studio/bouquets/new" },
+          "next": ["photos"],
+          "detail": { "does": "Fills in the form; Deluxe and Grand prices are suggested.", "saves": ["Bouquet draft"], "files": ["src/app/studio/bouquets/new/page.tsx"] }
+        },
+        {
+          "id": "photos",
+          "say": "Uploads photos",
+          "screen": "/studio/bouquets/new/photos",
+          "anchor": { "type": "route", "value": "/studio/bouquets/new/photos" },
+          "next": ["publish"],
+          "detail": {
+            "does": "Drags in up to six photos.",
+            "rules": ["Photos are cropped square", "Images over 10 MB are refused"],
+            "saves": ["Photos"],
+            "files": ["src/app/studio/bouquets/new/photos/page.tsx", "src/lib/uploads.ts"]
+          }
+        },
+        {
+          "id": "publish",
+          "say": "Publishes it to the shop",
+          "screen": "/studio/bouquets/new",
+          "anchor": { "type": "route", "value": "/studio/bouquets/new" },
+          "next": [],
+          "detail": { "does": "Taps Publish; the bouquet appears on the home page.", "saves": ["Bouquet"], "files": ["src/app/studio/bouquets/new/page.tsx"] }
+        }
+      ]
+    },
+    {
+      "id": "newsletter",
+      "title": "Join the newsletter",
+      "who": "Visitor",
+      "steps": [
+        {
+          "id": "signup-box",
+          "say": "Leaves an email in the footer box",
+          "screen": "/",
+          "anchor": { "type": "file", "value": "src/components/Footer.tsx" },
+          "next": ["confirm"],
+          "detail": { "does": "Types an email and taps Join.", "saves": ["Subscriber"], "files": ["src/components/Footer.tsx"] }
+        },
+        {
+          "id": "confirm",
+          "say": "Confirms by email",
+          "screen": null,
+          "anchor": { "type": "file", "value": "src/emails/newsletter-confirm.tsx" },
+          "next": [],
+          "detail": { "rules": ["No emails are sent until they confirm"], "files": ["src/emails/newsletter-confirm.tsx"] }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Journey map</title>
+<style>
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --bg: #f3f2ee;
+  --canvas: #f8f7f4;
+  --dot: #e2dfd8;
+  --surface: #ffffff;
+  --surface-2: #f6f5f2;
+  --ink: #1c1f24;
+  --ink-2: #474c55;
+  --muted: #6f747d;
+  --line: #e3e0d9;
+  --line-strong: #c3bfb6;
+  --accent: #4657cf;
+  --accent-soft: #eceefd;
+  --accent-ink: #3140ad;
+  --on-accent: #ffffff;
+  --new: #18794a;
+  --new-soft: #e2f3e9;
+  --new-ink: #11603a;
+  --on-new: #ffffff;
+  --changed: #c27a0a;
+  --changed-strong: #f1bc5a;
+  --changed-soft: #fcf1da;
+  --changed-ink: #855100;
+  --on-changed: #3a2600;
+  --conflict: #d23b3b;
+  --conflict-soft: #fde9e9;
+  --conflict-ink: #ad1f1f;
+  --on-conflict: #ffffff;
+  --broken: #8b9099;
+  --broken-soft: #ebecee;
+  --broken-ink: #50555d;
+  --shadow: 0 1px 2px rgba(24, 26, 31, .05), 0 8px 28px rgba(24, 26, 31, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101215;
+    --canvas: #15181c;
+    --dot: #252a31;
+    --surface: #1b1e23;
+    --surface-2: #171a1e;
+    --ink: #e9eaec;
+    --ink-2: #c1c5cb;
+    --muted: #979ca5;
+    --line: #2a2f36;
+    --line-strong: #464c56;
+    --accent: #919dff;
+    --accent-soft: #232848;
+    --accent-ink: #c4cbff;
+    --on-accent: #10131f;
+    --new: #38b97a;
+    --new-soft: #14301f;
+    --new-ink: #86deb1;
+    --on-new: #04170c;
+    --changed: #e3a33c;
+    --changed-strong: #e3a33c;
+    --changed-soft: #33270f;
+    --changed-ink: #f3c97d;
+    --on-changed: #1e1400;
+    --conflict: #f06b6b;
+    --conflict-soft: #3a1919;
+    --conflict-ink: #ffa3a3;
+    --on-conflict: #1d0606;
+    --broken: #7f858e;
+    --broken-soft: #272a30;
+    --broken-ink: #b6bbc2;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px rgba(0, 0, 0, .28);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  display: flex; flex-direction: column; height: 100vh; height: 100dvh; min-height: 560px;
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+code { font: 12.5px var(--mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
+kbd { font: 600 11px var(--mono); color: var(--ink-2); background: var(--surface); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; }
+
+/* Header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 30px; height: 30px; flex: none; }
+.logo .logo-hub { fill: var(--accent); }
+.logo .logo-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.logo .logo-line { stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; opacity: .6; }
+.brand-text { min-width: 0; }
+.eyebrow { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: 17px; line-height: 1.25; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mode { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.mode-session { color: var(--accent-ink); background: var(--accent-soft); }
+.mode-canonical { color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--changed); flex: none; }
+
+/* Banners */
+.banners { display: flex; flex-direction: column; gap: 8px; padding: 12px 24px 0; }
+.banners:empty { display: none; }
+.banner { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 10px 14px; font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; }
+.banner.plan { border-left-color: var(--new); }
+.banner-label { font-weight: 650; }
+.approval { margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.ap-pending, .ap-unconfirmed { color: var(--conflict-ink); background: var(--conflict-soft); }
+.ap-approved, .ap-auto { color: var(--new-ink); background: var(--new-soft); }
+
+/* Breadcrumb */
+.crumbs { padding: 12px 24px 0; }
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; row-gap: 2px; font-size: 13px; }
+.crumbs li { display: flex; align-items: center; min-width: 0; }
+.crumbs li + li::before { content: "\203A"; color: var(--muted); margin: 0 4px; }
+.crumb { display: block; max-width: 240px; padding: 3px 8px; border: 0; border-radius: 8px; background: none; color: var(--accent-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.crumb:hover { background: var(--accent-soft); }
+.crumb.current { color: var(--ink); font-weight: 600; cursor: default; }
+.crumb.current:hover { background: none; }
+
+/* Stage */
+.stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 12px 24px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+.stage-head { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--line); min-height: 64px; }
+.back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px 6px 9px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; flex: none; }
+.back:hover { color: var(--ink); border-color: var(--line-strong); }
+.back[hidden] { display: none; }
+.stage-titles { min-width: 0; }
+.stage-title { margin: 0; font-size: 18px; line-height: 1.3; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage-sub { margin: 1px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--muted); }
+.stage-sub:empty { display: none; }
+.stat { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.stat::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sc); }
+.stat-new { --sc: var(--new); }
+.stat-planned { --sc: var(--new-soft); }
+.stat-planned::before { border: 1.5px dashed var(--new); }
+.stat-changed { --sc: var(--changed); }
+.stat-removed { --sc: var(--broken); }
+.stat-conflict { --sc: var(--conflict); }
+.view { position: relative; flex: 1; min-height: 0; overflow: auto; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.4px); background-size: 22px 22px; }
+.view > svg { display: block; }
+
+/* Key and hint */
+.legend { display: flex; align-items: center; gap: 8px 14px; padding: 9px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+.legend[hidden] { display: none; }
+.legend-title { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); flex: none; }
+.legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.legend li { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); cursor: help; }
+.legend svg { width: 26px; height: 18px; overflow: visible; flex: none; }
+.lg-name.strike { text-decoration: line-through; }
+.hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 22px; padding: 10px 24px 14px; font-size: 12.5px; color: var(--muted); }
+.hint[hidden] { display: none; }
+.hint .chev { display: inline-grid; place-items: center; width: 17px; height: 17px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 11px; line-height: 1; color: var(--ink-2); background: var(--surface); }
+
+/* SVG map */
+svg text { font-family: var(--font); }
+.spoke { stroke: var(--line-strong); stroke-width: 1; }
+.spoke.sp-new, .spoke.sp-in-new { stroke: var(--new); stroke-width: 1.75; }
+.spoke.sp-changed { stroke: var(--changed); stroke-width: 1.75; }
+.spoke.sp-conflict { stroke: var(--conflict); stroke-width: 2; }
+.spoke.sp-broken { stroke: var(--broken); stroke-width: 1.5; }
+.spoke.sp-removed { stroke-dasharray: 4 4; opacity: .7; }
+.dense .spoke.sp-stable { opacity: .45; }
+.hub .shape { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.hub-ring { fill: none; stroke: transparent; stroke-width: 2; stroke-dasharray: 3 5; stroke-linecap: round; }
+.hr-new, .hr-in-new { stroke: var(--new); }
+.hr-changed { stroke: var(--changed); }
+.hr-conflict { stroke: var(--conflict); }
+.hr-broken { stroke: var(--broken); }
+.hub-title { font-size: 15px; font-weight: 650; fill: var(--accent-ink); }
+.hub-sub { font-size: 11.5px; fill: var(--accent-ink); opacity: .78; }
+
+.n { cursor: pointer; --lc: var(--ink-2); }
+.n:focus { outline: none; }
+.n .shape { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.25; }
+.n .on-shape { fill: var(--ink); }
+.n .meta { fill: var(--muted); font: 11.5px var(--mono); }
+.n .meta.none { font-family: var(--font); font-style: italic; }
+.n .halo { fill: none; stroke: var(--lc); stroke-width: 3; opacity: 0; }
+.n .focus-ring { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; }
+.n:focus-visible .focus-ring, .n.sel .focus-ring { opacity: 1; }
+.n.latest .halo { opacity: 1; }
+.n:hover .shape { filter: drop-shadow(0 2px 6px rgba(20, 22, 28, .14)); }
+.count { font-size: 15px; font-weight: 650; }
+.unit { font-size: 10.5px; font-weight: 500; opacity: .8; }
+.label { font-size: 13.5px; font-weight: 500; fill: var(--ink); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; stroke-linejoin: round; }
+.sublabel { font-size: 12px; fill: var(--muted); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; stroke-linejoin: round; }
+.title { font-size: 13.5px; font-weight: 600; }
+.subflow-ind { font-size: 11.5px; font-weight: 600; fill: var(--accent-ink); }
+
+.look-new { --lc: var(--new); }
+.look-new .shape { fill: var(--new); stroke: var(--new); }
+.look-new .on-shape, .look-new .meta, .look-new .subflow-ind { fill: var(--on-new); }
+.look-new .meta, .look-new .subflow-ind { opacity: .88; }
+.look-new.planned .shape { fill: var(--new-soft); }
+.look-new.planned .on-shape { fill: var(--new-ink); }
+.look-new.planned .meta { fill: var(--muted); opacity: 1; }
+.look-new.planned .subflow-ind { fill: var(--accent-ink); opacity: 1; }
+.look-in-new { --lc: var(--new); }
+.look-in-new .shape { fill: var(--new-soft); stroke: var(--new); stroke-width: 1.75; }
+.look-changed { --lc: var(--changed); }
+.look-changed .shape { fill: var(--changed-soft); stroke: var(--changed); stroke-width: 2; }
+.look-conflict { --lc: var(--conflict); }
+.look-conflict .shape { fill: var(--conflict-soft); stroke: var(--conflict); stroke-width: 3; }
+.look-broken { --lc: var(--broken); }
+.look-broken .shape { fill: var(--broken-soft); stroke: var(--broken); stroke-width: 1.5; }
+.look-removed { opacity: .5; }
+.look-removed .shape { fill: var(--surface-2); stroke: var(--line-strong); }
+.strike { stroke: var(--ink-2); stroke-width: 1.3; }
+.planned .shape { stroke-dasharray: 6 4; stroke-width: 2; }
+.unverified .shape { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.75; }
+
+.tag rect { stroke-width: 1; }
+.tag text { font-size: 11px; font-weight: 600; }
+.tag-new rect { fill: var(--new); stroke: var(--new); }
+.tag-new text { fill: var(--on-new); }
+.tag-planned rect { fill: var(--surface); stroke: var(--new); stroke-dasharray: 3 2; }
+.tag-planned text { fill: var(--new-ink); }
+.tag-changed rect { fill: var(--changed-strong); stroke: var(--changed-strong); }
+.tag-changed text { fill: var(--on-changed); }
+.tag-removed rect { fill: var(--surface-2); stroke: var(--line-strong); }
+.tag-removed text { fill: var(--ink-2); }
+.tag-conflict rect { fill: var(--conflict); stroke: var(--conflict); }
+.tag-conflict text { fill: var(--on-conflict); }
+.tag-broken rect { fill: var(--broken-soft); stroke: var(--broken); }
+.tag-broken text { fill: var(--broken-ink); }
+.tag-flag rect { fill: var(--conflict-soft); stroke: var(--conflict-soft); }
+.tag-flag text { fill: var(--conflict-ink); }
+.tag-note rect { fill: var(--surface-2); stroke: var(--line); }
+.tag-note text { fill: var(--muted); }
+.tag-inside-new rect { fill: var(--new-soft); stroke: var(--new-soft); }
+.tag-inside-new text { fill: var(--new-ink); }
+.tag-inside-changed rect { fill: var(--changed-soft); stroke: var(--changed-soft); }
+.tag-inside-changed text { fill: var(--changed-ink); }
+.tag-inside-conflict rect { fill: var(--conflict-soft); stroke: var(--conflict); }
+.tag-inside-conflict text { fill: var(--conflict-ink); }
+.tag-inside-broken rect { fill: var(--broken-soft); stroke: var(--broken-soft); }
+.tag-inside-broken text { fill: var(--broken-ink); }
+
+.open-btn { cursor: pointer; }
+.open-btn .hit { fill: transparent; }
+.open-btn circle.face { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
+.open-btn path { fill: none; stroke: var(--ink-2); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.open-btn:hover circle.face { fill: var(--accent); stroke: var(--accent); }
+.open-btn:hover path { stroke: var(--on-accent); }
+.n.sel .open-btn circle.face, .n:focus-visible .open-btn circle.face { stroke: var(--accent); }
+
+.edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.edge-new { stroke: var(--new); }
+.edge-back { stroke-dasharray: 5 4; }
+.edge-removed { opacity: .45; stroke-dasharray: 3 4; }
+.arrow { fill: var(--line-strong); }
+.arrow-new { fill: var(--new); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .n .shape, .n .focus-ring, .open-btn circle.face, .open-btn path { transition: filter .15s ease, opacity .15s ease, fill .15s ease, stroke .15s ease; }
+}
+
+/* Step card */
+.card-wrap { padding: 32px 20px 88px; }
+.card { position: relative; max-width: 780px; margin: 0 auto; padding: 26px 32px 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); --lc: var(--ink-2); }
+.card::before { content: ""; position: absolute; left: -1px; top: 20px; bottom: 20px; width: 4px; border-radius: 0 4px 4px 0; background: transparent; }
+.card.look-new { --lc: var(--new); }
+.card.look-new::before, .card.look-in-new::before { background: var(--new); }
+.card.look-changed { --lc: var(--changed); }
+.card.look-changed::before { background: var(--changed); }
+.card.look-broken { --lc: var(--broken); background: var(--broken-soft); }
+.card.look-broken::before { background: var(--broken); }
+.card.look-conflict { --lc: var(--conflict); border: 2px solid var(--conflict); }
+.card.look-removed { opacity: .72; }
+.card.look-removed .card-title { text-decoration: line-through; }
+.card.planned { border: 2px dashed var(--new); }
+.card.unverified { border: 2px dotted var(--line-strong); }
+.card.latest { outline: 3px solid var(--lc); outline-offset: 4px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid transparent; }
+.pill-new { color: var(--on-new); background: var(--new); }
+.pill-planned { color: var(--new-ink); background: var(--surface); border: 1px dashed var(--new); }
+.pill-changed { color: var(--on-changed); background: var(--changed-strong); }
+.pill-removed { color: var(--ink-2); background: var(--surface-2); border-color: var(--line-strong); }
+.pill-conflict { color: var(--on-conflict); background: var(--conflict); }
+.pill-broken { color: var(--broken-ink); background: var(--broken-soft); border-color: var(--broken); }
+.pill-flag { color: var(--conflict-ink); background: var(--conflict-soft); }
+.pill-note { color: var(--muted); background: var(--surface-2); border-color: var(--line); }
+.pill-inside-new { color: var(--new-ink); background: var(--new-soft); }
+.pill-inside-changed { color: var(--changed-ink); background: var(--changed-soft); }
+.pill-inside-conflict { color: var(--conflict-ink); background: var(--conflict-soft); border-color: var(--conflict); }
+.pill-inside-broken { color: var(--broken-ink); background: var(--broken-soft); }
+.card-title { margin: 12px 0 4px; font-size: 22px; line-height: 1.3; font-weight: 650; }
+.card-title:focus { outline: none; }
+.card-sub { margin: 0 0 18px; color: var(--muted); }
+.card-sub strong { color: var(--ink-2); font-weight: 600; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; align-items: center; margin: 0 0 22px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+.facts dt { font-size: 12.5px; color: var(--muted); }
+.facts dd { margin: 0; min-width: 0; }
+.muted { color: var(--muted); }
+.anchor { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.anchor-ok { color: var(--new-ink); background: var(--new-soft); }
+.anchor-broken { color: var(--broken-ink); background: var(--broken-soft); border: 1px solid var(--broken); }
+.anchor-unverified { color: var(--ink-2); border: 1.5px dotted var(--line-strong); }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px 32px; }
+.section h3 { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.section p { margin: 0; font-size: 14.5px; }
+.section ul { margin: 0; padding-left: 18px; }
+.section li { margin: 3px 0; }
+.section ul.files { padding: 0; list-style: none; }
+.section ul.files li { font: 12.5px/1.6 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.saves { display: flex; flex-wrap: wrap; gap: 6px; }
+.save { font-size: 12.5px; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); }
+.neighbours { display: grid; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.nb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nb-label { min-width: 72px; font-size: 12px; color: var(--muted); }
+.nb { max-width: 280px; padding: 4px 12px; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.nb:hover { border-color: var(--accent); color: var(--accent-ink); }
+.subflow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 22px; padding: 14px 16px; background: var(--accent-soft); border-radius: 12px; }
+.subflow p { margin: 0; color: var(--accent-ink); font-size: 13.5px; }
+.primary { margin-left: auto; padding: 8px 16px; font-size: 13.5px; font-weight: 600; color: var(--on-accent); background: var(--accent); border: 0; border-radius: 10px; cursor: pointer; }
+.primary:hover { filter: brightness(1.06); }
+
+/* Empty state */
+.empty { min-height: 100%; display: grid; place-items: center; align-content: center; gap: 14px; padding: 48px 24px; text-align: center; }
+.empty svg { width: 120px; height: 120px; }
+.empty .e-hub { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.empty .e-dot { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.empty .e-line { stroke: var(--line-strong); stroke-width: 1.2; stroke-dasharray: 3 4; }
+.empty h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.empty p { margin: 0; max-width: 440px; color: var(--ink-2); }
+
+@media (max-width: 640px) {
+  body { height: auto; min-height: 100dvh; }
+  .stage { flex: none; }
+  .view { flex: none; height: 68vh; min-height: 400px; }
+  .top, .banners, .crumbs { padding-left: 14px; padding-right: 14px; }
+  .stage { margin: 10px 10px 0; border-radius: 14px; }
+  .hint { padding: 8px 14px 12px; }
+  .card { padding: 22px 18px; }
+  .card-wrap { padding: 18px 10px 80px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg id="jm-logo" class="logo" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+      <path class="logo-line" d="M7.4 8.6 L10.6 11.4 M20.6 8.6 L17.4 11.4 M14 19 L14 21.6"/>
+      <circle class="logo-hub" cx="14" cy="14" r="5"/>
+      <circle class="logo-dot" cx="5.5" cy="6.8" r="2.7"/>
+      <circle class="logo-dot" cx="22.5" cy="6.8" r="2.7"/>
+      <circle class="logo-dot" cx="14" cy="24.4" r="2.7"/>
+    </svg>
+    <div class="brand-text">
+      <div class="eyebrow">Journey map</div>
+      <h1 id="jm-app">Your app</h1>
+    </div>
+    <span id="jm-mode" class="mode mode-canonical">Saved map</span>
+  </div>
+  <div id="jm-chips" class="chips"></div>
+</header>
+<section id="jm-banners" class="banners" aria-label="Notices"></section>
+<nav class="crumbs" aria-label="Where you are"><ol id="jm-crumbs"></ol></nav>
+<main class="stage">
+  <div class="stage-head">
+    <button id="jm-back" class="back" type="button" hidden><span aria-hidden="true">&#8249;</span> Back</button>
+    <div class="stage-titles">
+      <div id="jm-kind" class="eyebrow"></div>
+      <h2 id="jm-title" class="stage-title"></h2>
+      <p id="jm-sub" class="stage-sub"></p>
+    </div>
+  </div>
+  <div id="jm-view" class="view" role="region" aria-label="Map"></div>
+  <aside id="jm-legend" class="legend" aria-label="Key" hidden>
+    <span class="legend-title" aria-hidden="true">Key</span>
+    <ul id="jm-legend-list"></ul>
+  </aside>
+</main>
+<footer id="jm-hint" class="hint">
+  <span>Zoom in: double-click, press <kbd>Enter</kbd>, or tap <span class="chev" aria-hidden="true">&#8250;</span></span>
+  <span>Zoom out: <kbd>Esc</kbd>, Back, or the path at the top</span>
+</footer>
+<div id="jm-announce" class="sr-only" aria-live="polite"></div>
+<script type="application/json" id="jm-data">{"mode":"session","app":"Petal \u0026 Stem","root":{"kind":"app","id":"app","title":"Petal \u0026 Stem","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","children":[{"kind":"area","id":"shop","title":"Shopping","say":"Finding flowers and paying for them","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","children":[{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/"},{"kind":"step","id":"browse/occasion","title":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]"}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart"},{"kind":"step","id":"checkout/delivery","title":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery"},{"kind":"step","id":"checkout/gift-note","title":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment"},{"kind":"step","id":"checkout/confirmation","title":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note"],["checkout/delivery","checkout/pay"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]]},{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart"},{"kind":"step","id":"gift-subscription/pay","title":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}]},{"kind":"area","id":"account","title":"Your account","say":"Signing up, signing in and tracking orders","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","children":[{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up"},{"kind":"step","id":"sign-up/verify-email","title":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null},{"kind":"step","id":"sign-up/welcome","title":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome"]]},{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in"},{"kind":"step","id":"sign-in/forgot","title":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]"},{"kind":"step","id":"track-order/reorder","title":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]]}]},{"kind":"area","id":"studio","title":"Running the shop","say":"What the florist does behind the scenes","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders"},{"kind":"step","id":"fulfil-orders/mark-made","title":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]"}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]},{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos"},{"kind":"step","id":"add-bouquet/publish","title":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]}]},{"kind":"area","id":"other","title":"Other","say":"Journeys that are not in an area yet","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null}],"edges":[["newsletter/signup-box","newsletter/confirm"]]}]}]},"journeys":{"browse":{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/"},{"kind":"step","id":"browse/occasion","title":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]"}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},"checkout":{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart"},{"kind":"step","id":"checkout/delivery","title":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery"},{"kind":"step","id":"checkout/gift-note","title":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment"},{"kind":"step","id":"checkout/confirmation","title":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note"],["checkout/delivery","checkout/pay"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]]},"gift-subscription":{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart"},{"kind":"step","id":"gift-subscription/pay","title":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},"card-payment":{"kind":"journey","id":"card-payment","title":"Card payment","say":"Customer","state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"card-payment/card-details","title":"Enters card details","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Boxes for the card number, expiry date and security code.","does":"Types the card details and taps Pay.","rules":["Card numbers never touch our servers"],"files":["src/components/CardForm.tsx"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/wallet","title":"Or pays with Apple Pay or Google Pay","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"does":"Taps the wallet button and confirms on their phone.","files":["src/components/WalletButton.tsx"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/bank-check","title":"Confirms the payment with their bank","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Their bank's own check, usually a code by text message.","does":"Types the code from the bank.","files":["src/app/checkout/pay/verify/page.tsx"]},"screen":"/checkout/pay/verify"},{"kind":"step","id":"card-payment/result","title":"The payment goes through, or is declined","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"rules":["Declined → the error stays on the page and they can try another card","Approved → on to the confirmation"],"saves":["Payment"],"files":["src/lib/payments.ts"]},"screen":"/checkout/pay"}],"edges":[["card-payment/card-details","card-payment/bank-check"],["card-payment/wallet","card-payment/result"],["card-payment/bank-check","card-payment/result"],["card-payment/result","card-payment/card-details"]]},"sign-up":{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up"},{"kind":"step","id":"sign-up/verify-email","title":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null},{"kind":"step","id":"sign-up/welcome","title":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome"]]},"sign-in":{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in"},{"kind":"step","id":"sign-in/forgot","title":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},"track-order":{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]"},{"kind":"step","id":"track-order/reorder","title":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]]},"fulfil-orders":{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders"},{"kind":"step","id":"fulfil-orders/mark-made","title":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]"}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]},"add-bouquet":{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos"},{"kind":"step","id":"add-bouquet/publish","title":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]},"newsletter":{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null}],"edges":[["newsletter/signup-box","newsletter/confirm"]]},"wishlist":{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}},"banners":["Planned, not built yet: Gift a flower subscription"],"chips":["Share link out of date"],"planSummary":"Add monthly flower subscriptions that people can buy as a gift","approval":"pending"}</script>
+<script>
+(function () {
+  'use strict';
+
+  var EMPTY_COMMAND = '/journeymap:map-app';
+  var EMPTY_MESSAGE = 'No journeys mapped yet. In Claude Code, run /journeymap:map-app to draw your whole app.';
+  var SVG_NS = document.getElementById('jm-logo').namespaceURI;
+  var FAMILY = getComputedStyle(document.body).fontFamily;
+  var FONTS = {
+    label: '500 13.5px ' + FAMILY,
+    sub: '400 12px ' + FAMILY,
+    title: '600 13.5px ' + FAMILY,
+    meta: '400 11.5px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono'),
+    hub: '600 15px ' + FAMILY,
+    tag: '600 11px ' + FAMILY
+  };
+  var KIND_LABEL = { app: 'Your app', area: 'Area', journey: 'Journey', step: 'Step' };
+  var STATE_TAGS = { 'new': 'New', changed: 'Changed', removed: 'Removed' };
+  var INSIDE_TAGS = { conflict: 'Conflict inside', changed: 'Changes inside', 'new': 'New inside', broken: '⚠ Link broken inside' };
+  var FLAG_TAGS = {
+    unconfirmed: { text: 'Unconfirmed', kind: 'flag' },
+    'two-chats': { text: 'Two chats', kind: 'flag' },
+    'code-touched': { text: 'Code touched', kind: 'note' },
+    unmapped: { text: 'Not on the map', kind: 'note' }
+  };
+  var APPROVAL_TEXT = { pending: 'Waiting for your OK', unconfirmed: 'Not confirmed yet', approved: 'Approved', auto: 'Approved automatically' };
+  var ANCHOR_TEXT = {
+    ok: '✓ Found in the code',
+    broken: '⚠ Can’t find this in the code any more',
+    unverified: 'Not checked against the code yet'
+  };
+  var LEGEND = [
+    { cls: 'look-new', name: 'New', say: 'Added in this chat' },
+    { cls: 'look-new planned', name: 'Planned', say: 'Planned, not built yet' },
+    { cls: 'look-changed', name: 'Changed', say: 'Changed in this chat' },
+    { cls: 'look-removed', name: 'Removed', say: 'Taken out in this chat', strike: true },
+    { cls: 'look-conflict', name: 'Conflict', say: 'The plan changes a screen other journeys use' },
+    { cls: 'look-broken', name: '⚠ Not in code', say: 'Can’t find it in the code any more' },
+    { cls: 'look-stable unverified', name: 'Dotted outline', say: 'Not checked against the code yet' },
+    { cls: 'look-stable latest', name: 'Thick ring', say: 'Changed in Claude’s latest reply' },
+    { flag: true, name: 'Red text', say: 'Needs your attention, e.g. unconfirmed or edited in two chats' }
+  ];
+
+  var measureCtx = document.createElement('canvas').getContext('2d');
+  var view = document.getElementById('jm-view');
+  var openers = new WeakMap();
+  var vm = readData();
+  var current = null;
+  var lastIds = null;
+  var pendingOrigin = null;
+  var pendingFocus = null;
+  var navigatedAt = 0;
+
+  /** Reads and sanity-checks the embedded view model. */
+  function readData() {
+    try {
+      var data = JSON.parse(document.getElementById('jm-data').textContent);
+      if (!data || typeof data !== 'object' || !data.root || !Array.isArray(data.root.children)) return null;
+      if (!data.journeys || typeof data.journeys !== 'object') data.journeys = {};
+      return data;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function txt(value) { return document.createTextNode(value == null ? '' : String(value)); }
+
+  function setAttrs(el, attrs) {
+    Object.keys(attrs || {}).forEach(function (key) {
+      var value = attrs[key];
+      if (value !== undefined && value !== null && value !== false) el.setAttribute(key, String(value));
+    });
+    return el;
+  }
+
+  function addKids(el, kids) {
+    kids.forEach(function (kid) { if (kid) el.appendChild(kid); });
+    return el;
+  }
+
+  /** Creates an HTML element; children must be nodes (text goes through txt()). */
+  function h(tag, attrs) {
+    return addKids(setAttrs(document.createElement(tag), attrs), Array.prototype.slice.call(arguments, 2));
+  }
+
+  /** Creates an SVG element; children must be nodes (text goes through txt()). */
+  function s(tag, attrs) {
+    return addKids(setAttrs(document.createElementNS(SVG_NS, tag), attrs), Array.prototype.slice.call(arguments, 2));
+  }
+
+  function last(list) { return list[list.length - 1]; }
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function round(value) { return Math.round(value * 10) / 10; }
+  function grow(size, needed) { return needed > size + 1 ? Math.ceil(needed) : size; }
+  function hasOwn(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
+  function plural(count, one, many) { return count + ' ' + (count === 1 ? one : many); }
+  function flagsOf(node) { return Array.isArray(node.flags) ? node.flags : []; }
+  function kidsOf(node) { return Array.isArray(node.children) ? node.children : []; }
+
+  function measure(value, font) {
+    measureCtx.font = font;
+    return measureCtx.measureText(value).width;
+  }
+
+  /** Greedy word wrap with an ellipsis on the last line; very long words are split. */
+  function wrapText(value, maxWidth, maxLines, font) {
+    var fits = function (line) { return measure(line, font) <= maxWidth; };
+    var tokens = [];
+    String(value == null ? '' : value).trim().split(/\s+/).filter(Boolean).forEach(function (word) {
+      if (fits(word)) { tokens.push(word); return; }
+      var chunk = '';
+      Array.from(word).forEach(function (ch) {
+        if (chunk && !fits(chunk + ch)) { tokens.push(chunk); chunk = ''; }
+        chunk += ch;
+      });
+      if (chunk) tokens.push(chunk);
+    });
+    var lines = [];
+    var line = '';
+    tokens.forEach(function (token) {
+      var next = line ? line + ' ' + token : token;
+      if (!line || fits(next)) line = next;
+      else { lines.push(line); line = token; }
+    });
+    if (line) lines.push(line);
+    if (lines.length <= maxLines) return lines;
+    var kept = lines.slice(0, maxLines);
+    var tail = kept[maxLines - 1];
+    while (tail && !fits(tail + '…')) tail = tail.slice(0, -1);
+    kept[maxLines - 1] = tail.replace(/\s+$/, '') + '…';
+    return kept;
+  }
+
+  /** Draws wrapped text lines; removed nodes get an explicit strike line (text-decoration clashes with the halo stroke). */
+  function drawLines(g, lines, opts) {
+    var y = opts.y;
+    lines.forEach(function (line) {
+      g.appendChild(s('text', { 'class': opts.cls, x: opts.x, y: round(y), 'text-anchor': opts.anchor }, txt(line)));
+      if (opts.struck) {
+        var width = measure(line, opts.font);
+        var x1 = opts.anchor === 'middle' ? opts.x - width / 2 : opts.x;
+        g.appendChild(s('line', { 'class': 'strike', x1: round(x1), y1: round(y - 4.5), x2: round(x1 + width), y2: round(y - 4.5) }));
+      }
+      y += opts.lineHeight;
+    });
+    return y;
+  }
+
+  /** The one visual treatment of a node; containers are coloured by their rollup. */
+  function lookOf(node) {
+    if (node.state === 'removed') return 'removed';
+    if (node.kind === 'step') {
+      if (flagsOf(node).indexOf('conflict') >= 0) return 'conflict';
+      if (node.state === 'new') return 'new';
+      if (node.state === 'changed') return 'changed';
+      if (node.anchor === 'broken') return 'broken';
+    }
+    switch (node.rollup) {
+      case 'conflict': return 'conflict';
+      case 'changed': return 'changed';
+      case 'new': return node.state === 'new' ? 'new' : 'in-new';
+      case 'broken': return 'broken';
+      default: return 'stable';
+    }
+  }
+
+  function modifiersOf(node) {
+    var mods = ['look-' + lookOf(node)];
+    if (node.planned) mods.push('planned');
+    else if (node.anchor === 'unverified') mods.push('unverified');
+    if (node.latest) mods.push('latest');
+    return mods.join(' ');
+  }
+
+  function nodeClass(node) { return 'n k-' + node.kind + ' ' + modifiersOf(node); }
+
+  /** Text tags shown with a node, so no state relies on colour alone. */
+  function tagsOf(node) {
+    var tags = [];
+    var flags = flagsOf(node);
+    if (node.planned) tags.push({ text: node.state === 'removed' ? 'Planned removal' : 'Planned', kind: 'planned' });
+    else if (hasOwn(STATE_TAGS, node.state)) tags.push({ text: STATE_TAGS[node.state], kind: node.state });
+    if (flags.indexOf('conflict') >= 0) tags.push({ text: 'Conflict', kind: 'conflict' });
+    if (node.anchor === 'broken') tags.push({ text: '⚠ Not in code', kind: 'broken' });
+    if (!tags.length && hasOwn(INSIDE_TAGS, node.rollup)) tags.push({ text: INSIDE_TAGS[node.rollup], kind: 'inside-' + node.rollup });
+    flags.forEach(function (flag) { if (hasOwn(FLAG_TAGS, flag)) tags.push(FLAG_TAGS[flag]); });
+    return tags;
+  }
+
+  function extraCues(node) {
+    var cues = [];
+    if (node.latest) cues.push('changed in the latest reply');
+    if (!node.planned && node.anchor === 'unverified') cues.push('not checked against the code yet');
+    return cues;
+  }
+
+  function ariaOf(node) {
+    var parts = [node.title, KIND_LABEL[node.kind]];
+    if (node.kind === 'area') parts.push(plural(kidsOf(node).length, 'journey', 'journeys'));
+    if (node.kind === 'journey') parts.push(plural(kidsOf(node).length, 'step', 'steps'));
+    tagsOf(node).forEach(function (tag) { parts.push(tag.text.replace('⚠ ', '')); });
+    return parts.concat(extraCues(node), ['press Enter to open']).join(', ');
+  }
+
+  function tooltipOf(node) {
+    var lines = [node.title];
+    if (node.say) lines.push(node.say);
+    var notes = tagsOf(node).map(function (tag) { return tag.text; }).concat(extraCues(node));
+    if (notes.length) lines.push(notes.join(' · '));
+    return lines.join('\n');
+  }
+
+  function unitOf(node, count) {
+    return node.kind === 'area' ? (count === 1 ? 'journey' : 'journeys') : (count === 1 ? 'step' : 'steps');
+  }
+
+  // ---- Location (URL hash) ----
+
+  function segFor(parent, child) {
+    if (child.kind === 'area') return { t: 'a', id: child.id };
+    if (child.kind === 'journey') return { t: 'j', id: child.id };
+    return { t: 's', id: child.id.slice(parent.id.length + 1) };
+  }
+
+  function parseHash() {
+    var raw = location.hash.replace(/^#\/?/, '');
+    if (!raw) return [];
+    return raw.split('/').map(function (part) {
+      var at = part.indexOf(':');
+      if (at < 1) return null;
+      try { return { t: part.slice(0, at), id: decodeURIComponent(part.slice(at + 1)) }; } catch (err) { return null; }
+    });
+  }
+
+  function childFor(node, seg) {
+    if (!seg) return null;
+    var kids = kidsOf(node);
+    if (seg.t === 'a' && node.kind === 'app') return kids.find(function (c) { return c.id === seg.id; }) || null;
+    if (seg.t === 'j' && node.kind === 'area') return kids.find(function (c) { return c.id === seg.id; }) || null;
+    if (seg.t === 'j' && node.kind === 'step' && node.subflow === seg.id && hasOwn(vm.journeys, seg.id)) return vm.journeys[seg.id];
+    if (seg.t === 's' && node.kind === 'journey') return kids.find(function (c) { return c.id === node.id + '/' + seg.id; }) || null;
+    return null;
+  }
+
+  function resolveTrail(segs) {
+    var trail = [{ node: vm.root, seg: null }];
+    for (var i = 0; i < segs.length; i++) {
+      var next = childFor(last(trail).node, segs[i]);
+      if (!next) break;
+      trail.push({ node: next, seg: segs[i] });
+    }
+    return trail;
+  }
+
+  function hashOf(trail) {
+    return '#/' + trail.slice(1).map(function (t) { return t.seg.t + ':' + encodeURIComponent(t.seg.id); }).join('/');
+  }
+
+  function originOf(el) {
+    var a = el.getBoundingClientRect();
+    var b = view.getBoundingClientRect();
+    return { x: a.left + a.width / 2 - b.left, y: a.top + a.height / 2 - b.top };
+  }
+
+  function navigate(trail, fromEl) {
+    pendingOrigin = fromEl ? originOf(fromEl) : null;
+    var hash = hashOf(trail);
+    if (location.hash === hash) render();
+    else location.hash = hash;
+  }
+
+  function openChild(trail, child, fromEl) {
+    navigate(trail.concat([{ node: child, seg: segFor(last(trail).node, child) }]), fromEl);
+  }
+
+  function goUp() {
+    if (current && current.length > 1) navigate(current.slice(0, -1));
+  }
+
+  // ---- Interaction ----
+
+  function select(el) {
+    Array.prototype.forEach.call(view.querySelectorAll('.n.sel'), function (other) { other.classList.remove('sel'); });
+    el.classList.add('sel');
+    el.focus({ preventScroll: true });
+  }
+
+  function bindNode(el, open) {
+    openers.set(el, open);
+    el.addEventListener('click', function () { select(el); });
+    el.addEventListener('dblclick', function (event) {
+      event.preventDefault();
+      if (performance.now() - navigatedAt > 450) open(el);
+    });
+  }
+
+  function openButton(x, y, onOpen, size) {
+    var r = size || 10;
+    var k = r / 10;
+    var btn = s('g', { 'class': 'open-btn', transform: 'translate(' + round(x) + ' ' + round(y) + ')', 'aria-hidden': 'true' },
+      s('title', {}, txt('Open')),
+      s('circle', { 'class': 'hit', r: 17 }),
+      s('circle', { 'class': 'face', r: r }),
+      s('path', { d: pathData(['M', -1.6 * k, -4 * k, 'L', 2.4 * k, 0, 'L', -1.6 * k, 4 * k]) }));
+    btn.addEventListener('click', function (event) { event.stopPropagation(); onOpen(); });
+    btn.addEventListener('dblclick', function (event) { event.stopPropagation(); });
+    return btn;
+  }
+
+  function findNodeEl(id) {
+    return Array.prototype.find.call(view.querySelectorAll('[data-id]'), function (el) { return el.getAttribute('data-id') === id; }) || null;
+  }
+
+  view.addEventListener('keydown', function (event) {
+    var el = event.target && event.target.closest ? event.target.closest('.n') : null;
+    if (!el || !openers.has(el)) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openers.get(el)(el);
+      return;
+    }
+    var delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
+    if (!delta) return;
+    event.preventDefault();
+    var all = Array.prototype.slice.call(view.querySelectorAll('.n[tabindex="0"]'));
+    select(all[(all.indexOf(el) + delta + all.length) % all.length]);
+  });
+
+  // ---- Drawing: tags ----
+
+  function drawTags(parent, tags, x, y, align) {
+    if (!tags.length) return;
+    var widths = tags.map(function (tag) { return Math.ceil(measure(tag.text, FONTS.tag)) + 14; });
+    var total = widths.reduce(function (a, b) { return a + b; }, 0) + (tags.length - 1) * 4;
+    var cursor = align === 'middle' ? x - total / 2 : x;
+    var row = s('g', { 'class': 'tags', 'aria-hidden': 'true' });
+    tags.forEach(function (tag, i) {
+      row.appendChild(s('g', { 'class': 'tag tag-' + tag.kind, transform: 'translate(' + round(cursor) + ' ' + round(y - 9) + ')' },
+        s('rect', { width: widths[i], height: 18, rx: 9 }),
+        s('text', { x: widths[i] / 2, y: 12.5, 'text-anchor': 'middle' }, txt(tag.text))));
+      cursor += widths[i] + 4;
+    });
+    parent.appendChild(row);
+  }
+
+  function pillRow(tags) {
+    return h.apply(null, ['div', { 'class': 'pills' }].concat(tags.map(function (tag) {
+      return h('span', { 'class': 'pill pill-' + tag.kind }, txt(tag.text));
+    })));
+  }
+
+  // ---- Drawing: rings (app and area levels) ----
+
+  function ellipsePerimeter(rx, ry) {
+    return Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+  }
+
+  /** Points spaced evenly by arc length around an ellipse, starting at `start` radians. */
+  function ellipsePoints(cx, cy, rx, ry, count, start, offset) {
+    var SAMPLES = 360;
+    var pts = [];
+    var cum = [0];
+    var total = 0;
+    for (var i = 0; i <= SAMPLES; i++) {
+      var t = start + (2 * Math.PI * i) / SAMPLES;
+      pts.push({ x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) });
+      if (i > 0) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); cum.push(total); }
+    }
+    var out = [];
+    var j = 0;
+    for (var k = 0; k < count; k++) {
+      var target = ((k + offset) / count) * total;
+      while (j < SAMPLES - 1 && cum[j + 1] < target) j++;
+      var f = (target - cum[j]) / ((cum[j + 1] - cum[j]) || 1);
+      out.push({ x: pts[j].x + (pts[j + 1].x - pts[j].x) * f, y: pts[j].y + (pts[j + 1].y - pts[j].y) * f });
+    }
+    return out;
+  }
+
+  /**
+   * Ring geometry for n items: one ring up to 12, two rings beyond. Node size follows the
+   * spacing; the ellipse then fits the stage, but never so tight that labels hit the hub,
+   * so on small screens the canvas grows and the view scrolls instead.
+   */
+  function ringLayout(n, W, H) {
+    var innerCount = n > 12 ? Math.round(n * 0.4) : 0;
+    var k = innerCount ? 0.58 : 1;
+    var rx = clamp(Math.min(W / 2 - 96, 190 + n * 26), 120, 640);
+    var ry = clamp(Math.min(H / 2 - 78, 150 + n * 20), 105, 420);
+    var ringsFor = function () {
+      return innerCount
+        ? [{ rx: rx * k, ry: ry * k, count: innerCount, offset: 0 }, { rx: rx, ry: ry, count: n - innerCount, offset: 0.5 }]
+        : [{ rx: rx, ry: ry, count: n, offset: 0 }];
+    };
+    var spacing = Math.min.apply(null, ringsFor().map(function (ring) { return ellipsePerimeter(ring.rx, ring.ry) / Math.max(1, ring.count); }));
+    var r = clamp(Math.min(spacing * 0.24, ry * k * 0.3, W * 0.09), 14, 42);
+    var labelW = clamp(Math.min(spacing * 0.92, (W / 2 - 124) * 2), 66, 176);
+    var labelLines = spacing >= 84 ? 2 : 1;
+    var side = Math.max(labelW / 2, r);
+    var above = r + 34;
+    var below = r + 34 + 17 * labelLines;
+    rx = Math.min(rx, W / 2 - side - 14);
+    ry = Math.min(ry, (H - above - below) / 2);
+    var hubR = clamp(Math.min(rx, ry) * k * (innerCount ? 0.36 : 0.4), 46, 80);
+    rx = Math.max(rx, (hubR + 12 + side) / k);
+    ry = Math.max(ry, (hubR + r + 17 * labelLines + 32) / k);
+    W = grow(W, 2 * (rx + side + 14));
+    H = grow(H, above + below + 2 * ry);
+    var cx = W / 2;
+    var cy = (H + above - below) / 2;
+    var start = n === 1 ? 0 : n === 2 ? Math.PI : -Math.PI / 2;
+    var points = [];
+    ringsFor().forEach(function (ring) {
+      points = points.concat(ellipsePoints(cx, cy, ring.rx, ring.ry, ring.count, start, ring.offset));
+    });
+    return { W: W, H: H, cx: cx, cy: cy, r: r, hubR: hubR, labelW: labelW, labelLines: labelLines, dense: innerCount > 0, points: points };
+  }
+
+  function drawHub(node, L) {
+    var g = s('g', { 'class': 'hub', transform: 'translate(' + round(L.cx) + ' ' + round(L.cy) + ')' });
+    g.appendChild(s('title', {}, txt(node.say ? node.title + '\n' + node.say : node.title)));
+    g.appendChild(s('circle', { 'class': 'hub-ring hr-' + lookOf(node), r: L.hubR + 7 }));
+    g.appendChild(s('circle', { 'class': 'shape', r: L.hubR }));
+    var lines = wrapText(node.title, L.hubR * 1.7, 3, FONTS.hub);
+    var count = kidsOf(node).length;
+    var sub = node.kind === 'app' ? plural(count, 'area', 'areas') : plural(count, 'journey', 'journeys');
+    var height = lines.length * 18 + 16;
+    var y = -height / 2 + 13;
+    lines.forEach(function (line) {
+      g.appendChild(s('text', { 'class': 'hub-title', y: round(y), 'text-anchor': 'middle' }, txt(line)));
+      y += 18;
+    });
+    g.appendChild(s('text', { 'class': 'hub-sub', y: round(y), 'text-anchor': 'middle' }, txt(sub)));
+    return g;
+  }
+
+  function drawRingNode(trail, node, p, L) {
+    var g = s('g', {
+      'class': nodeClass(node), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
+      tabindex: '0', role: 'button', 'aria-label': ariaOf(node), 'data-id': node.id
+    });
+    g.appendChild(s('title', {}, txt(tooltipOf(node))));
+    g.appendChild(s('circle', { 'class': 'focus-ring', r: L.r + 9 }));
+    g.appendChild(s('circle', { 'class': 'halo', r: L.r + 5 }));
+    g.appendChild(s('circle', { 'class': 'shape', r: L.r }));
+    var count = kidsOf(node).length;
+    var big = L.r >= 28;
+    g.appendChild(s('text', { 'class': 'count on-shape', y: big ? -1 : 5, 'text-anchor': 'middle' }, txt(count)));
+    if (big) g.appendChild(s('text', { 'class': 'unit on-shape', y: 13, 'text-anchor': 'middle' }, txt(unitOf(node, count))));
+    var y = drawLines(g, wrapText(node.title, L.labelW, L.labelLines, FONTS.label), {
+      x: 0, y: L.r + 20, lineHeight: 17, cls: 'label', anchor: 'middle', font: FONTS.label, struck: node.state === 'removed'
+    });
+    if (node.kind === 'journey' && node.say && L.labelLines > 1 && !L.dense) {
+      g.appendChild(s('text', { 'class': 'sublabel', y: round(y - 1), 'text-anchor': 'middle' }, txt(wrapText(node.say, L.labelW, 1, FONTS.sub)[0])));
+    }
+    drawTags(g, tagsOf(node), 0, -L.r - 13, 'middle');
+    var open = function (el) { openChild(trail, node, el || g); };
+    g.appendChild(openButton(L.r * 0.7071, L.r * 0.7071, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
+    bindNode(g, open);
+    return g;
+  }
+
+  function drawRing(trail) {
+    var hub = last(trail).node;
+    var items = kidsOf(hub);
+    var L = ringLayout(items.length, Math.max(300, view.clientWidth), Math.max(360, view.clientHeight));
+    var svg = s('svg', { 'class': L.dense ? 'dense' : null, width: L.W, height: L.H, viewBox: '0 0 ' + L.W + ' ' + L.H, role: 'group', 'aria-label': hub.title });
+    var spokes = s('g', { 'class': 'spokes', 'aria-hidden': 'true' });
+    var nodes = s('g', { 'class': 'nodes' });
+    items.forEach(function (item, i) {
+      var p = L.points[i];
+      spokes.appendChild(s('line', { 'class': 'spoke sp-' + lookOf(item), x1: round(L.cx), y1: round(L.cy), x2: round(p.x), y2: round(p.y) }));
+      nodes.appendChild(drawRingNode(trail, item, p, L));
+    });
+    addKids(svg, [spokes, drawHub(hub, L), nodes]);
+    view.appendChild(svg);
+  }
+
+  // ---- Drawing: journey flow ----
+
+  function arrowMarker(id, cls) {
+    return s('marker', { id: id, viewBox: '0 0 10 10', refX: 8.5, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' },
+      s('path', { 'class': cls, d: 'M0 0 L10 5 L0 10 z' }));
+  }
+
+  function drawStepBox(trail, step, p, BW, BH) {
+    var g = s('g', {
+      'class': nodeClass(step), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
+      tabindex: '0', role: 'button', 'aria-label': ariaOf(step), 'data-id': step.id
+    });
+    g.appendChild(s('title', {}, txt(tooltipOf(step))));
+    g.appendChild(s('rect', { 'class': 'focus-ring', x: -9, y: -9, width: BW + 18, height: BH + 18, rx: 19 }));
+    g.appendChild(s('rect', { 'class': 'halo', x: -5, y: -5, width: BW + 10, height: BH + 10, rx: 16 }));
+    g.appendChild(s('rect', { 'class': 'shape', width: BW, height: BH, rx: 12 }));
+    drawLines(g, wrapText(step.title, BW - 30, 2, FONTS.title), {
+      x: 14, y: 28, lineHeight: 18, cls: 'title on-shape', anchor: 'start', font: FONTS.title, struck: step.state === 'removed'
+    });
+    var metaWidth = BW - 28 - (step.subflow ? 78 : 0);
+    var meta = step.screen ? wrapText(step.screen, metaWidth, 1, FONTS.meta)[0] : 'No screen';
+    g.appendChild(s('text', { 'class': step.screen ? 'meta' : 'meta none', x: 14, y: BH - 13 }, txt(meta)));
+    if (step.subflow) g.appendChild(s('text', { 'class': 'subflow-ind', x: BW - 16, y: BH - 13, 'text-anchor': 'end' }, txt('⤷ Sub-flow')));
+    drawTags(g, tagsOf(step), 12, 0, 'start');
+    var open = function (el) { openChild(trail, step, el || g); };
+    g.appendChild(openButton(BW, BH / 2, function () { open(g); }));
+    bindNode(g, open);
+    return g;
+  }
+
+  function pathData(parts) {
+    return parts.map(function (part) { return typeof part === 'number' ? round(part) : part; }).join(' ');
+  }
+
+  /**
+   * Path for one edge. Neighbouring columns get an S-curve. Edges that skip columns or loop
+   * back go round every box in the columns they span: above or below, whichever side both ends are free on.
+   */
+  function edgePath(a, b, geo) {
+    var BW = geo.BW, BH = geo.BH;
+    var lo = Math.min(a.col, b.col), hi = Math.max(a.col, b.col);
+    var top = Math.min.apply(null, geo.colTop.slice(lo, hi + 1));
+    var bottom = Math.max.apply(null, geo.colBottom.slice(lo, hi + 1));
+    var isTop = function (p) { return p.y <= geo.colTop[p.col] + 0.5; };
+    var isBottom = function (p) { return p.y + BH >= geo.colBottom[p.col] - 0.5; };
+    var bothTop = isTop(a) && isTop(b);
+    var bothBottom = isBottom(a) && isBottom(b);
+    if (b.col === a.col + 1) {
+      var x1 = a.x + BW + 11, y1 = a.y + BH / 2, x2 = b.x - 3, y2 = b.y + BH / 2, mx = (x1 + x2) / 2;
+      return pathData(['M', x1, y1, 'C', mx, y1, mx, y2, x2, y2]);
+    }
+    if (b.col > a.col) {
+      var sx = a.x + BW - 46, ex = b.x - 3;
+      if (bothTop || !bothBottom) {
+        var upY = b.y + 22, upC = top - geo.ARC;
+        return pathData(['M', sx, a.y, 'C', sx, upC, ex - 64, upC, ex - 64, upY - 30, 'S', ex - 24, upY, ex, upY]);
+      }
+      var downY = b.y + BH - 22, downC = bottom + geo.ARC;
+      return pathData(['M', sx, a.y + BH, 'C', sx, downC, ex - 64, downC, ex - 64, downY + 30, 'S', ex - 24, downY, ex, downY]);
+    }
+    if (bothBottom || !bothTop) {
+      var dip = bottom + geo.LOOP;
+      return pathData(['M', a.x + BW * 0.62, a.y + BH, 'C', a.x + BW * 0.62, dip, b.x + BW * 0.38, dip, b.x + BW * 0.38, b.y + BH + 3]);
+    }
+    var peak = top - geo.LOOP;
+    return pathData(['M', a.x + BW - 64, a.y, 'C', a.x + BW - 64, peak, b.x + BW - 40, peak, b.x + BW - 40, b.y - 3]);
+  }
+
+  function drawFlow(trail) {
+    var journey = last(trail).node;
+    var steps = kidsOf(journey);
+    if (!steps.length) {
+      view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt('This journey has no steps yet.'))));
+      return;
+    }
+    var BW = 208, BH = 80, CG = 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
+    var byDepth = [];
+    steps.forEach(function (step) {
+      var d = Number.isInteger(step.depth) && step.depth >= 0 ? step.depth : 0;
+      (byDepth[d] = byDepth[d] || []).push(step);
+    });
+    var cols = byDepth.filter(Boolean);
+    var rows = Math.max.apply(null, cols.map(function (col) { return col.length; }));
+    var contentW = PAD * 2 + cols.length * BW + (cols.length - 1) * CG;
+    var contentH = PAD * 2 + rows * BH + (rows - 1) * RG + LOOP;
+    var W = grow(view.clientWidth, contentW);
+    var H = grow(view.clientHeight, contentH);
+    var ox = (W - contentW) / 2 + PAD;
+    var oy = (H - contentH) / 2 + PAD;
+    var pos = new Map();
+    var byId = new Map();
+    cols.forEach(function (col, c) {
+      var top = oy + ((rows - col.length) * (BH + RG)) / 2;
+      col.forEach(function (step, r) {
+        pos.set(step.id, { x: ox + c * (BW + CG), y: top + r * (BH + RG), col: c });
+        byId.set(step.id, step);
+      });
+    });
+
+    var svg = s('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': journey.title });
+    svg.appendChild(s('defs', {}, arrowMarker('jm-arrow', 'arrow'), arrowMarker('jm-arrow-new', 'arrow-new')));
+    var geo = {
+      BW: BW, BH: BH, ARC: ARC, LOOP: LOOP,
+      colTop: cols.map(function (col) { return pos.get(col[0].id).y; }),
+      colBottom: cols.map(function (col) { return pos.get(last(col).id).y + BH; })
+    };
+    var edges = s('g', { 'class': 'edges', 'aria-hidden': 'true' });
+    (Array.isArray(journey.edges) ? journey.edges : []).forEach(function (edge) {
+      var a = pos.get(edge[0]);
+      var b = pos.get(edge[1]);
+      if (!a || !b) return;
+      var source = byId.get(edge[0]);
+      var target = byId.get(edge[1]);
+      var isNew = target.state === 'new';
+      var cls = 'edge';
+      if (b.col <= a.col) cls += ' edge-back';
+      if (isNew) cls += ' edge-new';
+      if (source.state === 'removed' || target.state === 'removed') cls += ' edge-removed';
+      edges.appendChild(s('path', { 'class': cls, d: edgePath(a, b, geo), 'marker-end': isNew ? 'url(#jm-arrow-new)' : 'url(#jm-arrow)' }));
+    });
+    var nodes = s('g', { 'class': 'nodes' });
+    cols.forEach(function (col) {
+      col.forEach(function (step) { nodes.appendChild(drawStepBox(trail, step, pos.get(step.id), BW, BH)); });
+    });
+    addKids(svg, [edges, nodes]);
+    view.appendChild(svg);
+  }
+
+  // ---- Drawing: step card ----
+
+  function section(title, body) {
+    return h('section', { 'class': 'section' }, h('h3', {}, txt(title)), body);
+  }
+
+  function list(items, cls) {
+    return h.apply(null, ['ul', { 'class': cls }].concat(items.map(function (item) { return h('li', {}, txt(item)); })));
+  }
+
+  function neighbourButtons(trail, steps) {
+    var parentTrail = trail.slice(0, -1);
+    return steps.map(function (step) {
+      var btn = h('button', { 'class': 'nb', type: 'button', title: step.title }, txt(step.title));
+      btn.addEventListener('click', function () { openChild(parentTrail, step, btn); });
+      return btn;
+    });
+  }
+
+  function drawCard(trail) {
+    var step = last(trail).node;
+    var journey = trail[trail.length - 2].node;
+    var card = h('article', { 'class': 'card ' + modifiersOf(step), 'aria-labelledby': 'jm-card-title' });
+    var tags = tagsOf(step);
+    if (tags.length) card.appendChild(pillRow(tags));
+    var title = h('h2', { id: 'jm-card-title', 'class': 'card-title', tabindex: '-1' }, txt(step.title));
+    card.appendChild(title);
+    card.appendChild(h('p', { 'class': 'card-sub' }, txt('A step in '), h('strong', {}, txt(journey.title))));
+
+    var facts = h('dl', { 'class': 'facts' },
+      h('dt', {}, txt('Screen')),
+      h('dd', {}, step.screen ? h('code', {}, txt(step.screen)) : h('span', { 'class': 'muted' }, txt('No screen, for example an email'))));
+    if (hasOwn(ANCHOR_TEXT, step.anchor)) {
+      addKids(facts, [h('dt', {}, txt('Link to code')), h('dd', {}, h('span', { 'class': 'anchor anchor-' + step.anchor }, txt(ANCHOR_TEXT[step.anchor])))]);
+    }
+    card.appendChild(facts);
+
+    var detail = step.detail || {};
+    var grid = h('div', { 'class': 'detail-grid' });
+    if (detail.sees) grid.appendChild(section('What they see', h('p', {}, txt(detail.sees))));
+    if (detail.does) grid.appendChild(section('What they do', h('p', {}, txt(detail.does))));
+    if (detail.rules && detail.rules.length) grid.appendChild(section('Rules', list(detail.rules)));
+    if (detail.saves && detail.saves.length) {
+      grid.appendChild(section('What gets saved', h.apply(null, ['div', { 'class': 'saves' }].concat(detail.saves.map(function (item) {
+        return h('span', { 'class': 'save' }, txt(item));
+      })))));
+    }
+    if (detail.files && detail.files.length) grid.appendChild(section('Code files', list(detail.files, 'files')));
+    if (!grid.childNodes.length) grid.appendChild(h('p', { 'class': 'muted' }, txt('No detail written for this step yet.')));
+    card.appendChild(grid);
+
+    var edges = Array.isArray(journey.edges) ? journey.edges : [];
+    var stepById = function (id) { return kidsOf(journey).find(function (c) { return c.id === id; }); };
+    var before = edges.filter(function (e) { return e[1] === step.id && e[0] !== step.id; }).map(function (e) { return stepById(e[0]); }).filter(Boolean);
+    var after = edges.filter(function (e) { return e[0] === step.id && e[1] !== step.id; }).map(function (e) { return stepById(e[1]); }).filter(Boolean);
+    if (before.length || after.length) {
+      var row = h('div', { 'class': 'neighbours' });
+      if (before.length) row.appendChild(addKids(h('div', { 'class': 'nb-group' }, h('span', { 'class': 'nb-label' }, txt('Before this'))), neighbourButtons(trail, before)));
+      if (after.length) row.appendChild(addKids(h('div', { 'class': 'nb-group' }, h('span', { 'class': 'nb-label' }, txt('Next'))), neighbourButtons(trail, after)));
+      card.appendChild(row);
+    }
+
+    if (step.subflow) {
+      var target = hasOwn(vm.journeys, step.subflow) ? vm.journeys[step.subflow] : null;
+      if (target) {
+        var btn = h('button', { 'class': 'primary', type: 'button' }, txt('Open sub-flow ›'));
+        btn.addEventListener('click', function () { openChild(trail, target, btn); });
+        card.appendChild(h('div', { 'class': 'subflow' },
+          h('p', {}, txt('This step has its own flow: '), h('strong', {}, txt(target.title))), btn));
+      } else {
+        card.appendChild(h('div', { 'class': 'subflow' }, h('p', {}, txt('This step points to a sub-flow that isn’t on the map yet.'))));
+      }
+    }
+
+    view.appendChild(h('div', { 'class': 'card-wrap' }, card));
+    return title;
+  }
+
+  // ---- Chrome: header, crumbs, stage head, legend ----
+
+  function drawHeader() {
+    var app = vm && vm.app ? vm.app : 'Your app';
+    document.title = app + ' · Journey map';
+    document.getElementById('jm-app').textContent = app;
+    if (!vm) return;
+    var session = vm.mode === 'session';
+    var mode = document.getElementById('jm-mode');
+    mode.textContent = session ? 'Changes in this chat' : 'Saved map';
+    mode.setAttribute('class', session ? 'mode mode-session' : 'mode mode-canonical');
+    var chips = document.getElementById('jm-chips');
+    (vm.chips || []).forEach(function (chip) { chips.appendChild(h('span', { 'class': 'chip' }, txt(chip))); });
+    var banners = document.getElementById('jm-banners');
+    if (vm.planSummary) {
+      var plan = h('div', { 'class': 'banner plan', role: 'status' }, h('span', { 'class': 'banner-label' }, txt('Plan:')), h('span', {}, txt(vm.planSummary)));
+      if (hasOwn(APPROVAL_TEXT, vm.approval)) plan.appendChild(h('span', { 'class': 'approval ap-' + vm.approval }, txt(APPROVAL_TEXT[vm.approval])));
+      banners.appendChild(plan);
+    }
+    (vm.banners || []).forEach(function (text) { banners.appendChild(h('div', { 'class': 'banner', role: 'status' }, txt(text))); });
+    if (session) drawLegend();
+  }
+
+  function legendSwatch(item) {
+    if (item.flag) {
+      return s('svg', { viewBox: '0 0 26 18', 'aria-hidden': 'true' },
+        s('g', { 'class': 'tag tag-flag' }, s('rect', { x: 0, y: 2, width: 26, height: 14, rx: 7 }), s('text', { x: 13, y: 12.5, 'text-anchor': 'middle' }, txt('Aa'))));
+    }
+    return s('svg', { viewBox: '0 0 26 18', 'aria-hidden': 'true' },
+      s('g', { 'class': 'n ' + item.cls },
+        s('rect', { 'class': 'halo', x: 0.5, y: 0.5, width: 25, height: 17, rx: 6 }),
+        s('rect', { 'class': 'shape', x: 3.5, y: 3.5, width: 19, height: 11, rx: 4 })));
+  }
+
+  function drawLegend() {
+    var listEl = document.getElementById('jm-legend-list');
+    LEGEND.forEach(function (item) {
+      listEl.appendChild(h('li', { title: item.say }, legendSwatch(item),
+        h('span', { 'class': item.strike ? 'lg-name strike' : 'lg-name' }, txt(item.name)),
+        h('span', { 'class': 'sr-only' }, txt(': ' + item.say))));
+    });
+    document.getElementById('jm-legend').hidden = false;
+  }
+
+  function drawCrumbs(trail) {
+    var ol = document.getElementById('jm-crumbs');
+    ol.replaceChildren();
+    trail.forEach(function (entry, i) {
+      var label = i === 0 ? (vm.app || 'Your app') : entry.node.title;
+      var li = h('li', {});
+      if (i < trail.length - 1) {
+        var btn = h('button', { 'class': 'crumb', type: 'button', title: label }, txt(label));
+        btn.addEventListener('click', function () { navigate(trail.slice(0, i + 1)); });
+        li.appendChild(btn);
+      } else {
+        li.appendChild(h('span', { 'class': 'crumb current', 'aria-current': 'location', title: label }, txt(label)));
+      }
+      ol.appendChild(li);
+    });
+  }
+
+  function sessionStats() {
+    var counts = { 'new': 0, planned: 0, changed: 0, removed: 0, conflict: 0 };
+    Object.keys(vm.journeys).forEach(function (id) {
+      var journey = vm.journeys[id];
+      [journey].concat(kidsOf(journey)).forEach(function (node) {
+        if (node.planned) counts.planned++;
+        else if (hasOwn(counts, node.state)) counts[node.state]++;
+        if (flagsOf(node).indexOf('conflict') >= 0) counts.conflict++;
+      });
+    });
+    var labels = { 'new': 'new', planned: 'planned', changed: 'changed', removed: 'removed', conflict: 'in conflict' };
+    return Object.keys(counts).filter(function (key) { return counts[key] > 0; }).map(function (key) {
+      return h('span', { 'class': 'stat stat-' + key, title: 'Journeys and steps ' + labels[key] }, txt(counts[key] + ' ' + labels[key]));
+    });
+  }
+
+  function drawStageHead(trail) {
+    var node = last(trail).node;
+    var parent = trail.length > 1 ? trail[trail.length - 2].node : null;
+    var kind = document.getElementById('jm-kind');
+    var title = document.getElementById('jm-title');
+    var sub = document.getElementById('jm-sub');
+    document.getElementById('jm-back').hidden = trail.length < 2;
+    sub.replaceChildren();
+    if (node.kind === 'app') {
+      var journeyCount = 0;
+      var stepCount = 0;
+      kidsOf(node).forEach(function (area) {
+        journeyCount += kidsOf(area).length;
+        kidsOf(area).forEach(function (j) { stepCount += kidsOf(j).length; });
+      });
+      kind.textContent = 'Your app';
+      title.textContent = node.title || vm.app || 'Your app';
+      sub.appendChild(h('span', {}, txt([plural(kidsOf(node).length, 'area', 'areas'), plural(journeyCount, 'journey', 'journeys'), plural(stepCount, 'step', 'steps')].join(' · '))));
+      if (vm.mode === 'session') addKids(sub, sessionStats());
+    } else if (node.kind === 'area') {
+      kind.textContent = 'Area';
+      title.textContent = node.title;
+      sub.appendChild(h('span', {}, txt((node.say ? node.say + ' · ' : '') + plural(kidsOf(node).length, 'journey', 'journeys'))));
+    } else if (node.kind === 'journey') {
+      kind.textContent = parent && parent.kind === 'step' ? 'Sub-flow' : 'Journey';
+      title.textContent = node.title;
+      sub.appendChild(h('span', {}, txt((node.say ? 'Done by ' + node.say + ' · ' : '') + plural(kidsOf(node).length, 'step', 'steps'))));
+    } else {
+      kind.textContent = 'Step in';
+      title.textContent = parent ? parent.title : '';
+    }
+    title.setAttribute('title', title.textContent);
+  }
+
+  // ---- Render loop ----
+
+  function drawEmpty() {
+    var cut = EMPTY_MESSAGE.indexOf('. ') + 1;
+    var rest = EMPTY_MESSAGE.slice(cut + 1).split(EMPTY_COMMAND);
+    var art = s('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' },
+      s('path', { 'class': 'e-line', d: 'M60 60 L22 28 M60 60 L98 28 M60 60 L60 104' }),
+      s('circle', { 'class': 'e-hub', cx: 60, cy: 60, r: 20 }),
+      s('circle', { 'class': 'e-dot', cx: 22, cy: 28, r: 10 }),
+      s('circle', { 'class': 'e-dot', cx: 98, cy: 28, r: 10 }),
+      s('circle', { 'class': 'e-dot', cx: 60, cy: 104, r: 10 }));
+    view.replaceChildren(h('div', { 'class': 'empty' }, art,
+      h('h2', {}, txt(EMPTY_MESSAGE.slice(0, cut))),
+      h('p', {}, txt(rest[0]), h('code', {}, txt(EMPTY_COMMAND)), txt(rest[1]))));
+    document.getElementById('jm-hint').hidden = true;
+    document.getElementById('jm-legend').hidden = true;
+    document.getElementById('jm-kind').textContent = 'Your app';
+    document.getElementById('jm-title').textContent = vm && vm.app ? vm.app : 'Your app';
+    document.getElementById('jm-sub').replaceChildren(h('span', {}, txt('Nothing mapped yet')));
+    var ol = document.getElementById('jm-crumbs');
+    ol.replaceChildren(h('li', {}, h('span', { 'class': 'crumb current', 'aria-current': 'location' }, txt(vm && vm.app ? vm.app : 'Your app'))));
+  }
+
+  /** Zooms the freshly drawn layer in from the opened node (or out towards the centre). */
+  function animate(dir, sameView) {
+    var layer = view.firstElementChild;
+    if (sameView || !layer || typeof layer.animate !== 'function') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var origin = pendingOrigin || { x: view.clientWidth / 2, y: view.clientHeight / 2 };
+    layer.style.transformOrigin = round(origin.x) + 'px ' + round(origin.y) + 'px';
+    var from = dir > 0 ? 'scale(0.86)' : dir < 0 ? 'scale(1.1)' : 'scale(0.98)';
+    layer.animate([{ opacity: 0, transform: from }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+
+  function render() {
+    var segs = parseHash();
+    var trail = resolveTrail(segs);
+    if (trail.length - 1 < segs.length) {
+      location.replace(hashOf(trail));
+      return;
+    }
+    var ids = trail.map(function (t) { return t.node.id; });
+    var prev = lastIds;
+    var dir = prev ? Math.sign(ids.length - prev.length) : 0;
+    var sameView = !!prev && prev.length === ids.length && last(prev) === last(ids);
+    lastIds = ids;
+    current = trail;
+    navigatedAt = performance.now();
+
+    drawCrumbs(trail);
+    drawStageHead(trail);
+    view.replaceChildren();
+    view.scrollTop = 0;
+    view.scrollLeft = 0;
+    var node = last(trail).node;
+    var cardTitle = null;
+    if (node.kind === 'app' || node.kind === 'area') drawRing(trail);
+    else if (node.kind === 'journey') drawFlow(trail);
+    else cardTitle = drawCard(trail);
+    animate(dir, sameView);
+
+    if (prev) {
+      var restore = pendingFocus || (dir < 0 ? { id: prev[ids.length], sel: true } : null);
+      var restoreEl = restore ? findNodeEl(restore.id) : null;
+      var first = sameView ? null : cardTitle || view.querySelector('.n[tabindex="0"]');
+      if (restoreEl && restore.sel) select(restoreEl);
+      else if (restoreEl) restoreEl.focus({ preventScroll: true });
+      else if (first) first.focus({ preventScroll: true });
+    }
+    pendingFocus = null;
+    pendingOrigin = null;
+    document.getElementById('jm-announce').textContent = 'Showing ' + (KIND_LABEL[node.kind] || '').toLowerCase() + ': ' + (node.kind === 'app' ? (vm.app || '') : node.title);
+  }
+
+  drawHeader();
+  if (!vm || !kidsOf(vm.root).length) {
+    drawEmpty();
+    return;
+  }
+  document.getElementById('jm-back').addEventListener('click', goUp);
+  window.addEventListener('hashchange', render);
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !event.defaultPrevented) goUp();
+  });
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var active = document.activeElement;
+      var id = active && active.getAttribute ? active.getAttribute('data-id') : null;
+      pendingFocus = id ? { id: id, sel: active.classList.contains('sel') } : null;
+      render();
+    }, 120);
+  });
+  render();
+})();
+</script>
+</body>
+</html>
