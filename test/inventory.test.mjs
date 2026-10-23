@@ -12,8 +12,10 @@ const fixture = (name) => path.join(path.dirname(fileURLToPath(import.meta.url))
 const RICH = fixture('rich-app');
 const NEXT = fixture('next-app');
 const VITE = fixture('vite-router');
+const SPA = fixture('spa-app');
 const RICH_CONFIG = { ...DEFAULT_CONFIG, sourceGlobs: ['src/**', 'server/**', 'emails/**', 'prisma/**'] };
 const rich = buildInventory(RICH, RICH_CONFIG);
+const spa = buildInventory(SPA, DEFAULT_CONFIG);
 
 /** Creates a temp dir (relative posix path to contents), removed when the test ends. */
 function project(t, files = {}) {
@@ -549,25 +551,26 @@ describe('planUnits', () => {
   });
 
   test('a small budget splits an area into area-<id>, area-<id>-2 with part titles', () => {
-    const tokens = (file) => Math.ceil(rich.files[file].bytes / 4);
-    const maxTokens = Math.max(tokens('src/pages/Shop.tsx'), tokens('src/pages/Product.tsx'));
-    assert.ok(rich.files['src/pages/Shop.tsx'].bytes + rich.files['src/pages/Product.tsx'].bytes > maxTokens * 4, 'precondition: the pair does not fit');
-    const shop = planUnits(rich, { maxTokens }).filter((unit) => unit.area === 'shop');
-    assert.deepEqual(shop.map((unit) => unit.id), ['area-shop', 'area-shop-2']);
-    assert.deepEqual(shop.map((unit) => unit.title), ['Shop (part 1 of 2)', 'Shop (part 2 of 2)']);
-    assert.deepEqual(shop.map((unit) => unit.routes), [['/shop'], ['/shop/:param']]);
-    assert.deepEqual(shop.map((unit) => unit.files[0]), ['src/pages/Shop.tsx', 'src/pages/Product.tsx']);
-    for (const unit of shop) assert.ok(unit.estTokens <= maxTokens);
+    const inventory = handBuilt({
+      pages: [['/shop', 'src/Shop.tsx', 'shop'], ['/shop/:param', 'src/Product.tsx', 'shop'], ['/cart', 'src/Cart.tsx', 'cart']],
+      sizes: { 'src/Shop.tsx': 120, 'src/Product.tsx': 100, 'src/Cart.tsx': 60 },
+    });
+    const units = planUnits(inventory, { maxTokens: 30 });
+    assert.deepEqual(units.map((unit) => [unit.id, unit.title, unit.routes, unit.files, unit.estTokens]), [
+      ['area-cart', 'CART', ['/cart'], ['src/Cart.tsx'], 15],
+      ['area-shop', 'SHOP (part 1 of 2)', ['/shop'], ['src/Shop.tsx'], 30],
+      ['area-shop-2', 'SHOP (part 2 of 2)', ['/shop/:param'], ['src/Product.tsx'], 25],
+    ]);
   });
 
-  test('imports are added only while the budget holds, then planning stops at the first file that does not fit', () => {
+  test('without feature folders to cut by, imports are added while the budget holds and planning stops at the first that does not fit', () => {
     const inventory = handBuilt({
-      pages: [['/p', 'p.tsx', 'p']],
-      imports: { 'p.tsx': ['a.ts', 'b.ts', 'c.ts'] },
-      sizes: { 'p.tsx': 40, 'a.ts': 40, 'b.ts': 400, 'c.ts': 4 },
+      pages: [['/p', 'src/pages/p.tsx', 'p']],
+      imports: { 'src/pages/p.tsx': ['src/api/a.ts', 'src/api/b.ts', 'src/api/c.ts'] },
+      sizes: { 'src/pages/p.tsx': 40, 'src/api/a.ts': 40, 'src/api/b.ts': 400, 'src/api/c.ts': 4 },
     });
     const [unit] = planUnits(inventory, { maxTokens: 25 });
-    assert.deepEqual(unit.files, ['p.tsx', 'a.ts']);
+    assert.deepEqual(unit.files, ['src/pages/p.tsx', 'src/api/a.ts']);
     assert.equal(unit.estTokens, 20);
   });
 
@@ -641,6 +644,137 @@ describe('planUnits', () => {
 
   test('an inventory without pages has no units', () => {
     assert.deepEqual(planUnits(handBuilt()), []);
+  });
+});
+
+describe('planUnits view units', () => {
+  const PAGE = 'src/pages/home/HomePage.tsx';
+  const bytes = (file) => spa.files[file].bytes;
+  const tokensFor = (totalBytes) => Math.ceil(totalBytes / 4);
+  const plan = (options) => planUnits(spa, { minViewTokens: 0, ...options });
+  const byId = (units) => Object.fromEntries(units.map((unit) => [unit.id, unit]));
+  const PEOPLE = ['src/pages/home/people/PeopleView.tsx', 'src/pages/home/people/PersonCard.tsx'];
+  const TASKS = ['src/pages/home/tasks/TasksView.tsx', 'src/pages/home/tasks/TaskRow.tsx'];
+
+  test('a single-page app that fits stays one unit', () => {
+    const [unit] = planUnits(spa);
+    assert.equal(planUnits(spa).length, 1);
+    assert.equal(unit.id, 'area-home');
+    assert.equal(unit.files[0], PAGE);
+    assert.equal(unit.files.length, 11);
+  });
+
+  test('a page whose imports do not fit is cut into one unit per feature folder, biggest first', () => {
+    const maxTokens = 600;
+    assert.ok(planUnits(spa)[0].estTokens > maxTokens, 'precondition: everything together is over budget');
+    const units = plan({ maxTokens });
+    assert.deepEqual(units.map((unit) => [unit.id, unit.title]), [
+      ['area-home-people', 'Home · People'],
+      ['area-home-tasks', 'Home · Tasks'],
+      ['area-home-notebook', 'Home · Notebook'],
+      ['area-home-editor', 'Home · Editor'],
+    ]);
+    for (const unit of units) {
+      assert.equal(unit.kind, 'area');
+      assert.equal(unit.area, 'home');
+      assert.deepEqual(unit.routes, ['/home']);
+      assert.equal(unit.files[0], PAGE, `${unit.id} starts with the page file`);
+      assert.equal(unit.estTokens, tokensFor(unit.files.reduce((sum, file) => sum + bytes(file), 0)));
+      assert.ok(unit.estTokens <= maxTokens);
+    }
+    const found = byId(units);
+    assert.deepEqual(found['area-home-people'].files.slice(0, 3), [PAGE, ...PEOPLE]);
+    assert.deepEqual(found['area-home-tasks'].files.slice(0, 3), [PAGE, ...TASKS]);
+    assert.deepEqual(found['area-home-editor'].files, [PAGE, 'src/components/Editor/Editor.tsx'], 'src/components/<key> is its own feature');
+  });
+
+  test('stores and hooks are never features; they join a unit only when its own files import them and budget remains', () => {
+    const units = byId(plan({ maxTokens: 600 }));
+    assert.deepEqual(units['area-home-people'].files, [PAGE, ...PEOPLE, 'src/hooks/useSession.ts', 'src/stores/usePeopleStore.ts']);
+    assert.deepEqual(units['area-home-tasks'].files, [PAGE, ...TASKS, 'src/hooks/useSession.ts', 'src/stores/useTaskStore.ts']);
+    assert.deepEqual(units['area-home-notebook'].files, [PAGE, 'src/pages/home/notebook/NotebookView.tsx']);
+    const all = Object.values(units).flatMap((unit) => unit.files);
+    assert.ok(!all.includes('src/stores/useAppStore.ts'), 'what only the page imports is not added to any view');
+    assert.ok(!units['area-home-people'].files.includes('src/stores/useTaskStore.ts'));
+
+    const tight = byId(plan({ maxTokens: Math.floor((bytes(PAGE) + bytes(PEOPLE[0]) + bytes(PEOPLE[1])) / 4) + 1 }));
+    assert.deepEqual(tight['area-home-people'].files, [PAGE, ...PEOPLE], 'no room left for infra');
+    assert.deepEqual(tight['area-home-tasks'].files, [PAGE, ...TASKS, 'src/hooks/useSession.ts'], 'a store that does not fit is skipped, a smaller hook still fits');
+  });
+
+  test('a feature bigger than the budget is split into -2, -3 parts', () => {
+    const maxTokens = tokensFor(bytes(PAGE) + bytes(PEOPLE[0]));
+    const units = plan({ maxTokens });
+    assert.deepEqual(units.filter((unit) => unit.title.startsWith('Home · People')).map((unit) => [unit.id, unit.title, unit.files.slice(0, 2)]), [
+      ['area-home-people', 'Home · People (part 1 of 2)', [PAGE, PEOPLE[0]]],
+      ['area-home-people-2', 'Home · People (part 2 of 2)', [PAGE, PEOPLE[1]]],
+    ]);
+    assert.ok(units.some((unit) => unit.id === 'area-home-tasks-2'));
+    assert.equal(new Set(units.map((unit) => unit.id)).size, units.length, 'ids are unique');
+  });
+
+  test('small features are merged into one "Other parts" unit, which is split when too big', () => {
+    const minViewTokens = 100;
+    assert.ok(bytes(PEOPLE[0]) + bytes(PEOPLE[1]) >= minViewTokens * 4 && bytes(TASKS[0]) + bytes(TASKS[1]) >= minViewTokens * 4);
+    const units = planUnits(spa, { maxTokens: 600, minViewTokens });
+    assert.deepEqual(units.map((unit) => [unit.id, unit.title]), [
+      ['area-home-people', 'Home · People'],
+      ['area-home-tasks', 'Home · Tasks'],
+      ['area-home-other-parts', 'Home · Other parts'],
+    ]);
+    assert.deepEqual(units[2].files, [PAGE, 'src/pages/home/notebook/NotebookView.tsx', 'src/components/Editor/Editor.tsx']);
+
+    const split = planUnits(spa, { maxTokens: tokensFor(bytes(PAGE) + bytes('src/pages/home/notebook/NotebookView.tsx')), minViewTokens });
+    assert.deepEqual(split.filter((unit) => unit.id.startsWith('area-home-other-parts')).map((unit) => [unit.id, unit.title]), [
+      ['area-home-other-parts', 'Home · Other parts (part 1 of 2)'],
+      ['area-home-other-parts-2', 'Home · Other parts (part 2 of 2)'],
+    ]);
+
+    const lone = planUnits(spa, { maxTokens: 600, minViewTokens: 30 });
+    assert.ok(lone.some((unit) => unit.id === 'area-home-editor'), 'a single small feature keeps its own name');
+    assert.ok(!lone.some((unit) => unit.id === 'area-home-other-parts'));
+  });
+
+  test('ordering and ids are deterministic: biggest first, ties by name', (t) => {
+    const first = JSON.stringify(plan({ maxTokens: 600 }));
+    assert.equal(JSON.stringify(plan({ maxTokens: 600 })), first);
+    const copy = project(t);
+    fs.cpSync(SPA, copy, { recursive: true });
+    assert.equal(JSON.stringify(planUnits(buildInventory(copy, DEFAULT_CONFIG), { maxTokens: 600, minViewTokens: 0 })), first);
+
+    const tied = handBuilt({
+      pages: [['/p', 'src/pages/p/P.tsx', 'p']],
+      imports: { 'src/pages/p/P.tsx': ['src/pages/p/beta/B.tsx', 'src/pages/p/alpha/A.tsx'] },
+      sizes: { 'src/pages/p/P.tsx': 4, 'src/pages/p/beta/B.tsx': 40, 'src/pages/p/alpha/A.tsx': 40 },
+    });
+    assert.deepEqual(planUnits(tied, { maxTokens: 20, minViewTokens: 0 }).map((unit) => unit.id), ['area-p-alpha', 'area-p-beta']);
+  });
+
+  test('feature keys come from the page folder, container folders, or the file name', () => {
+    const inventory = handBuilt({
+      pages: [['/p', 'web/src/pages/p/P.tsx', 'p']],
+      imports: {
+        'web/src/pages/p/P.tsx': [
+          'web/src/pages/p/components/Side/Side.tsx', 'web/src/pages/p/Extras.tsx', 'web/src/features/billing/Plan.tsx',
+          'web/src/pages/other/components/Deep/D.tsx', 'web/src/components/Widget.tsx', 'web/src/utils/format.ts',
+        ],
+      },
+      sizes: Object.fromEntries([
+        'web/src/pages/p/P.tsx', 'web/src/pages/p/components/Side/Side.tsx', 'web/src/pages/p/Extras.tsx', 'web/src/features/billing/Plan.tsx',
+        'web/src/pages/other/components/Deep/D.tsx', 'web/src/components/Widget.tsx', 'web/src/utils/format.ts',
+      ].map((file) => [file, 40])),
+    });
+    const units = planUnits(inventory, { maxTokens: 30, minViewTokens: 0 });
+    assert.deepEqual(units.map((unit) => unit.title).sort(), [
+      'P · Billing', 'P · Extras', 'P · Other', 'P · Side', 'P · Widget',
+    ]);
+    assert.ok(units.every((unit) => !unit.files.includes('web/src/utils/format.ts') || unit.files.length > 1));
+  });
+
+  test('gap units cut into views are numbered gap-1, gap-2, …', () => {
+    const units = plan({ maxTokens: 600, routes: ['/home'], kind: 'gap' });
+    assert.deepEqual(units.map((unit) => unit.id), ['gap-1', 'gap-2', 'gap-3', 'gap-4']);
+    assert.equal(units[0].title, 'Home · People');
   });
 });
 
