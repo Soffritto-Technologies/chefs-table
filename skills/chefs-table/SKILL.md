@@ -1,9 +1,9 @@
 ---
-name: journeymap
-description: Keep the app's live journey map in sync while building. Use whenever the repo has a .journeys/ folder and you are about to add, change or remove anything a user would notice (a screen, a step, a form, a flow, an email), when the journeymap hooks mention a plan, drift or MAP_CHANGED, or when the user asks to see, share or explain the map of their app.
+name: chefs-table
+description: Keep the app's live journey map in sync while building. Use whenever the repo has a .journeys/ folder and you are about to add, change or remove anything a user would notice (a screen, a step, a form, a flow, an email), when the Chef's Table hooks mention a plan, drift or MAP_CHANGED, or when the user asks to see, share or explain the map of their app.
 ---
 
-# journeymap
+# Chef's Table
 
 The builder you work with may not read code. The **map is how they see what you build**: their whole app as a ring of areas, zooming into journeys, steps and step detail. Keep it true and current, and let them see a change *before* you build it.
 

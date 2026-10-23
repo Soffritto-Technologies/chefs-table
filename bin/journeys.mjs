@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * journeymap CLI and hook dispatcher.
+ * Chef's Table CLI and hook dispatcher.
  *
  *   journeys init                     create .journeys/ in the current project
  *   journeys check                    validate journeys.json and report anchors
@@ -57,12 +57,12 @@ function readPayload() {
 }
 
 /**
- * Current gate mode from JOURNEYMAP_GATE.
+ * Current gate mode from CHEFS_TABLE_GATE.
  *
  * @returns {'on'|'warn'|'off'} Gate mode (default 'on').
  */
 function gateMode() {
-  const v = String(process.env.JOURNEYMAP_GATE || 'on').toLowerCase();
+  const v = String(process.env.CHEFS_TABLE_GATE || 'on').toLowerCase();
   return v === 'warn' || v === 'off' ? v : 'on';
 }
 
@@ -286,7 +286,7 @@ function renderCanonical(p, doc) {
 function sessionContext(p, doc) {
   const local = S.readJson(p.local, {}) || {};
   const head = [
-    'journeymap is active in this project. Follow the journeymap skill before changing anything a user would notice.',
+    'Chef\'s Table is active in this project. Follow the chefs-table skill before changing anything a user would notice.',
     `Session folder: ${relative(p.projectDir, p.session)}`,
     `CLI: node "${CLI}" <plan|build --render|check|render --canonical>`,
     `Live map for this chat: ${p.view}${local.artifactUrl ? ` (share link: ${local.artifactUrl})` : ''}`,
@@ -308,7 +308,7 @@ function sessionContext(p, doc) {
     text = next;
   }
   if (shown < lines.length) text += moreLine(lines.length - shown);
-  return lines.length ? text : `${head}\n(none yet: run /journeymap:map-app to draw the app)`;
+  return lines.length ? text : `${head}\n(none yet: run /chefs-table:map-app to draw the app)`;
 }
 
 /** Hook: SessionStart. */
@@ -320,7 +320,7 @@ function onSessionStart(payload) {
   const config = S.loadConfig(projectDir);
   const { doc, error } = tryLoadDoc(p);
   if (!doc) {
-    emit({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: `journeymap: .journeys/journeys.json has a problem: ${error} Fix it before changing user-facing flows.` } });
+    emit({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: `Chef's Table: .journeys/journeys.json has a problem: ${error} Fix it before changing user-facing flows.` } });
     return;
   }
   S.initSession(p, { doc, routes: listRouteFiles(projectDir, config), source: payload.source });
@@ -355,7 +355,7 @@ function onPreToolUse(payload) {
           hookEventName: 'PreToolUse',
           permissionDecision: 'ask',
           permissionDecisionReason: [
-            `journeymap: this change needs your OK before Claude edits code.`,
+            `Chef's Table: this change needs your OK before Claude edits code.`,
             `Plan: ${sanitizeText(status.plan.summary || 'unnamed change')}`,
             why,
             `See it on the map: ${p.view}${local.artifactUrl ? ` (or ${local.artifactUrl})` : ''}`,
@@ -374,7 +374,7 @@ function onPreToolUse(payload) {
   emit({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      additionalContext: `journeymap: ${rel} belongs to the journey "${hit.journey}" (step: "${hit.step}"). If this edit changes what a user sees or does, write a plan first (journeymap skill). If not, write the no-flow-change note before you finish.`,
+      additionalContext: `Chef's Table: ${rel} belongs to the journey "${hit.journey}" (step: "${hit.step}"). If this edit changes what a user sees or does, write a plan first (chefs-table skill). If not, write the no-flow-change note before you finish.`,
     },
   });
 }
@@ -467,7 +467,7 @@ function onStop(payload) {
   if (!secondPass && reasons.length) {
     const steps = reasons.map((r, i) => `${i + 1}. ${r}`);
     if (reasons.some((r) => !r.startsWith('Republish'))) steps.push(`${steps.length + 1}. Then run: node "${CLI}" build --render, and republish if it prints MAP_CHANGED.`);
-    emit({ decision: 'block', reason: `journeymap needs one more step before you finish:\n${steps.join('\n')}` });
+    emit({ decision: 'block', reason: `Chef's Table needs one more step before you finish:\n${steps.join('\n')}` });
     return;
   }
 
@@ -486,13 +486,13 @@ function onStop(payload) {
  *
  * @param {string[]} args - CLI arguments.
  * @returns {{ p: Record<string, string>, config: object }} Paths and config.
- * @throws {Error} When journeymap isn't set up or no session id is available.
+ * @throws {Error} When Chef's Table isn't set up or no session id is available.
  */
 function cliContext(args) {
   const i = args.indexOf('--session');
   const sessionId = i >= 0 ? args[i + 1] : process.env.CLAUDE_CODE_SESSION_ID;
   const projectDir = S.findProjectDir(process.cwd());
-  if (!projectDir) throw new Error('journeymap is not set up here. Run: journeys init');
+  if (!projectDir) throw new Error('Chef\'s Table is not set up here. Run: journeys init');
   if (!sessionId) throw new Error('No session id. Pass --session <id> (Claude Code sets CLAUDE_CODE_SESSION_ID automatically).');
   const p = S.paths(projectDir, sessionId);
   if (!existsSync(p.start)) {
@@ -516,7 +516,7 @@ function cmdInit() {
   const current = S.readText(gi, '') || '';
   const missing = ['.journeys/.session/', '.journeys/.local.json', '.journeys/.anchor-cache.json'].filter((l) => !current.split(/\r?\n/).includes(l));
   if (missing.length) writeFileSync(gi, `${current}${current && !current.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
-  const lines = ['journeymap ready.', `Data: ${relative(projectDir, p.doc)}`];
+  const lines = ['Chef\'s Table ready.', `Data: ${relative(projectDir, p.doc)}`];
   if (process.env.CLAUDE_CODE_SESSION_ID) lines.push(`This chat's map: ${cliContext([]).p.view}`);
   lines.push(`CLI: node "${CLI}" <check|plan|build --render|render --canonical>`);
   console.log(lines.join('\n'));
@@ -525,7 +525,7 @@ function cmdInit() {
 /** CLI: check — validate the document and summarise anchors. */
 function cmdCheck() {
   const projectDir = S.findProjectDir(process.cwd());
-  if (!projectDir) throw new Error('journeymap is not set up here. Run: journeys init');
+  if (!projectDir) throw new Error('Chef\'s Table is not set up here. Run: journeys init');
   const p = S.paths(projectDir);
   const raw = S.readJson(p.doc, null);
   if (!raw) throw new Error('.journeys/journeys.json is missing or not valid JSON.');
@@ -575,7 +575,7 @@ function cmdBuild(args) {
 /** CLI: render --canonical — redraw the committed journeys.html. */
 function cmdRenderCanonical() {
   const projectDir = S.findProjectDir(process.cwd());
-  if (!projectDir) throw new Error('journeymap is not set up here. Run: journeys init');
+  if (!projectDir) throw new Error('Chef\'s Table is not set up here. Run: journeys init');
   const p = S.paths(projectDir);
   const { doc, error } = tryLoadDoc(p);
   if (!doc) throw new Error(error);
@@ -597,7 +597,7 @@ function main(argv) {
     if (!handler) return;
     const payload = readPayload();
     if (!S.isSessionId(payload.session_id)) {
-      process.stderr.write(`journeymap: ${args[0]} failed: the hook input has no usable session id\n`);
+      process.stderr.write(`Chef's Table: ${args[0]} failed: the hook input has no usable session id\n`);
       return;
     }
     try {
@@ -630,7 +630,7 @@ function main(argv) {
   try {
     commands[cmd](args);
   } catch (err) {
-    console.error(`journeymap: ${err.message}`);
+    console.error(`Chef's Table: ${err.message}`);
     process.exitCode = 1;
   }
 }

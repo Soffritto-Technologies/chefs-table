@@ -1,9 +1,9 @@
 {
-  "name": "journeymap",
-  "owner": { "name": "journeymap contributors" },
+  "name": "chefs-table",
+  "owner": { "name": "Soffritto Technologies" },
   "plugins": [
     {
-      "name": "journeymap",
+      "name": "chefs-table",
       "source": "./",
       "description": "A live, zoomable map of your app's user journeys that Claude Code keeps up to date as it builds."
     }

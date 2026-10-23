@@ -1,5 +1,5 @@
 {
-  "name": "journeymap",
+  "name": "chefs-table",
   "version": "0.1.0",
   "description": "A live, zoomable map of your app's user journeys that Claude Code keeps up to date as it builds.",
   "type": "module",
@@ -8,7 +8,7 @@
   "bin": { "journeys": "bin/journeys.mjs" },
   "scripts": {
     "test": "node --test",
-    "test:perf": "JOURNEYMAP_PERF=1 node --test test/perf.test.mjs"
+    "test:perf": "CHEFS_TABLE_PERF=1 node --test test/perf.test.mjs"
   },
   "files": ["bin", "lib", "templates", "hooks", "skills", "commands", ".claude-plugin"],
   "keywords": ["claude-code", "plugin", "user-journeys", "visualization", "qa"]

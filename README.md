@@ -1,8 +1,10 @@
-# journeymap
+# Chef's Table
+
+*A [Soffritto Technologies](https://github.com/Soffritto-Technologies) project.*
 
 **See what your AI is building, before and after it builds it.**
 
-journeymap gives your app a living map: every user journey, from the whole product down to a single step, kept up to date by your coding agent as it works. You don't need to read code to know what exists, what's about to change, and what just broke.
+Chef's Table gives your app a living map: every user journey, from the whole product down to a single step, kept up to date by your coding agent as it works. You don't need to read code to know what exists, what's about to change, and what just broke.
 
 ![The journey map: an area's journeys in a ring, with a planned journey and a conflict flagged before anything is built](docs/screenshot-area.png)
 
@@ -17,7 +19,7 @@ Before Claude builds anything you'd notice, it draws the change on the map:
 You approve a picture you understand, not a diff you don't.
 
 **Stop features being built on top of each other.**
-If a change would rewire a screen another journey depends on, for example a new booking flow reusing the checkout page, journeymap catches it *before* any code is written. Claude Code then asks you to allow it.
+If a change would rewire a screen another journey depends on, for example a new booking flow reusing the checkout page, Chef's Table catches it *before* any code is written. Claude Code then asks you to allow it.
 
 **Test UX flows and QA every change.**
 - **Test paths.** Every journey is a ready-made test path. Click through it step by step: what the user sees, what they do, the rules, the data saved.
@@ -53,20 +55,20 @@ Plans are framed as user goals ("Customer books a call"), not files. That keeps 
 ## Install
 
 ```bash
-claude plugin marketplace add bmoski8/journeymap && claude plugin install journeymap@journeymap
+claude plugin marketplace add Soffritto-Technologies/chefs-table && claude plugin install chefs-table@chefs-table
 ```
 
 Or from inside Claude Code:
 
 ```
-/plugin marketplace add bmoski8/journeymap
-/plugin install journeymap@journeymap
+/plugin marketplace add Soffritto-Technologies/chefs-table
+/plugin install chefs-table@chefs-table
 ```
 
 Then open your project in Claude Code and run:
 
 ```
-/journeymap:map-app
+/chefs-table:map-app
 ```
 
 Claude surveys your app, draws the first map and asks you to correct anything that's wrong. From then on the map keeps itself up to date while you build.
@@ -104,7 +106,7 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
 | `sourceGlobs` | `src/**`, `app/**`, `pages/**` | Where to look for route definitions (React Router, Vite and others). |
 | `ignore` | tests, docs, lockfiles… | Files that never count as flow changes. |
 
-Environment variable `JOURNEYMAP_GATE`:
+Environment variable `CHEFS_TABLE_GATE`:
 - `on` (default): ask before risky edits.
 - `warn`: build anyway, and mark the change "built without approval" on the map.
 - `off`: no gate. Use `warn` or `off` for headless and CI runs, where nobody can answer a prompt.

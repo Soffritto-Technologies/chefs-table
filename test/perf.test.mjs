@@ -180,7 +180,7 @@ const SUITES = [
 ];
 
 for (const { flavour, todo } of SUITES) {
-  describe(`hook speed on a 50,000-file ${flavour} project`, { skip: process.env.JOURNEYMAP_PERF !== '1' && 'set JOURNEYMAP_PERF=1 to run (slow: builds a 50,000-file project)' }, () => {
+  describe(`hook speed on a 50,000-file ${flavour} project`, { skip: process.env.CHEFS_TABLE_PERF !== '1' && 'set CHEFS_TABLE_PERF=1 to run (slow: builds a 50,000-file project)' }, () => {
     let project;
     let baseline;
 

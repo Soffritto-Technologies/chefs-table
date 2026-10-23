@@ -1,4 +1,4 @@
-# Contributing to journeymap
+# Contributing to Chef's Table
 
 Thanks for helping out. A few ground rules keep the project small and easy to trust.
 

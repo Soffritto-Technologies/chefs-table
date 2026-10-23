@@ -1,8 +1,8 @@
 # Architecture
 
-journeymap is a Claude Code plugin made of four parts:
+Chef's Table is a Claude Code plugin made of four parts:
 
-- a skill (`skills/journeymap/SKILL.md`)
+- a skill (`skills/chefs-table/SKILL.md`)
 - a slash command (`commands/map-app.md`)
 - four hooks (`hooks/hooks.json`)
 - a zero-dependency Node CLI (`bin/journeys.mjs`)

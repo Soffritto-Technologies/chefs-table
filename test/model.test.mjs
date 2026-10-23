@@ -290,7 +290,7 @@ describe('loadDoc and savePlanApplied', () => {
   let path;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'journeymap-model-'));
+    dir = mkdtempSync(join(tmpdir(), 'chefs-table-model-'));
     path = join(dir, 'journeys.json');
   });
 

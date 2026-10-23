@@ -16,7 +16,7 @@ Map this entire app for a non-technical builder, then show it to them.
    - background processes users notice
 
    For a large repo, split the survey across parallel subagents by folder and merge their findings.
-3. Draft the map following the journeymap skill's "Writing journeys well":
+3. Draft the map following the chefs-table skill's "Writing journeys well":
    - 3–8 areas
    - one journey per user goal
    - steps in plain language

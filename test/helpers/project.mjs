@@ -311,7 +311,7 @@ export function hookPayload(event, { cwd, session_id: sessionId = DEFAULT_SID, p
  * @param {string} event - Hook event name.
  * @param {object|null} payload - Payload; ignored when `options.raw` is set.
  * @param {object} [options]
- * @param {string} [options.gate] - Value for JOURNEYMAP_GATE; unset when omitted (default behaviour).
+ * @param {string} [options.gate] - Value for CHEFS_TABLE_GATE; unset when omitted (default behaviour).
  * @param {string} [options.raw] - Exact stdin text (to send garbage).
  * @param {string} [options.cwd] - Working directory of the process (defaults to payload.cwd).
  * @param {Record<string, string>} [options.env] - Extra environment.
@@ -321,8 +321,8 @@ export function hookPayload(event, { cwd, session_id: sessionId = DEFAULT_SID, p
 export function runHook(event, payload, { gate, raw, cwd, env = {} } = {}) {
   const childEnv = { ...process.env, ...env };
   delete childEnv.CLAUDE_CODE_SESSION_ID;
-  delete childEnv.JOURNEYMAP_GATE;
-  if (gate !== undefined) childEnv.JOURNEYMAP_GATE = gate;
+  delete childEnv.CHEFS_TABLE_GATE;
+  if (gate !== undefined) childEnv.CHEFS_TABLE_GATE = gate;
   const where = cwd ?? (payload?.cwd && existsSync(payload.cwd) ? payload.cwd : undefined);
   const result = spawnSync(process.execPath, [BIN, 'hook', event], {
     input: raw ?? JSON.stringify(payload), env: childEnv, cwd: where, encoding: 'utf8',
@@ -353,7 +353,7 @@ export function runHook(event, payload, { gate, raw, cwd, env = {} } = {}) {
 export function runCli(project, args, { sessionId = DEFAULT_SID, env = {} } = {}) {
   const childEnv = { ...process.env, ...env };
   delete childEnv.CLAUDE_CODE_SESSION_ID;
-  delete childEnv.JOURNEYMAP_GATE;
+  delete childEnv.CHEFS_TABLE_GATE;
   if (sessionId) childEnv.CLAUDE_CODE_SESSION_ID = sessionId;
   const result = spawnSync(process.execPath, [BIN, ...args], { cwd: project.dir, env: childEnv, encoding: 'utf8' });
   if (result.error) throw result.error;
@@ -367,7 +367,7 @@ export class Chat {
    * @param {string} [sessionId] - Session id.
    * @param {object} [options]
    * @param {string} [options.permissionMode] - permission_mode sent with tool and Stop payloads.
-   * @param {string} [options.gate] - JOURNEYMAP_GATE for every hook this chat fires.
+   * @param {string} [options.gate] - CHEFS_TABLE_GATE for every hook this chat fires.
    */
   constructor(project, sessionId = DEFAULT_SID, { permissionMode = 'default', gate } = {}) {
     this.project = project;

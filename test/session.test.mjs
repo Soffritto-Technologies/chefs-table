@@ -105,7 +105,7 @@ describe('findProjectDir', () => {
     assert.equal(S.findProjectDir(inner), outer);
   });
 
-  it('returns null when journeymap is not set up anywhere above', () => {
+  it('returns null when Chef\'s Table is not set up anywhere above', () => {
     assert.equal(S.findProjectDir(tempDir()), null);
   });
 
@@ -461,7 +461,7 @@ describe('small helpers', () => {
       assert.match(lines[0], /^\d{4}-\d\d-\d\dT[\d:.]+Z Stop: Error: boom/);
       assert.match(readFileSync(p.errors, 'utf8'), /PreToolUse: plain text\n$/);
       assert.equal(write.mock.callCount(), 2);
-      assert.match(String(write.mock.calls[0].arguments[0]), /journeymap: Stop failed/);
+      assert.match(String(write.mock.calls[0].arguments[0]), /Chef's Table: Stop failed/);
     });
 
     it('does not throw without session paths', () => {

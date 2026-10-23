@@ -491,7 +491,7 @@ describe('templates/journeys.html', () => {
   });
 
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {
-    assert.ok(template.includes('No journeys mapped yet. In Claude Code, run /journeymap:map-app to draw your whole app.'));
+    assert.ok(template.includes('No journeys mapped yet. In Claude Code, run /chefs-table:map-app to draw your whole app.'));
     assert.ok(script.includes("tabindex: '0', role: 'button', 'aria-label'"));
     assert.ok(template.includes('prefers-reduced-motion'));
     assert.ok(template.includes('prefers-color-scheme: dark'));

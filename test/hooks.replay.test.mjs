@@ -305,7 +305,7 @@ describe('PreToolUse approval gate', () => {
   });
 
   for (const gate of ['on', 'ON', 'banana', '']) {
-    it(`treats JOURNEYMAP_GATE=${JSON.stringify(gate)} as on`, () => {
+    it(`treats CHEFS_TABLE_GATE=${JSON.stringify(gate)} as on`, () => {
       const { chat } = withConflictingPlan();
       assert.equal(hso(chat.pre(GIFT_PAGE, { gate })).permissionDecision, 'ask');
     });
@@ -519,7 +519,7 @@ describe('Stop', () => {
 
     const first = chat.stop();
     assert.equal(first.stdout.decision, 'block');
-    assert.match(first.stdout.reason, /^journeymap needs one more step before you finish:\n1\. Fix \.journeys\/journeys\.json: .*not valid JSON/);
+    assert.match(first.stdout.reason, /^Chef's Table needs one more step before you finish:\n1\. Fix \.journeys\/journeys\.json: .*not valid JSON/);
     const blockedView = extractViewModel(chat.text('view.html'));
     assert.ok(blockedView.chips.includes('Invalid map: showing the last good version'));
 
@@ -708,7 +708,7 @@ describe('Stop', () => {
     assert.equal(result.stdout.decision, 'block');
     const lines = result.stdout.reason.split('\n');
     assert.equal(lines.length, 5, result.stdout.reason);
-    assert.equal(lines[0], 'journeymap needs one more step before you finish:');
+    assert.equal(lines[0], 'Chef\'s Table needs one more step before you finish:');
     assert.match(lines[1], /^1\. Fix \.journeys\/journeys\.json: /);
     assert.match(lines[2], /^2\. Unmapped change: new page \/promo \(app\/promo\/page\.tsx\) is not on the map\./);
     assert.equal(lines[3], `3. Republish the map: Artifact tool, action publish, file_path ${chat.file('view.html')}, url https://claude.ai/artifact/abc123.`);
@@ -842,7 +842,7 @@ describe('hook crash safety', () => {
         const result = runHook(event, payload);
         assert.equal(result.status, 0, `${event} exit code`);
         assert.equal(result.text, '', `${event} prints nothing`);
-        assert.match(result.stderr, new RegExp(`journeymap: ${event} failed`), `${event} says it failed`);
+        assert.match(result.stderr, new RegExp(`Chef's Table: ${event} failed`), `${event} says it failed`);
       }
       assert.deepEqual(snapshotTree(project.dir), before, 'no file was created or changed');
       const parent = path.dirname(project.dir);
@@ -891,7 +891,7 @@ describe('hook crash safety', () => {
     const result = runHook('Stop', payload);
     assert.equal(result.status, 0);
     assert.equal(result.text, '', 'a crash must not block the session');
-    assert.match(result.stderr, /journeymap: Stop failed/);
+    assert.match(result.stderr, /Chef's Table: Stop failed/);
     assert.match(chat.text('errors.log'), /^\d{4}-\d\d-\d\dT[\d:.]+Z Stop: /);
 
     project.remove(`.journeys/.session/${DEFAULT_SID}/view.html`);
@@ -906,7 +906,7 @@ describe('CLI', () => {
     const project = makeProject({ doc: null, fixture: false });
     const first = runCli(project, ['init']);
     assert.equal(first.status, 0, first.stderr);
-    assert.match(first.stdout, /^journeymap ready\./);
+    assert.match(first.stdout, /^Chef's Table ready\./);
     assert.equal(project.json('.journeys/journeys.json').version, 1);
     assert.equal(project.json('.journeys/journeys.json').app, path.basename(project.dir));
     assert.equal(project.json('.journeys/config.json').root, undefined);
@@ -979,7 +979,7 @@ describe('CLI', () => {
     const { project } = started();
     const result = runCli(project, ['plan']);
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /journeymap: No plan found\. Write .*plan\.json first\./);
+    assert.match(result.stderr, /Chef's Table: No plan found\. Write .*plan\.json first\./);
   });
 
   it('build --render reports MAP_UNCHANGED, then MAP_CHANGED after the map changes', () => {
@@ -1026,12 +1026,12 @@ describe('CLI', () => {
     assert.match(runCli(project, ['render', '--canonical']).stdout, /^UNCHANGED .*journeys\.html\n$/);
   });
 
-  it('commands outside a journeymap project say how to set one up', () => {
+  it('commands outside a Chef\'s Table project say how to set one up', () => {
     const project = makeProject({ doc: null, fixture: false });
     for (const args of [['check'], ['render', '--canonical'], ['build', '--render']]) {
       const result = runCli(project, args);
       assert.equal(result.status, 1, args.join(' '));
-      assert.match(result.stderr, /journeymap is not set up here\. Run: journeys init/);
+      assert.match(result.stderr, /Chef's Table is not set up here\. Run: journeys init/);
     }
   });
 
