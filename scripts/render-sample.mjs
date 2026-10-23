@@ -151,7 +151,7 @@ const vm = buildViewModel({
     ...Object.fromEntries(plannedKeys.slice(1).map((key) => [key, 'unverified'])),
   }),
   flags: { 's:checkout/gift-note': ['unconfirmed'], 'j:fulfil-orders': ['two-chats'] },
-  banners: ['Planned, not built yet: Gift a flower subscription'],
+  banners: [],
   chips: ['Share link out of date'],
   planSummary: 'Add monthly flower subscriptions that people can buy as a gift',
   approval: 'pending',
