@@ -48,6 +48,8 @@ The session-start note gives you this chat's **session folder** and the exact **
 - **`MAP_CHANGED <path>` from any `journeys` command:** publish that HTML file with the Artifact tool (`action: publish`, `file_path: <path>`) before you finish, so the live link shows the proposed or built change. Reuse the same artifact URL each time; the hooks remember it. If the Artifact tool isn't available, give the builder the local path instead.
 - **Code changed but no user-facing flow changed** (a refactor, styling, tests): write `<session folder>/no-flow-change` containing one plain sentence explaining why. The builder sees that sentence on the map.
 - **The stop hook blocks with a reason:** do what it lists, in order: fix the JSON, map the unmapped change, run `journeys build --render --session <id>`, then publish. It blocks at most once per turn.
+- **The session-start note says "code changed since the last full map"** (teammates or a `git pull`): suggest `/chefs-table:sync`, which refreshes only the stale journeys inside a usage budget.
+- **It says an unfinished map job exists:** suggest `/chefs-table:map-app` to resume it.
 
 ## Never
 
