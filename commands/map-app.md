@@ -26,7 +26,9 @@ Map this entire app for a non-technical builder, then show it to them.
 
    Prefer fewer, clearer journeys over exhaustive ones.
 4. Write `.journeys/journeys.json`, then run `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs" check`. Fix every validation error. Look at broken anchors; "unverified" is fine.
-5. Run `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs" render --canonical` and `… build --render --session <id>`. Publish the printed session map with the Artifact tool, and give the builder the link.
+5. Run `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs" render --canonical` and `… build --render`.
+   - `journeys.html` at the project root is the clean map, and it is meant to be committed with the code.
+   - Publish the printed session map with the Artifact tool, and give the builder the link.
 6. Ask the builder in plain words whether this matches how their app works. Ask which journeys are missing, wrong or named in a way they wouldn't use. Apply their corrections, then render and publish again.
 
 $ARGUMENTS
