@@ -260,6 +260,37 @@ svg text { font-family: var(--font); }
 .arrow { fill: var(--line-strong); }
 .arrow-new { fill: var(--new); }
 
+/* Grid of tiles (levels with more than 24 items) */
+.grid-wrap { padding: 20px 22px 48px; }
+.grid-head { margin: 6px 2px 10px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.tile { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 12px; min-height: 74px; padding: 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; }
+.tile:hover { box-shadow: 0 2px 10px rgba(20, 22, 28, .1); }
+.tile:focus-visible, .tile.sel { outline: none; box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent); }
+.tile.latest { outline: 3px solid var(--lc); outline-offset: 3px; }
+.mark { display: grid; place-items: center; width: 38px; height: 38px; font-size: 13px; font-weight: 650; color: var(--ink); background: var(--surface); border: 1.25px solid var(--line-strong); border-radius: 50%; }
+.k-area .mark { border-radius: 11px; }
+.tile-body { min-width: 0; }
+.tile-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.tile-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .pills { margin-top: 7px; }
+.tile-open { align-self: center; display: grid; place-items: center; width: 22px; height: 22px; font-size: 15px; line-height: 1; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; }
+.tile-open:hover { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+.tile.look-new, .tile.look-in-new { border-color: var(--new); }
+.tile.look-new .mark { color: var(--on-new); background: var(--new); border-color: var(--new); }
+.tile.look-new.planned .mark { color: var(--new-ink); background: var(--new-soft); }
+.tile.look-in-new .mark { background: var(--new-soft); border-color: var(--new); }
+.tile.look-changed { background: var(--changed-soft); border-color: var(--changed); }
+.tile.look-changed .mark { border: 2px solid var(--changed); }
+.tile.look-conflict { background: var(--conflict-soft); border: 2px solid var(--conflict); }
+.tile.look-conflict .mark { border: 2.5px solid var(--conflict); }
+.tile.look-broken { background: var(--broken-soft); border-color: var(--broken); }
+.tile.look-broken .mark { border-color: var(--broken); }
+.tile.look-removed { opacity: .5; }
+.tile.look-removed .tile-title { text-decoration: line-through; }
+.tile.planned, .tile.planned .mark { border-style: dashed; border-width: 2px; }
+.tile.unverified, .tile.unverified .mark { border-style: dotted; border-width: 2px; }
+
 @media (prefers-reduced-motion: no-preference) {
   .n .shape, .n .focus-ring, .open-btn circle.face, .open-btn path { transition: filter .15s ease, opacity .15s ease, fill .15s ease, stroke .15s ease; }
 }
@@ -583,10 +614,9 @@ svg text { font-family: var(--font); }
     return cues;
   }
 
-  function ariaOf(node) {
-    var parts = [node.title, KIND_LABEL[node.kind]];
-    if (node.kind === 'area') parts.push(plural(kidsOf(node).length, 'journey', 'journeys'));
-    if (node.kind === 'journey') parts.push(plural(kidsOf(node).length, 'step', 'steps'));
+  function ariaOf(node, parent) {
+    var parts = [node.title, kindName(node, parent)];
+    if (node.kind === 'area' || node.kind === 'journey') parts.push(plural(countOf(node), unitOf(node, 1), unitOf(node, 2)));
     tagsOf(node).forEach(function (tag) { parts.push(tag.text.replace('⚠ ', '')); });
     return parts.concat(extraCues(node), ['press Enter to open']).join(', ');
   }
@@ -601,6 +631,28 @@ svg text { font-family: var(--font); }
 
   function unitOf(node, count) {
     return node.kind === 'area' ? (count === 1 ? 'journey' : 'journeys') : (count === 1 ? 'step' : 'steps');
+  }
+
+  /** Journeys anywhere inside an area (sections included). */
+  function journeyCount(node) {
+    return kidsOf(node).reduce(function (sum, child) { return sum + (child.kind === 'area' ? journeyCount(child) : 1); }, 0);
+  }
+
+  function stepCount(node) {
+    return kidsOf(node).reduce(function (sum, child) { return sum + (child.kind === 'journey' ? kidsOf(child).length : stepCount(child)); }, 0);
+  }
+
+  function sectionCount(node) {
+    return kidsOf(node).filter(function (child) { return child.kind === 'area'; }).length;
+  }
+
+  /** What a node holds: journeys for areas and sections, steps for journeys. */
+  function countOf(node) {
+    return node.kind === 'area' ? journeyCount(node) : kidsOf(node).length;
+  }
+
+  function kindName(node, parent) {
+    return node.kind === 'area' && parent && parent.kind === 'area' ? 'Section' : KIND_LABEL[node.kind];
   }
 
   // ---- Location (URL hash) ----
@@ -624,8 +676,8 @@ svg text { font-family: var(--font); }
   function childFor(node, seg) {
     if (!seg) return null;
     var kids = kidsOf(node);
-    if (seg.t === 'a' && node.kind === 'app') return kids.find(function (c) { return c.id === seg.id; }) || null;
-    if (seg.t === 'j' && node.kind === 'area') return kids.find(function (c) { return c.id === seg.id; }) || null;
+    if (seg.t === 'a' && (node.kind === 'app' || node.kind === 'area')) return kids.find(function (c) { return c.kind === 'area' && c.id === seg.id; }) || null;
+    if (seg.t === 'j' && node.kind === 'area') return kids.find(function (c) { return c.kind === 'journey' && c.id === seg.id; }) || null;
     if (seg.t === 'j' && node.kind === 'step' && node.subflow === seg.id && hasOwn(vm.journeys, seg.id)) return vm.journeys[seg.id];
     if (seg.t === 's' && node.kind === 'journey') return kids.find(function (c) { return c.id === node.id + '/' + seg.id; }) || null;
     return null;
@@ -712,7 +764,13 @@ svg text { font-family: var(--font); }
     if (!delta) return;
     event.preventDefault();
     var all = Array.prototype.slice.call(view.querySelectorAll('.n[tabindex="0"]'));
-    select(all[(all.indexOf(el) + delta + all.length) % all.length]);
+    var at = all.indexOf(el);
+    if (el.classList.contains('tile')) {
+      var vertical = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+      select(all[clamp(at + delta * (vertical ? gridColumns(el) : 1), 0, all.length - 1)]);
+    } else {
+      select(all[(at + delta + all.length) % all.length]);
+    }
   });
 
   // ---- Drawing: tags ----
@@ -811,8 +869,7 @@ svg text { font-family: var(--font); }
     g.appendChild(s('circle', { 'class': 'hub-ring hr-' + lookOf(node), r: L.hubR + 7 }));
     g.appendChild(s('circle', { 'class': 'shape', r: L.hubR }));
     var lines = wrapText(node.title, L.hubR * 1.7, 3, FONTS.hub);
-    var count = kidsOf(node).length;
-    var sub = node.kind === 'app' ? plural(count, 'area', 'areas') : plural(count, 'journey', 'journeys');
+    var sub = node.kind === 'app' ? plural(kidsOf(node).length, 'area', 'areas') : plural(journeyCount(node), 'journey', 'journeys');
     var height = lines.length * 18 + 16;
     var y = -height / 2 + 13;
     lines.forEach(function (line) {
@@ -823,16 +880,23 @@ svg text { font-family: var(--font); }
     return g;
   }
 
+  /** Areas and sections are rounded squares; journeys are circles. Offsets grow the focus ring and halo. */
+  function ringShape(node, cls, r, grow) {
+    if (node.kind !== 'area') return s('circle', { 'class': cls, r: round(r + grow) });
+    var half = r * 0.88 + grow;
+    return s('rect', { 'class': cls, x: round(-half), y: round(-half), width: round(half * 2), height: round(half * 2), rx: round(r * 0.3 + grow) });
+  }
+
   function drawRingNode(trail, node, p, L) {
     var g = s('g', {
       'class': nodeClass(node), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
-      tabindex: '0', role: 'button', 'aria-label': ariaOf(node), 'data-id': node.id
+      tabindex: '0', role: 'button', 'aria-label': ariaOf(node, last(trail).node), 'data-id': node.id
     });
     g.appendChild(s('title', {}, txt(tooltipOf(node))));
-    g.appendChild(s('circle', { 'class': 'focus-ring', r: L.r + 9 }));
-    g.appendChild(s('circle', { 'class': 'halo', r: L.r + 5 }));
-    g.appendChild(s('circle', { 'class': 'shape', r: L.r }));
-    var count = kidsOf(node).length;
+    g.appendChild(ringShape(node, 'focus-ring', L.r, 9));
+    g.appendChild(ringShape(node, 'halo', L.r, 5));
+    g.appendChild(ringShape(node, 'shape', L.r, 0));
+    var count = countOf(node);
     var big = L.r >= 28;
     g.appendChild(s('text', { 'class': 'count on-shape', y: big ? -1 : 5, 'text-anchor': 'middle' }, txt(count)));
     if (big) g.appendChild(s('text', { 'class': 'unit on-shape', y: 13, 'text-anchor': 'middle' }, txt(unitOf(node, count))));
@@ -844,7 +908,8 @@ svg text { font-family: var(--font); }
     }
     drawTags(g, tagsOf(node), 0, -L.r - 13, 'middle');
     var open = function (el) { openChild(trail, node, el || g); };
-    g.appendChild(openButton(L.r * 0.7071, L.r * 0.7071, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
+    var corner = L.r * (node.kind === 'area' ? 0.84 : 0.7071);
+    g.appendChild(openButton(corner, corner, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
     bindNode(g, open);
     return g;
   }
@@ -863,6 +928,58 @@ svg text { font-family: var(--font); }
     });
     addKids(svg, [spokes, drawHub(hub, L), nodes]);
     view.appendChild(svg);
+  }
+
+  // ---- Drawing: grid (levels with more than 24 items) ----
+
+  function drawTile(trail, node) {
+    var parent = last(trail).node;
+    var count = countOf(node);
+    var sub = node.kind === 'area'
+      ? (sectionCount(node) ? plural(sectionCount(node), 'section', 'sections') + ' \u00B7 ' : '') + plural(count, 'journey', 'journeys')
+      : (node.say ? node.say + ' \u00B7 ' : '') + plural(count, 'step', 'steps');
+    var tile = h('div', {
+      'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button',
+      'aria-label': ariaOf(node, parent), 'data-id': node.id, title: tooltipOf(node)
+    });
+    var body = h('span', { 'class': 'tile-body' },
+      h('span', { 'class': 'tile-title' }, txt(node.title)),
+      h('span', { 'class': 'tile-sub' }, txt(sub)));
+    var tags = tagsOf(node);
+    if (tags.length) body.appendChild(pillRow(tags));
+    var openEl = h('span', { 'class': 'tile-open', 'aria-hidden': 'true', title: 'Open' }, txt('\u203A'));
+    var open = function (el) { openChild(trail, node, el || tile); };
+    openEl.addEventListener('click', function (event) { event.stopPropagation(); open(tile); });
+    openEl.addEventListener('dblclick', function (event) { event.stopPropagation(); });
+    addKids(tile, [h('span', { 'class': 'mark', 'aria-hidden': 'true' }, txt(count)), body, openEl]);
+    bindNode(tile, open);
+    return tile;
+  }
+
+  /** A tidy grid of tiles, sections first; the view model already sorted them. */
+  function drawGrid(trail) {
+    var hub = last(trail).node;
+    var items = kidsOf(hub);
+    var sections = items.filter(function (item) { return item.kind === 'area'; });
+    var journeys = items.filter(function (item) { return item.kind !== 'area'; });
+    var groups = [];
+    if (sections.length) groups.push({ label: hub.kind === 'app' ? 'Areas' : 'Sections', items: sections });
+    if (journeys.length) groups.push({ label: 'Journeys', items: journeys });
+    var wrap = h('div', { 'class': 'grid-wrap' });
+    groups.forEach(function (group) {
+      if (groups.length > 1) wrap.appendChild(h('h3', { 'class': 'grid-head' }, txt(group.label + ' \u00B7 ' + group.items.length)));
+      wrap.appendChild(addKids(h('div', { 'class': 'grid', role: 'group', 'aria-label': group.label }), group.items.map(function (item) {
+        return drawTile(trail, item);
+      })));
+    });
+    view.appendChild(wrap);
+  }
+
+  /** Columns in the CSS grid that holds a tile, for Up/Down arrow moves. */
+  function gridColumns(tile) {
+    var tiles = Array.prototype.slice.call(tile.parentNode.children);
+    var top = tiles[0].offsetTop;
+    return Math.max(1, tiles.filter(function (t) { return t.offsetTop === top; }).length);
   }
 
   // ---- Drawing: journey flow ----
@@ -1157,20 +1274,17 @@ svg text { font-family: var(--font); }
     document.getElementById('jm-back').hidden = trail.length < 2;
     sub.replaceChildren();
     if (node.kind === 'app') {
-      var journeyCount = 0;
-      var stepCount = 0;
-      kidsOf(node).forEach(function (area) {
-        journeyCount += kidsOf(area).length;
-        kidsOf(area).forEach(function (j) { stepCount += kidsOf(j).length; });
-      });
       kind.textContent = 'Your app';
       title.textContent = node.title || vm.app || 'Your app';
-      sub.appendChild(h('span', {}, txt([plural(kidsOf(node).length, 'area', 'areas'), plural(journeyCount, 'journey', 'journeys'), plural(stepCount, 'step', 'steps')].join(' · '))));
+      sub.appendChild(h('span', {}, txt([plural(kidsOf(node).length, 'area', 'areas'), plural(journeyCount(node), 'journey', 'journeys'), plural(stepCount(node), 'step', 'steps')].join(' · '))));
       if (vm.mode === 'session') addKids(sub, sessionStats());
     } else if (node.kind === 'area') {
-      kind.textContent = 'Area';
+      var parts = node.say ? [node.say] : [];
+      if (sectionCount(node)) parts.push(plural(sectionCount(node), 'section', 'sections'));
+      parts.push(plural(journeyCount(node), 'journey', 'journeys'));
+      kind.textContent = kindName(node, parent);
       title.textContent = node.title;
-      sub.appendChild(h('span', {}, txt((node.say ? node.say + ' · ' : '') + plural(kidsOf(node).length, 'journey', 'journeys'))));
+      sub.appendChild(h('span', {}, txt(parts.join(' · '))));
     } else if (node.kind === 'journey') {
       kind.textContent = parent && parent.kind === 'step' ? 'Sub-flow' : 'Journey';
       title.textContent = node.title;
@@ -1238,7 +1352,10 @@ svg text { font-family: var(--font); }
     view.scrollLeft = 0;
     var node = last(trail).node;
     var cardTitle = null;
-    if (node.kind === 'app' || node.kind === 'area') drawRing(trail);
+    if (node.kind === 'app' || node.kind === 'area') {
+      if (node.layout === 'grid') drawGrid(trail);
+      else drawRing(trail);
+    }
     else if (node.kind === 'journey') drawFlow(trail);
     else cardTitle = drawCard(trail);
     animate(dir, sameView);

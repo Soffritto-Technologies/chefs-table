@@ -154,6 +154,139 @@ describe('buildViewModel: tree structure', () => {
   });
 });
 
+describe('buildViewModel: nested areas and layout', () => {
+  /**
+   * A doc with three levels of areas: contacts → follow-ups → overdue, plus a sibling section.
+   *
+   * @returns {object} JourneysDoc.
+   */
+  function nestedDoc() {
+    return {
+      version: 1,
+      app: 'CRM',
+      areas: [
+        { id: 'contacts', title: 'Contacts' },
+        { id: 'follow-ups', title: 'Follow-ups', parent: 'contacts' },
+        { id: 'overdue', title: 'Overdue', parent: 'follow-ups' },
+        { id: 'empty-section', title: 'Nothing yet', parent: 'contacts' },
+        { id: 'import', title: 'Import', parent: 'contacts' },
+        { id: 'settings', title: 'Settings' },
+      ],
+      journeys: [
+        journey('add-contact', 'contacts', [step('form')]),
+        journey('finish-follow-up', 'follow-ups', [step('open', ['done']), step('done')]),
+        journey('chase', 'overdue', [step('remind')]),
+        journey('csv', 'import', [step('upload')]),
+        journey('stray', 'no-such-area', [step('x')]),
+        journey('loose', undefined, [step('y')]),
+      ],
+    };
+  }
+
+  it('nests sections three levels deep, sections before the area journeys', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: nestedDoc() });
+    assert.deepEqual(vm.root.children.map((a) => a.id), ['contacts', OTHER_AREA_ID]);
+    const contacts = vm.root.children[0];
+    assert.deepEqual(contacts.children.map((c) => [c.kind, c.id]), [['area', 'follow-ups'], ['area', 'import'], ['journey', 'add-contact']]);
+    const followUps = contacts.children[0];
+    assert.deepEqual(followUps.children.map((c) => [c.kind, c.id]), [['area', 'overdue'], ['journey', 'finish-follow-up']]);
+    const overdue = followUps.children[0];
+    assert.deepEqual(overdue.children.map((c) => c.id), ['chase']);
+    assert.equal(overdue.children[0], vm.journeys.chase);
+  });
+
+  it('skips areas and sections with no journeys anywhere beneath them', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: nestedDoc() });
+    const ids = allNodes(vm.root).filter((n) => n.kind === 'area').map((n) => n.id);
+    assert.ok(!ids.includes('empty-section'));
+    assert.ok(!ids.includes('settings'));
+  });
+
+  it('sends journeys with a missing or unknown area to Other', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: nestedDoc() });
+    const other = vm.root.children.find((a) => a.id === OTHER_AREA_ID);
+    assert.deepEqual(other.children.map((j) => j.id), ['stray', 'loose']);
+  });
+
+  it('treats an area whose parent is unknown or loops as top-level', () => {
+    const doc = nestedDoc();
+    doc.areas.push({ id: 'orphan', title: 'Orphan', parent: 'gone' }, { id: 'p', title: 'P', parent: 'q' }, { id: 'q', title: 'Q', parent: 'p' });
+    doc.journeys.push(journey('o1', 'orphan', [step('a')]), journey('p1', 'p', [step('a')]), journey('q1', 'q', [step('a')]));
+    const vm = buildViewModel({ mode: 'canonical', doc });
+    assert.deepEqual(vm.root.children.map((a) => a.id), ['contacts', 'orphan', 'p', 'q', OTHER_AREA_ID]);
+  });
+
+  it('rolls a deep change up through every section to the app', () => {
+    const vm = buildViewModel({
+      mode: 'session',
+      doc: nestedDoc(),
+      sinceStart: { states: { 's:chase/remind': 'changed' }, removedJourneys: [], removedSteps: [] },
+    });
+    const contacts = vm.root.children[0];
+    const followUps = contacts.children[0];
+    assert.equal(followUps.children[0].rollup, 'changed');
+    assert.equal(followUps.rollup, 'changed');
+    assert.equal(contacts.rollup, 'changed');
+    assert.equal(contacts.children.find((c) => c.id === 'import').rollup, 'stable');
+    assert.equal(vm.root.rollup, 'changed');
+  });
+
+  it('gives the sample fixture an area with two sections and a journey of its own', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
+    const studio = vm.root.children.find((a) => a.id === 'studio');
+    assert.deepEqual(studio.children.map((c) => [c.kind, c.id]), [['area', 'studio-orders'], ['area', 'studio-catalogue'], ['journey', 'weekly-sales']]);
+  });
+
+  /**
+   * A doc with one area holding `count` journeys (and optionally sections).
+   *
+   * @param {number} count - Journeys directly in the area.
+   * @returns {object} JourneysDoc.
+   */
+  function crowdedDoc(count) {
+    const journeys = Array.from({ length: count }, (_, i) => ({ ...journey(`j${String(i).padStart(3, '0')}`, 'big', [step('s')]), title: `Journey ${String.fromCharCode(90 - (i % 26))}${i}` }));
+    return { version: 1, app: 'Big', areas: [{ id: 'big', title: 'Big' }], journeys };
+  }
+
+  it('uses a ring up to 24 children and a grid from 25', () => {
+    const ring = buildViewModel({ mode: 'canonical', doc: crowdedDoc(24) });
+    assert.equal(ring.root.layout, 'ring');
+    assert.equal(ring.root.children[0].layout, 'ring');
+    assert.deepEqual(ring.root.children[0].children.map((j) => j.id), crowdedDoc(24).journeys.map((j) => j.id));
+    const grid = buildViewModel({ mode: 'canonical', doc: crowdedDoc(25) });
+    assert.equal(grid.root.layout, 'ring');
+    assert.equal(grid.root.children[0].layout, 'grid');
+    assert.equal(grid.root.children[0].children.length, 25);
+    assert.equal('layout' in grid.journeys.j000, false);
+  });
+
+  it('orders a grid sections first, then by rollup strength, then by title', () => {
+    const doc = crowdedDoc(30);
+    doc.areas.push({ id: 'sub-b', title: 'b section', parent: 'big' }, { id: 'sub-a', title: 'A section', parent: 'big' });
+    doc.journeys.push(journey('in-b', 'sub-b', [step('s')]), journey('in-a', 'sub-a', [step('s')]));
+    const vm = buildViewModel({
+      mode: 'session',
+      doc,
+      sinceStart: { states: { 'j:j010': 'new', 'j:j020': 'changed', 'j:in-b': 'changed' }, removedJourneys: [], removedSteps: [] },
+      conflicts: [{ screen: '/s', planJourney: 'j005', otherJourneys: [], kind: 'touches' }],
+    });
+    const big = vm.root.children[0];
+    assert.equal(big.layout, 'grid');
+    const kids = big.children;
+    assert.deepEqual(kids.slice(0, 2).map((c) => c.id), ['sub-b', 'sub-a']);
+    assert.deepEqual(kids.slice(2, 5).map((c) => [c.id, c.rollup]), [['j005', 'conflict'], ['j020', 'changed'], ['j010', 'new']]);
+    const stableTitles = kids.slice(5).map((c) => c.title.toLowerCase());
+    assert.deepEqual(stableTitles, [...stableTitles].sort());
+  });
+
+  it('builds identical output for the same nested input', () => {
+    const a = buildViewModel({ mode: 'canonical', doc: crowdedDoc(40) });
+    const b = buildViewModel({ mode: 'canonical', doc: crowdedDoc(40) });
+    assert.equal(viewModelHash(a), viewModelHash(b));
+    assert.equal(renderHtml(a, { templatePath: TEMPLATE_PATH }), renderHtml(b, { templatePath: TEMPLATE_PATH }));
+  });
+});
+
 describe('buildViewModel: depth', () => {
   it('uses the longest path from entry steps, across a branch', () => {
     const doc = {
@@ -488,6 +621,12 @@ describe('templates/journeys.html', () => {
   it('reads its data from the jm-data script', () => {
     assert.ok(template.includes('<script type="application/json" id="jm-data">null</script>'));
     assert.ok(template.includes("JSON.parse(document.getElementById('jm-data').textContent)"));
+  });
+
+  it('draws grid levels from the view model flag and routes areas at any depth', () => {
+    assert.ok(script.includes("node.layout === 'grid'"));
+    assert.ok(script.includes("seg.t === 'a' && (node.kind === 'app' || node.kind === 'area')"));
+    assert.ok(script.includes("'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button'"));
   });
 
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {

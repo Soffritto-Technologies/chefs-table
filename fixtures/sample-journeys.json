@@ -4,7 +4,9 @@
   "areas": [
     { "id": "shop", "title": "Shopping", "say": "Finding flowers and paying for them" },
     { "id": "account", "title": "Your account", "say": "Signing up, signing in and tracking orders" },
-    { "id": "studio", "title": "Running the shop", "say": "What the florist does behind the scenes" }
+    { "id": "studio", "title": "Running the shop", "say": "What the florist does behind the scenes" },
+    { "id": "studio-orders", "title": "Orders", "say": "Getting today's bouquets made and out", "parent": "studio" },
+    { "id": "studio-catalogue", "title": "Catalogue", "say": "What the shop sells", "parent": "studio" }
   ],
   "journeys": [
     {
@@ -301,7 +303,7 @@
     {
       "id": "fulfil-orders",
       "title": "Fulfil today's orders",
-      "area": "studio",
+      "area": "studio-orders",
       "who": "Florist",
       "steps": [
         {
@@ -342,7 +344,7 @@
     {
       "id": "add-bouquet",
       "title": "Add a new bouquet",
-      "area": "studio",
+      "area": "studio-catalogue",
       "who": "Florist",
       "steps": [
         {
@@ -373,6 +375,51 @@
           "anchor": { "type": "route", "value": "/studio/bouquets/new" },
           "next": [],
           "detail": { "does": "Taps Publish; the bouquet appears on the home page.", "saves": ["Bouquet"], "files": ["src/app/studio/bouquets/new/page.tsx"] }
+        }
+      ]
+    },
+    {
+      "id": "sold-out",
+      "title": "Mark a bouquet sold out",
+      "area": "studio-catalogue",
+      "who": "Florist",
+      "steps": [
+        {
+          "id": "find",
+          "say": "Finds the bouquet in the catalogue",
+          "screen": "/studio/bouquets",
+          "anchor": { "type": "route", "value": "/studio/bouquets" },
+          "next": ["toggle"],
+          "detail": { "sees": "Every bouquet with its photo and stock status.", "files": ["src/app/studio/bouquets/page.tsx"] }
+        },
+        {
+          "id": "toggle",
+          "say": "Switches it to sold out until a chosen date",
+          "screen": "/studio/bouquets/[id]",
+          "anchor": { "type": "route", "value": "/studio/bouquets/[id]" },
+          "next": [],
+          "detail": {
+            "does": "Flips the Sold out switch and picks a return date.",
+            "rules": ["Sold-out bouquets disappear from the shop straight away", "They come back on the return date"],
+            "saves": ["Bouquet stock"],
+            "files": ["src/app/studio/bouquets/[id]/page.tsx"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "weekly-sales",
+      "title": "See this week's sales",
+      "area": "studio",
+      "who": "Florist",
+      "steps": [
+        {
+          "id": "report",
+          "say": "Opens the weekly sales summary",
+          "screen": "/studio/sales",
+          "anchor": { "type": "route", "value": "/studio/sales" },
+          "next": [],
+          "detail": { "sees": "Bouquets sold, revenue and the busiest delivery days.", "files": ["src/app/studio/sales/page.tsx"] }
         }
       ]
     },
