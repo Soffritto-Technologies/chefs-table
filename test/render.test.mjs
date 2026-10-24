@@ -639,6 +639,29 @@ describe('templates/journeys.html', () => {
     assert.ok(script.includes("'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button'"));
   });
 
+  it('has a labelled zoom bar, a described canvas and the gesture hint in the footer', () => {
+    for (const [id, label] of [['jm-zoom-out', 'Zoom out'], ['jm-zoom-in', 'Zoom in'], ['jm-zoom-fit', 'Fit to screen']]) {
+      assert.match(template, new RegExp(`<button id="${id}" [^>]*type="button" aria-label="${label}"`));
+    }
+    assert.match(template, /<output id="jm-zoom-level" aria-label="Zoom level">/);
+    assert.match(template, /role="toolbar" aria-label="Zoom"/);
+    assert.match(template, /id="jm-view"[^>]*aria-description="[^"]*Command or Control and scroll[^"]*"/);
+    assert.ok(template.includes('Drag or scroll to move · ⌘/Ctrl + scroll or pinch to zoom · double-click to open'));
+    assert.match(template, /\.zoombar button \{[^}]*width: 32px; height: 32px;/);
+  });
+
+  it('pans and zooms one world container with pointer events, wheel and keys', () => {
+    assert.ok(script.includes("addEventListener('wheel'"));
+    assert.ok(script.includes('{ passive: false }'));
+    assert.ok(script.includes('setPointerCapture'));
+    assert.ok(script.includes("addEventListener('pointerdown'"));
+    assert.ok(script.includes("event.key === '+' || event.key === '='"));
+    assert.equal((script.match(/function isMouseWheel\(/g) ?? []).length, 1);
+    assert.ok(script.includes('event.ctrlKey || event.metaKey || mouse'));
+    assert.ok(script.includes("c.world.style.transform = 'translate("));
+    assert.ok(script.includes('reducedMotion()'));
+  });
+
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {
     assert.ok(template.includes('No journeys mapped yet. In Claude Code, run /chefs-table:map-app to draw your whole app.'));
     assert.ok(script.includes("tabindex: '0', role: 'button', 'aria-label'"));

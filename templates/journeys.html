@@ -145,8 +145,31 @@ h1 { margin: 0; font-size: 17px; line-height: 1.25; font-weight: 650; white-spac
 .stat-changed { --sc: var(--changed); }
 .stat-removed { --sc: var(--broken); }
 .stat-conflict { --sc: var(--conflict); }
-.view { position: relative; flex: 1; min-height: 0; overflow: auto; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.4px); background-size: 22px 22px; }
+.view-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
+.view { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: auto; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.4px); background-size: 22px 22px; }
 .view > svg { display: block; }
+
+/* Free canvas: one transformed world per level */
+.view.is-canvas { overflow: hidden; overflow: clip; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.view.is-canvas.panning, .view.panning .n, .view.panning .tile-open { cursor: grabbing; }
+.layer { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: hidden; overflow: clip; }
+.world { transform-origin: 0 0; }
+.grid-world { position: absolute; left: 0; top: 0; }
+.world.moving { will-change: transform; }
+.world.easing { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
+.n.zt-target .focus-ring { opacity: 1; stroke-dasharray: 5 4; }
+.tile.zt-target { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent); }
+.zoombar { position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.zoombar[hidden] { display: none; }
+.zoombar button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; color: var(--ink-2); background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
+.zoombar button:hover { color: var(--ink); background: var(--surface-2); }
+.zoombar .fit { width: auto; min-width: 40px; padding: 0 10px; margin-left: 2px; font-size: 12.5px; font-weight: 600; border-left: 1px solid var(--line); border-radius: 0 9px 9px 0; }
+.zoombar output { min-width: 46px; font-size: 12px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoomhint { position: absolute; left: 50%; top: 12px; z-index: 3; display: grid; gap: 6px; max-width: calc(100% - 24px); padding: 8px 14px 9px; font-size: 13px; color: var(--ink); text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); transform: translateX(-50%); pointer-events: none; }
+.zoomhint[hidden] { display: none; }
+.zoomhint-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zoomhint-bar { display: block; height: 3px; overflow: hidden; background: var(--line); border-radius: 3px; }
+.zoomhint-fill { display: block; width: 0; height: 100%; background: var(--accent); }
 
 /* Key and hint */
 .legend { display: flex; align-items: center; gap: 8px 14px; padding: 9px 18px; border-top: 1px solid var(--line); background: var(--surface); }
@@ -368,7 +391,7 @@ svg text { font-family: var(--font); }
 @media (max-width: 640px) {
   body { height: auto; min-height: 100dvh; }
   .stage { flex: none; }
-  .view { flex: none; height: 68vh; min-height: 400px; }
+  .view-wrap { flex: none; height: 68vh; min-height: 400px; }
   .top, .banners, .crumbs { padding-left: 14px; padding-right: 14px; }
   .stage { margin: 10px 10px 0; border-radius: 14px; }
   .hint { padding: 8px 14px 12px; }
@@ -406,15 +429,27 @@ svg text { font-family: var(--font); }
       <p id="jm-sub" class="stage-sub"></p>
     </div>
   </div>
-  <div id="jm-view" class="view" role="region" aria-label="Map"></div>
+  <div class="view-wrap">
+    <div id="jm-view" class="view" role="region" aria-label="Map" aria-description="Drag or scroll to move around. Hold Command or Control and scroll, or pinch, to zoom; the plus and minus keys zoom too, and 0 fits the map to the screen. Double-click or press Enter to open something, Escape to go up. Keep zooming in on something to open it, or keep zooming out to go up a level."></div>
+    <div id="jm-zoomhint" class="zoomhint" aria-live="polite" hidden>
+      <span id="jm-zoomhint-text" class="zoomhint-text"></span>
+      <span class="zoomhint-bar" aria-hidden="true"><span id="jm-zoomhint-fill" class="zoomhint-fill"></span></span>
+    </div>
+    <div id="jm-zoombar" class="zoombar" role="toolbar" aria-label="Zoom" hidden>
+      <button id="jm-zoom-out" type="button" aria-label="Zoom out" title="Zoom out (-)">&#8722;</button>
+      <output id="jm-zoom-level" aria-label="Zoom level">100%</output>
+      <button id="jm-zoom-in" type="button" aria-label="Zoom in" title="Zoom in (+)">+</button>
+      <button id="jm-zoom-fit" class="fit" type="button" aria-label="Fit to screen" title="Fit to screen (0)">Fit</button>
+    </div>
+  </div>
   <aside id="jm-legend" class="legend" aria-label="Key" hidden>
     <span class="legend-title" aria-hidden="true">Key</span>
     <ul id="jm-legend-list"></ul>
   </aside>
 </main>
 <footer id="jm-hint" class="hint">
-  <span>Zoom in: double-click, press <kbd>Enter</kbd>, or tap <span class="chev" aria-hidden="true">&#8250;</span></span>
-  <span>Zoom out: <kbd>Esc</kbd>, Back, or the path at the top</span>
+  <span>Drag or scroll to move · ⌘/Ctrl + scroll or pinch to zoom · double-click to open</span>
+  <span><kbd>Esc</kbd> or Back to go up</span>
 </footer>
 <div id="jm-announce" class="sr-only" aria-live="polite"></div>
 <script type="application/json" id="jm-data">null</script>
@@ -464,6 +499,7 @@ svg text { font-family: var(--font); }
   var measureCtx = document.createElement('canvas').getContext('2d');
   var view = document.getElementById('jm-view');
   var openers = new WeakMap();
+  var nodesOf = new WeakMap();
   var vm = readData();
   var current = null;
   var lastIds = null;
@@ -726,8 +762,9 @@ svg text { font-family: var(--font); }
     el.focus({ preventScroll: true });
   }
 
-  function bindNode(el, open) {
+  function bindNode(el, open, node) {
     openers.set(el, open);
+    nodesOf.set(el, node);
     el.addEventListener('click', function () { select(el); });
     el.addEventListener('dblclick', function (event) {
       event.preventDefault();
@@ -771,6 +808,430 @@ svg text { font-family: var(--font); }
     } else {
       select(all[(at + delta + all.length) % all.length]);
     }
+  });
+
+  // ---- Free canvas: pan and zoom ----
+
+  var ZOOM = {
+    MIN: 0.25, MAX: 4, STEP: 1.25,
+    OPEN_AT: 2.2, OPEN_KEEP: 2, OPEN_PUSH: Math.log(1.6),
+    UP_AT: 0.6, UP_KEEP: 1.15, UP_PUSH: Math.log(1.5),
+    IDLE_MS: 1400, COOLDOWN_MS: 700
+  };
+  var GRID_MIN_W = 300;
+  var FLOW_MIN_FIT = 0.7;
+  var zoomBar = document.getElementById('jm-zoombar');
+  var zoomLevel = document.getElementById('jm-zoom-level');
+  var zoomHint = document.getElementById('jm-zoomhint');
+  var zoomHintText = document.getElementById('jm-zoomhint-text');
+  var zoomHintFill = document.getElementById('jm-zoomhint-fill');
+  var cams = new Map();
+  var canvas = null;
+  var pendingCamera = null;
+  var frameId = 0;
+  var settleTimer = 0;
+  var easeTimer = 0;
+  var zt = { target: null, push: 0, out: 0, outActive: false, at: 0, label: '' };
+  var pointers = new Map();
+  var drag = null;
+  var pinch = null;
+  var swallowClick = false;
+
+  function reducedMotion() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+
+  /** Turns the freshly drawn world into the level's canvas: a saved camera when coming back, Fit otherwise. */
+  function mountCanvas(world, W, H, kind) {
+    var saved = pendingCamera;
+    pendingCamera = null;
+    canvas = { world: world, kind: kind, W: W, H: H, x: 0, y: 0, k: 1, fitK: 1, overviewK: 1, atFit: true, key: hashOf(current) };
+    measureFit();
+    if (saved && saved.kind === kind && !saved.atFit) {
+      canvas.x = saved.x;
+      canvas.y = saved.y;
+      canvas.k = saved.k;
+      canvas.atFit = false;
+    } else {
+      fitCamera();
+    }
+    view.classList.add('is-canvas');
+    zoomBar.hidden = false;
+    applyCamera();
+  }
+
+  function resetCanvas() {
+    canvas = null;
+    clearZoomThrough();
+    pointers.clear();
+    drag = null;
+    pinch = null;
+    view.classList.remove('is-canvas', 'panning');
+    view.style.backgroundSize = '';
+    view.style.backgroundPosition = '';
+    zoomBar.hidden = true;
+  }
+
+  function snapshotCamera() {
+    return { kind: canvas.kind, x: canvas.x, y: canvas.y, k: canvas.k, atFit: canvas.atFit };
+  }
+
+  /**
+   * Fit scale, never enlarged. A ring fits whole. A flow fits whole unless that would shrink its
+   * text below FLOW_MIN_FIT, in which case Fit shows its first steps at that readable size. A grid
+   * fits its width at 100%. overviewK is where everything would be visible (a grid once reflowed);
+   * zooming out past a share of it goes up a level.
+   */
+  function measureFit() {
+    var c = canvas;
+    var vw = view.clientWidth;
+    var vh = view.clientHeight;
+    if (c.kind === 'grid') {
+      c.fitK = 1;
+      c.overviewK = clamp(Math.sqrt((vw * vh) / Math.max(1, c.W * c.H)), ZOOM.MIN, 1);
+      return;
+    }
+    c.overviewK = clamp(Math.min(1, vw / c.W, vh / c.H), ZOOM.MIN, 1);
+    c.fitK = c.kind === 'flow' ? Math.max(c.overviewK, Math.min(1, FLOW_MIN_FIT)) : c.overviewK;
+  }
+
+  function fitCamera() {
+    var c = canvas;
+    var vw = view.clientWidth;
+    if (c.kind === 'grid' && Math.abs(c.W - vw) > 1) layoutGrid(vw);
+    c.k = c.fitK;
+    c.x = c.W * c.k > vw ? 0 : (vw - c.W * c.k) / 2;
+    c.y = c.kind === 'grid' ? 0 : (view.clientHeight - c.H * c.k) / 2;
+    c.atFit = true;
+  }
+
+  function layoutGrid(width) {
+    canvas.W = Math.round(width);
+    canvas.world.style.width = canvas.W + 'px';
+    canvas.H = canvas.world.offsetHeight;
+    measureFit();
+  }
+
+  /** Keeps at least a margin of the world on screen so it can never be lost. */
+  function clampPan() {
+    var c = canvas;
+    var m = 80;
+    var xs = [m - c.W * c.k, view.clientWidth - m];
+    var ys = [m - c.H * c.k, view.clientHeight - m];
+    c.x = clamp(c.x, Math.min(xs[0], xs[1]), Math.max(xs[0], xs[1]));
+    c.y = clamp(c.y, Math.min(ys[0], ys[1]), Math.max(ys[0], ys[1]));
+  }
+
+  function applyCamera() {
+    frameId = 0;
+    var c = canvas;
+    if (!c) return;
+    clampPan();
+    c.world.style.transform = 'translate(' + round(c.x) + 'px, ' + round(c.y) + 'px) scale(' + Math.round(c.k * 1000) / 1000 + ')';
+    zoomLevel.textContent = Math.round(c.k * 100) + '%';
+    var size = 22 * c.k;
+    while (size < 12) size *= 2;
+    while (size > 44) size /= 2;
+    view.style.backgroundSize = round(size) + 'px ' + round(size) + 'px';
+    view.style.backgroundPosition = round(c.x % size) + 'px ' + round(c.y % size) + 'px';
+  }
+
+  function scheduleCamera() {
+    if (!frameId) frameId = requestAnimationFrame(applyCamera);
+  }
+
+  /** While a gesture runs the world is a GPU layer; once it settles it re-renders crisply (and a grid reflows). */
+  function markMoving() {
+    var c = canvas;
+    c.world.classList.add('moving');
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(function () {
+      if (canvas !== c) return;
+      c.world.classList.remove('moving');
+      if (c.kind === 'grid') reflowGrid();
+    }, 200);
+  }
+
+  function ease() {
+    if (reducedMotion()) return;
+    var world = canvas.world;
+    world.classList.add('easing');
+    clearTimeout(easeTimer);
+    easeTimer = setTimeout(function () { world.classList.remove('easing'); }, 230);
+  }
+
+  /**
+   * After a grid zoom settles, re-flows the tiles so the grid fills the screen at the new scale
+   * (more columns when zoomed out, fewer when zoomed in), keeping the tile nearest the centre still.
+   */
+  function reflowGrid() {
+    var c = canvas;
+    var vw = view.clientWidth;
+    var width = Math.max(GRID_MIN_W, Math.round(vw / c.k));
+    if (Math.abs(width - c.W) < 2) return;
+    var anchor = nearestTile(vw / 2, view.clientHeight / 2);
+    var before = anchor ? anchor.getBoundingClientRect().top : 0;
+    layoutGrid(width);
+    if (anchor) c.y += before - anchor.getBoundingClientRect().top;
+    c.x = (vw - c.W * c.k) / 2;
+    c.atFit = false;
+    applyCamera();
+  }
+
+  function nearestTile(px, py) {
+    var v = view.getBoundingClientRect();
+    var best = null;
+    var bestD = Infinity;
+    Array.prototype.forEach.call(canvas.world.querySelectorAll('.tile'), function (tile) {
+      var r = tile.getBoundingClientRect();
+      var d = Math.hypot(r.left + r.width / 2 - v.left - px, r.top + r.height / 2 - v.top - py);
+      if (d < bestD) { bestD = d; best = tile; }
+    });
+    return best;
+  }
+
+  function panBy(dx, dy) {
+    var c = canvas;
+    c.x += dx;
+    c.y += dy;
+    c.atFit = false;
+    markMoving();
+    scheduleCamera();
+  }
+
+  /** Zooms by `factor` around (px, py) in view coordinates, then checks zoom-through. */
+  function zoomAt(px, py, factor, eased) {
+    var c = canvas;
+    var k = clamp(c.k * factor, ZOOM.MIN, ZOOM.MAX);
+    c.x = px - (px - c.x) * (k / c.k);
+    c.y = py - (py - c.y) * (k / c.k);
+    c.k = k;
+    c.atFit = false;
+    markMoving();
+    if (eased) ease();
+    scheduleCamera();
+    zoomThrough(factor, px, py);
+  }
+
+  function zoomStep(factor) {
+    if (canvas) zoomAt(view.clientWidth / 2, view.clientHeight / 2, factor, true);
+  }
+
+  function fitNow() {
+    if (!canvas) return;
+    clearZoomThrough();
+    fitCamera();
+    ease();
+    scheduleCamera();
+  }
+
+  function nodeAt(px, py) {
+    var v = view.getBoundingClientRect();
+    var el = document.elementFromPoint(v.left + px, v.top + py);
+    el = el && el.closest ? el.closest('.n') : null;
+    return el && view.contains(el) && openers.has(el) ? el : null;
+  }
+
+  function showHint(lead, name, progress) {
+    var label = lead + '\u0000' + name;
+    if (zt.label !== label) {
+      zt.label = label;
+      zoomHintText.replaceChildren(txt(lead + ' '), h('strong', {}, txt(name)));
+    }
+    zoomHintFill.style.width = round(clamp(progress, 0, 1) * 100) + '%';
+    zoomHint.hidden = false;
+  }
+
+  function setTarget(el) {
+    if (zt.target && zt.target !== el) zt.target.classList.remove('zt-target');
+    zt.target = el;
+    if (el) el.classList.add('zt-target');
+  }
+
+  function clearZoomThrough() {
+    setTarget(null);
+    zt.push = 0;
+    zt.out = 0;
+    zt.outActive = false;
+    zt.label = '';
+    zoomHint.hidden = true;
+  }
+
+  /**
+   * Zoom-through: past OPEN_AT with one node under the point, further zoom-in accumulates towards
+   * opening it; below UP_AT of the overview scale, further zoom-out accumulates towards going up.
+   * Any zoom source counts. Hints keep showing between OPEN_KEEP/UP_KEEP so they never flicker,
+   * and intent resets after a pause, a pan, a change of direction or a new level.
+   */
+  function zoomThrough(factor, px, py) {
+    var now = performance.now();
+    if (now - navigatedAt < ZOOM.COOLDOWN_MS) return;
+    if (now - zt.at > ZOOM.IDLE_MS) { zt.push = 0; zt.out = 0; }
+    zt.at = now;
+    var c = canvas;
+    if (factor > 1) {
+      zt.out = 0;
+      zt.outActive = false;
+      var el = c.k >= ZOOM.OPEN_AT || (zt.target && c.k >= ZOOM.OPEN_KEEP) ? nodeAt(px, py) : null;
+      if (!el) { clearZoomThrough(); return; }
+      if (el !== zt.target) { setTarget(el); zt.push = 0; } else zt.push += Math.log(factor);
+      if (zt.push >= ZOOM.OPEN_PUSH) {
+        clearZoomThrough();
+        openers.get(el)(el);
+        return;
+      }
+      showHint('Keep zooming to open', nodesOf.get(el).title, zt.push / ZOOM.OPEN_PUSH);
+    } else if (factor < 1) {
+      setTarget(null);
+      zt.push = 0;
+      var parent = current && current.length > 1 ? current[current.length - 2].node : null;
+      var upAt = Math.max(ZOOM.MIN, ZOOM.UP_AT * c.overviewK);
+      var below = zt.outActive ? c.k <= upAt * ZOOM.UP_KEEP : c.k <= upAt + 1e-6;
+      if (!parent || !below) { clearZoomThrough(); return; }
+      if (!zt.outActive) { zt.outActive = true; zt.out = 0; } else zt.out -= Math.log(factor);
+      if (zt.out >= ZOOM.UP_PUSH) {
+        clearZoomThrough();
+        goUp();
+        return;
+      }
+      showHint('Keep zooming out to go up to', parent.kind === 'app' ? (vm.app || 'the whole app') : parent.title, zt.out / ZOOM.UP_PUSH);
+    }
+  }
+
+  /** Pans just enough to bring a keyboard-focused node fully into view. */
+  function revealNode(el) {
+    var r = el.getBoundingClientRect();
+    var v = view.getBoundingClientRect();
+    var m = 28;
+    var dx = r.left < v.left + m ? v.left + m - r.left : r.right > v.right - m ? v.right - m - r.right : 0;
+    var dy = r.top < v.top + m ? v.top + m - r.top : r.bottom > v.bottom - 60 ? v.bottom - 60 - r.bottom : 0;
+    if (!dx && !dy) return;
+    canvas.x += dx;
+    canvas.y += dy;
+    canvas.atFit = false;
+    ease();
+    scheduleCamera();
+  }
+
+  /**
+   * Guesses whether a wheel event came from a classic notched mouse wheel rather than a trackpad.
+   * Mouse wheels report line deltas (Firefox) or big whole-number pixel steps (about 100 a notch)
+   * on one axis; trackpads send small, often fractional pixel deltas, frequently on both axes.
+   */
+  function isMouseWheel(event) {
+    if (event.deltaMode === 1) return true;
+    return event.deltaX === 0 && Math.abs(event.deltaY) >= 40 && Number.isInteger(event.deltaY);
+  }
+
+  view.addEventListener('wheel', function (event) {
+    if (!canvas) return;
+    event.preventDefault();
+    var v = view.getBoundingClientRect();
+    var unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? view.clientHeight : 1;
+    var mouse = isMouseWheel(event);
+    if (event.ctrlKey || event.metaKey || mouse) {
+      var step = clamp(event.deltaY * unit * (mouse ? 0.0015 : 0.01), -0.5, 0.5);
+      zoomAt(event.clientX - v.left, event.clientY - v.top, Math.exp(-step));
+    } else {
+      clearZoomThrough();
+      panBy(-event.deltaX * unit, -event.deltaY * unit);
+    }
+  }, { passive: false });
+
+  function pinchState() {
+    var pts = Array.from(pointers.values());
+    var v = view.getBoundingClientRect();
+    return {
+      x: (pts[0].x + pts[1].x) / 2 - v.left,
+      y: (pts[0].y + pts[1].y) / 2 - v.top,
+      d: Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y))
+    };
+  }
+
+  function capture(id) {
+    try { view.setPointerCapture(id); } catch (err) { /* pointer already gone */ }
+  }
+
+  view.addEventListener('pointerdown', function (event) {
+    if (!canvas || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size === 1) {
+      drag = { id: event.pointerId, x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false };
+    } else if (pointers.size === 2) {
+      drag = null;
+      pinch = pinchState();
+      pointers.forEach(function (_, id) { capture(id); });
+    }
+  });
+
+  view.addEventListener('pointermove', function (event) {
+    if (!canvas || !pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pinch && pointers.size >= 2) {
+      var next = pinchState();
+      canvas.x += next.x - pinch.x;
+      canvas.y += next.y - pinch.y;
+      zoomAt(next.x, next.y, next.d / pinch.d);
+      pinch = next;
+      return;
+    }
+    if (!drag || drag.id !== event.pointerId) return;
+    if (!drag.moved) {
+      // Below 4px it is still a click: no capture yet, so the node gets its click and double-click.
+      if (Math.hypot(event.clientX - drag.x0, event.clientY - drag.y0) <= 4) return;
+      drag.moved = true;
+      capture(event.pointerId);
+      view.classList.add('panning');
+      clearZoomThrough();
+    }
+    panBy(event.clientX - drag.x, event.clientY - drag.y);
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+  });
+
+  function endPointer(event) {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+    var gestured = (drag && drag.id === event.pointerId && drag.moved) || !!pinch;
+    if (drag && drag.id === event.pointerId) drag = null;
+    if (pinch && pointers.size < 2) {
+      pinch = null;
+      pointers.forEach(function (p, id) { drag = { id: id, x0: p.x, y0: p.y, x: p.x, y: p.y, moved: true }; });
+    }
+    if (gestured) {
+      swallowClick = true;
+      setTimeout(function () { swallowClick = false; }, 0);
+    }
+    if (!pointers.size) view.classList.remove('panning');
+  }
+  view.addEventListener('pointerup', endPointer);
+  view.addEventListener('pointercancel', endPointer);
+  view.addEventListener('click', function (event) {
+    if (!swallowClick) return;
+    swallowClick = false;
+    event.stopPropagation();
+    event.preventDefault();
+  }, true);
+
+  view.addEventListener('focusin', function (event) {
+    var el = event.target;
+    if (!canvas || !el.classList || !el.classList.contains('n')) return;
+    var keyboard = false;
+    try { keyboard = el.matches(':focus-visible'); } catch (err) { keyboard = true; }
+    if (keyboard) revealNode(el);
+  });
+
+  document.getElementById('jm-zoom-in').addEventListener('click', function () { zoomStep(ZOOM.STEP); });
+  document.getElementById('jm-zoom-out').addEventListener('click', function () { zoomStep(1 / ZOOM.STEP); });
+  document.getElementById('jm-zoom-fit').addEventListener('click', fitNow);
+
+  document.addEventListener('keydown', function (event) {
+    if (!canvas || event.ctrlKey || event.metaKey || event.altKey) return;
+    var target = event.target;
+    if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+    if (event.key === '+' || event.key === '=') zoomStep(ZOOM.STEP);
+    else if (event.key === '-' || event.key === '_') zoomStep(1 / ZOOM.STEP);
+    else if (event.key === '0') fitNow();
+    else return;
+    event.preventDefault();
   });
 
   // ---- Drawing: tags ----
@@ -910,7 +1371,7 @@ svg text { font-family: var(--font); }
     var open = function (el) { openChild(trail, node, el || g); };
     var corner = L.r * (node.kind === 'area' ? 0.84 : 0.7071);
     g.appendChild(openButton(corner, corner, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
-    bindNode(g, open);
+    bindNode(g, open, node);
     return g;
   }
 
@@ -918,7 +1379,8 @@ svg text { font-family: var(--font); }
     var hub = last(trail).node;
     var items = kidsOf(hub);
     var L = ringLayout(items.length, Math.max(300, view.clientWidth), Math.max(360, view.clientHeight));
-    var svg = s('svg', { 'class': L.dense ? 'dense' : null, width: L.W, height: L.H, viewBox: '0 0 ' + L.W + ' ' + L.H, role: 'group', 'aria-label': hub.title });
+    var svg = s('svg', { 'class': L.dense ? 'layer dense' : 'layer', role: 'group', 'aria-label': hub.title });
+    var world = s('g', { 'class': 'world' });
     var spokes = s('g', { 'class': 'spokes', 'aria-hidden': 'true' });
     var nodes = s('g', { 'class': 'nodes' });
     items.forEach(function (item, i) {
@@ -926,8 +1388,10 @@ svg text { font-family: var(--font); }
       spokes.appendChild(s('line', { 'class': 'spoke sp-' + lookOf(item), x1: round(L.cx), y1: round(L.cy), x2: round(p.x), y2: round(p.y) }));
       nodes.appendChild(drawRingNode(trail, item, p, L));
     });
-    addKids(svg, [spokes, drawHub(hub, L), nodes]);
+    addKids(world, [spokes, drawHub(hub, L), nodes]);
+    svg.appendChild(world);
     view.appendChild(svg);
+    mountCanvas(world, L.W, L.H, 'ring');
   }
 
   // ---- Drawing: grid (levels with more than 24 items) ----
@@ -952,7 +1416,7 @@ svg text { font-family: var(--font); }
     openEl.addEventListener('click', function (event) { event.stopPropagation(); open(tile); });
     openEl.addEventListener('dblclick', function (event) { event.stopPropagation(); });
     addKids(tile, [h('span', { 'class': 'mark', 'aria-hidden': 'true' }, txt(count)), body, openEl]);
-    bindNode(tile, open);
+    bindNode(tile, open, node);
     return tile;
   }
 
@@ -972,7 +1436,12 @@ svg text { font-family: var(--font); }
         return drawTile(trail, item);
       })));
     });
-    view.appendChild(wrap);
+    var saved = pendingCamera && pendingCamera.kind === 'grid' && !pendingCamera.atFit ? pendingCamera : null;
+    var width = saved ? Math.max(GRID_MIN_W, Math.round(view.clientWidth / saved.k)) : view.clientWidth;
+    var world = h('div', { 'class': 'world grid-world' }, wrap);
+    world.style.width = width + 'px';
+    view.appendChild(h('div', { 'class': 'layer' }, world));
+    mountCanvas(world, width, world.offsetHeight, 'grid');
   }
 
   /** Columns in the CSS grid that holds a tile, for Up/Down arrow moves. */
@@ -1008,7 +1477,7 @@ svg text { font-family: var(--font); }
     drawTags(g, tagsOf(step), 12, 0, 'start');
     var open = function (el) { openChild(trail, step, el || g); };
     g.appendChild(openButton(BW, BH / 2, function () { open(g); }));
-    bindNode(g, open);
+    bindNode(g, open, step);
     return g;
   }
 
@@ -1065,12 +1534,10 @@ svg text { font-family: var(--font); }
     });
     var cols = byDepth.filter(Boolean);
     var rows = Math.max.apply(null, cols.map(function (col) { return col.length; }));
-    var contentW = PAD * 2 + cols.length * BW + (cols.length - 1) * CG;
-    var contentH = PAD * 2 + rows * BH + (rows - 1) * RG + LOOP;
-    var W = grow(view.clientWidth, contentW);
-    var H = grow(view.clientHeight, contentH);
-    var ox = (W - contentW) / 2 + PAD;
-    var oy = (H - contentH) / 2 + PAD;
+    var W = PAD * 2 + cols.length * BW + (cols.length - 1) * CG;
+    var H = PAD * 2 + rows * BH + (rows - 1) * RG + LOOP;
+    var ox = PAD;
+    var oy = PAD;
     var pos = new Map();
     var byId = new Map();
     cols.forEach(function (col, c) {
@@ -1081,8 +1548,9 @@ svg text { font-family: var(--font); }
       });
     });
 
-    var svg = s('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': journey.title });
+    var svg = s('svg', { 'class': 'layer', role: 'group', 'aria-label': journey.title });
     svg.appendChild(s('defs', {}, arrowMarker('jm-arrow', 'arrow'), arrowMarker('jm-arrow-new', 'arrow-new')));
+    var world = s('g', { 'class': 'world' });
     var geo = {
       BW: BW, BH: BH, ARC: ARC, LOOP: LOOP,
       colTop: cols.map(function (col) { return pos.get(col[0].id).y; }),
@@ -1106,8 +1574,10 @@ svg text { font-family: var(--font); }
     cols.forEach(function (col) {
       col.forEach(function (step) { nodes.appendChild(drawStepBox(trail, step, pos.get(step.id), BW, BH)); });
     });
-    addKids(svg, [edges, nodes]);
+    addKids(world, [edges, nodes]);
+    svg.appendChild(world);
     view.appendChild(svg);
+    mountCanvas(world, W, H, 'flow');
   }
 
   // ---- Drawing: step card ----
@@ -1322,8 +1792,7 @@ svg text { font-family: var(--font); }
   /** Zooms the freshly drawn layer in from the opened node (or out towards the centre). */
   function animate(dir, sameView) {
     var layer = view.firstElementChild;
-    if (sameView || !layer || typeof layer.animate !== 'function') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (sameView || !layer || typeof layer.animate !== 'function' || reducedMotion()) return;
     var origin = pendingOrigin || { x: view.clientWidth / 2, y: view.clientHeight / 2 };
     layer.style.transformOrigin = round(origin.x) + 'px ' + round(origin.y) + 'px';
     var from = dir > 0 ? 'scale(0.86)' : dir < 0 ? 'scale(1.1)' : 'scale(0.98)';
@@ -1341,6 +1810,9 @@ svg text { font-family: var(--font); }
     var prev = lastIds;
     var dir = prev ? Math.sign(ids.length - prev.length) : 0;
     var sameView = !!prev && prev.length === ids.length && last(prev) === last(ids);
+    if (canvas) cams.set(canvas.key, snapshotCamera());
+    pendingCamera = dir > 0 ? null : cams.get(hashOf(trail)) || null;
+    resetCanvas();
     lastIds = ids;
     current = trail;
     navigatedAt = performance.now();
