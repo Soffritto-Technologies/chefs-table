@@ -479,3 +479,176 @@ describe('unit marker', () => {
     }
   });
 });
+
+describe('writeBrief: who and sections', () => {
+  const viewUnit = { id: 'area-home-people', kind: 'area', area: 'home', title: 'Home · People (part 2 of 3)', routes: ['/'], files: ['app/page.tsx'], estTokens: 100 };
+
+  it('asks for the real role of the person and no longer teaches "Customer"', () => {
+    const { dir } = jobProject();
+    const text = readBrief(M.writeBrief(dir, sampleUnits()[0], sampleInventory(), baseDoc(), CLI_PATH));
+    assert.ok(text.includes('"who":"<the role of the person using this, e.g. Adviser>"'));
+    assert.doesNotMatch(text, /"who":"Customer"/);
+    assert.ok(text.includes('Set "who" to the real role of the person using this part of the app, read from the code and on-screen text; never a placeholder.'));
+    assert.ok(text.includes('- Use area id "home".'));
+  });
+
+  it('tells the helper to nest a view of a big page under the page area', () => {
+    const { dir } = jobProject();
+    const text = readBrief(M.writeBrief(dir, viewUnit, sampleInventory(), baseDoc(), CLI_PATH));
+    assert.ok(text.includes('Declare an area with id "home-people", "parent": "home" and the plain section title "People"'));
+    assert.ok(text.includes('"areas":[{"id":"home-people","title":"Plain-language area name","parent":"home"}]'));
+    assert.ok(text.includes('"area":"home-people"'));
+    assert.doesNotMatch(text, /- Use area id/);
+  });
+
+  it('recognises view units from their title and ignores ordinary units', () => {
+    assert.deepEqual(M.viewOf(viewUnit), { key: 'people', label: 'People', areaId: 'home-people' });
+    assert.deepEqual(M.viewOf({ ...viewUnit, area: 'contacts', title: 'Contacts · Meeting notes & tasks' }), { key: 'meeting-notes-tasks', label: 'Meeting notes & tasks', areaId: 'contacts-meeting-notes-tasks' });
+    assert.equal(M.viewOf(sampleUnits()[0]), null);
+    assert.equal(M.viewOf({ ...viewUnit, title: 'Home · ***' }), null);
+    assert.ok(M.viewOf({ ...viewUnit, area: 'a'.repeat(60), title: 'Home · A long view name' }).areaId.length <= 64);
+  });
+
+  it('accepts a view unit whose parent area is known only from the inventory', () => {
+    const { project, dir } = jobProject({ doc: { ...baseDoc(), areas: [] } });
+    M.updateJob(dir, (job) => { job.units.push({ ...viewUnit, status: 'pending', tokens: 0, attempts: 0 }); });
+    const out = unitOutput(sampleUnits()[0]);
+    out.areas = [{ id: 'home-people', title: 'People', parent: 'home' }];
+    out.journeys[0].area = 'home-people';
+    writeOut(project, 'area-home-people', out);
+    assert.deepEqual(M.submitUnit(dir, 'area-home-people'), { ok: true });
+    const merged = M.mergeUnits(dir, JSON.parse(project.read('.journeys/journeys.json')));
+    assert.deepEqual(merged.errors, []);
+    assert.deepEqual(merged.doc.areas, [{ id: 'home-people', title: 'People', parent: 'home' }, { id: 'home', title: 'Home' }]);
+  });
+});
+
+describe('organise brief', () => {
+  const orgDoc = () => docOf([
+    journey('buy', 'Buy a thing | fast', [step('a', '/cart'), step('b', '/checkout'), step('c', '/cart')], { area: 'shop', who: 'Customer' }),
+    journey('callback', 'OAuth callback', [step('a', '/auth/callback')], { area: 'oauth' }),
+    journey('loose', 'Loose end', [step('a', null)]),
+  ], { areas: [{ id: 'shop', title: 'Shop' }, { id: 'oauth', title: 'OAuth', parent: 'shop' }] });
+
+  it('starts with the marker and lists areas, journeys and the rules', () => {
+    const { dir } = jobProject();
+    const path = M.writeOrganiseBrief(dir, orgDoc(), CLI_PATH);
+    assert.equal(path, M.organisePaths(dir).brief);
+    const text = readBrief(path);
+    assert.equal(text.split('\n')[0], '[chefs-table unit organise]');
+    assert.match(text, /^shop \| Shop \| - \| 1$/m);
+    assert.match(text, /^oauth \| OAuth \| shop \| 1$/m);
+    assert.match(text, /^buy \| Buy a thing \/ fast \| shop \| Customer \| \/cart \/checkout$/m);
+    assert.match(text, /^loose \| Loose end \| - \| - \| -$/m);
+    for (const rule of [
+      'business-level tree a non-technical owner would recognise', 'At most 8 top-level areas', 'No level with more than about 20 items',
+      'giving the new areas a "parent"', 'OAuth callbacks, connect or link pages', '"Connecting accounts" or "Signing in"', 'lowercase-hyphen ids',
+      'Keep existing ids and placements', 'real role of the person doing the journey', '"Adviser", "Admin", "Visitor"', 'never a placeholder',
+    ]) assert.ok(text.includes(rule), rule);
+    assert.ok(text.includes(`Write one JSON file: ${M.organisePaths(dir).out}`));
+    assert.ok(text.includes('{ "areas": Area[], "assign": { "<journeyId>": "<areaId>" }, "who": { "<journeyId>": "<role>" } }'));
+    assert.ok(text.includes(`Then run: node "${CLI_PATH}" organise apply`));
+  });
+
+  it('stays under 20k tokens for 200 journeys, even with long titles and many screens', () => {
+    const { dir } = jobProject();
+    const many = Array.from({ length: 200 }, (_, i) => journey(`journey-number-${i}`, `A fairly long journey title number ${i} `.repeat(8), Array.from({ length: 12 }, (__, s) => step(`s${s}`, `/section-${i}/page-${s}`)), { area: `area-${i % 40}`, who: 'Customer' }));
+    const doc = docOf(many, { areas: Array.from({ length: 40 }, (_, i) => ({ id: `area-${i}`, title: `Area ${i}` })) });
+    const tokens = Buffer.byteLength(readBrief(M.writeOrganiseBrief(dir, doc, CLI_PATH))) / 4;
+    assert.ok(tokens < 20000, `${tokens} tokens`);
+  });
+
+  it('removes an earlier output and opens a short metering window on the job', () => {
+    const { project, dir } = jobProject();
+    project.write('.journeys/build/organise.out.json', '{"stale":true}');
+    M.writeOrganiseBrief(dir, orgDoc(), CLI_PATH);
+    assert.equal(project.exists('.journeys/build/organise.out.json'), false);
+    const until = M.loadJob(dir).organiseUntil;
+    assert.ok(until > Date.now() && until <= Date.now() + 31 * 60 * 1000);
+    const bare = makeProject({ fixture: false });
+    M.writeOrganiseBrief(bare.dir, orgDoc(), CLI_PATH);
+    assert.equal(bare.exists('.journeys/build/job.json'), false, 'no job: nothing to meter');
+  });
+});
+
+describe('organise apply', () => {
+  const doc = () => docOf([
+    journey('j1', 'One', [step('s', '/one')], { area: 'shop', who: 'Customer' }),
+    journey('j2', 'Two', [step('s', '/two')], { area: 'shop', who: 'Customer' }),
+    journey('j3', 'Three', [step('s', '/auth')], { area: 'oauth', who: 'Customer' }),
+    journey('j4', 'Four', [step('s', '/four')], { area: 'stale', who: 'Customer' }),
+    journey('j5', 'Five', [step('s', '/five')], { area: 'lost' }),
+    journey('j6', 'Six', [step('s', '/six')]),
+  ], { areas: [{ id: 'shop', title: 'Shop', say: 'Buying things' }, { id: 'oauth', title: 'OAuth' }, { id: 'stale', title: 'Stale', parent: 'shop' }, { id: 'lost', title: 'Lost' }] });
+  const output = () => ({
+    areas: [{ id: 'shop', title: 'Shop' }, { id: 'orders', title: 'Orders', parent: 'shop' }, { id: 'signing-in', title: 'Signing in' }],
+    assign: { j2: 'orders', j3: 'signing-in' },
+    who: { j1: 'Adviser', j2: 'You' },
+  });
+
+  it('replaces the areas, moves the assigned journeys and sets their roles', () => {
+    const before = doc();
+    const result = M.organiseDoc(before, output());
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.doc.areas, [{ id: 'shop', title: 'Shop', say: 'Buying things' }, { id: 'orders', title: 'Orders', parent: 'shop' }, { id: 'signing-in', title: 'Signing in' }, { id: 'other', title: 'Other' }]);
+    assert.deepEqual(result.doc.journeys.map((j) => [j.id, j.area, j.who]), [
+      ['j1', 'shop', 'Adviser'], ['j2', 'orders', 'You'], ['j3', 'signing-in', 'Customer'], ['j4', 'shop', 'Customer'], ['j5', 'other', undefined], ['j6', undefined, undefined],
+    ]);
+    assert.equal(result.moved, 4, 'j2 and j3 assigned, j4 to its old parent, j5 to other');
+    assert.deepEqual(before, doc(), 'the input is not changed');
+  });
+
+  it('keeps an unassigned journey in its area when that area still exists', () => {
+    const out = { areas: [{ id: 'shop', title: 'Shop' }, { id: 'oauth', title: 'OAuth' }], assign: {} };
+    const result = M.organiseDoc(doc(), out);
+    assert.deepEqual(result.doc.journeys.slice(0, 3).map((j) => j.area), ['shop', 'shop', 'oauth']);
+    assert.equal(result.doc.journeys[0].who, 'Customer', 'roles it was not told about stay');
+  });
+
+  it('rejects a parent that does not exist, a circle and an over-deep tree', () => {
+    for (const [areas, pattern] of [
+      [[{ id: 'a', title: 'A', parent: 'ghost' }], /sits inside area "ghost"/],
+      [[{ id: 'a', title: 'A', parent: 'b' }, { id: 'b', title: 'B', parent: 'a' }], /circle/],
+      [['a', 'b', 'c', 'd', 'e'].map((id, i, all) => ({ id, title: id, ...(i ? { parent: all[i - 1] } : {}) })), /5 levels deep/],
+    ]) {
+      const result = M.organiseDoc(doc(), { areas, assign: {} });
+      assert.equal(result.ok, false);
+      assert.match(result.errors.join('\n'), pattern);
+    }
+  });
+
+  it('rejects journeys and areas that do not exist, bad ids and placeholder roles', () => {
+    const run = (patch) => M.organiseDoc(doc(), { ...output(), ...patch });
+    assert.match(run({ assign: { ghost: 'shop' } }).errors[0], /"assign" names journey "ghost", which is not on the map/);
+    assert.match(run({ assign: { j1: 'nowhere' } }).errors[0], /puts journey "j1" in area "nowhere", which is not in "areas"/);
+    assert.match(run({ who: { ghost: 'You' } }).errors[0], /"who" names journey "ghost"/);
+    assert.match(run({ who: { j1: '<the role of the person using this, e.g. Adviser>' } }).errors[0], /looks like a placeholder/);
+    assert.match(run({ who: { j1: '  ' } }).errors[0], /needs a role in words/);
+    assert.match(run({ areas: [{ id: 'Bad Id!', title: 'X' }], assign: {} }).errors.join('\n'), /area id "Bad Id!" can only use letters/);
+    assert.match(run({ assign: ['j1'] }).errors[0], /"assign" must be an object/);
+    for (const bad of [null, [], { areas: [] }, { areas: 'x' }]) assert.match(M.organiseDoc(doc(), bad).errors[0], /non-empty "areas" list/);
+  });
+
+  it('cleans roles: control characters out, at most 40 characters', () => {
+    const result = M.organiseDoc(doc(), { ...output(), who: { j1: ' Adviser\u0007\n ', j2: 'Wealth planner who also looks after every single client account' } });
+    assert.equal(result.doc.journeys[0].who, 'Adviser');
+    assert.equal(result.doc.journeys[1].who, 'Wealth planner who also looks after ever');
+    assert.equal(result.doc.journeys[1].who.length, 40);
+  });
+
+  it('applies the output file to journeys.json, or leaves the file alone and explains', () => {
+    const { project, dir } = jobProject({ doc: doc() });
+    const { out } = M.organisePaths(dir);
+    assert.match(M.applyOrganise(dir).errors[0], /can't find .*organise\.out\.json/);
+    project.write('.journeys/build/organise.out.json', '{nope');
+    assert.match(M.applyOrganise(dir).errors[0], /not valid JSON/);
+    const untouched = project.read('.journeys/journeys.json');
+    project.write('.journeys/build/organise.out.json', JSON.stringify({ areas: [{ id: 'a', title: 'A', parent: 'ghost' }] }));
+    assert.equal(M.applyOrganise(dir).ok, false);
+    assert.equal(project.read('.journeys/journeys.json'), untouched);
+    project.write('.journeys/build/organise.out.json', JSON.stringify(output()));
+    assert.deepEqual(M.applyOrganise(dir), { ok: true, areas: 4, top: 3, moved: 4 });
+    assert.equal(JSON.parse(project.read('.journeys/journeys.json')).areas.length, 4);
+    assert.ok(out.endsWith('organise.out.json'));
+  });
+});

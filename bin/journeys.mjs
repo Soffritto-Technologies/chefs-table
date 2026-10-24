@@ -9,12 +9,13 @@
  *   journeys render --canonical       redraw the committed journeys.html
  *   journeys hook <Event>             Claude Code hook entry (payload on stdin)
  *
- * First-map pipeline (chop → stir → check → plate), resumable and budgeted:
+ * First-map pipeline (chop → stir → check → organise → plate), resumable and budgeted:
  *   journeys chop [--max-unit-tokens N] [--budget-percent P] [--budget-tokens T] [--start-percent S] [--restart]
  *   journeys stir next [--count K] [--now-percent P]   |  stir submit <id>  |  stir fail <id> <reason>
  *   journeys budget [--now-percent P]
  *   journeys check --coverage
  *   journeys sync [--budget-percent P] [--budget-tokens T] [--start-percent S]
+ *   journeys organise brief  |  organise apply         regroup the finished map into a business-level tree
  *
  * The session id defaults to $CLAUDE_CODE_SESSION_ID, which Claude Code sets for every Bash call.
  */
@@ -415,13 +416,15 @@ function onPreToolUse(payload) {
 /**
  * Hook: SubagentStop. Meters a finished map-job helper from its own transcript, so helpers running in the
  * background are counted too (their Agent tool result carries no token totals). Each helper is counted once.
+ * Only while the job is stirring, or for a short while after `organise brief` (the organise helper is metered toward the job).
  *
  * @param {Record<string, any>} payload - SubagentStop payload (agent_id, agent_transcript_path).
  * @returns {void}
  */
 function onSubagentStop(payload) {
   const projectDir = S.findProjectDir(payload.cwd || process.cwd());
-  if (!projectDir || M.loadJob(projectDir)?.phase !== 'stir') return;
+  const job = projectDir ? M.loadJob(projectDir) : null;
+  if (!job || (job.phase !== 'stir' && !(Date.now() < (job.organiseUntil || 0)))) return;
   const file = payload.agent_transcript_path;
   if (typeof file !== 'string' || !file.endsWith('.jsonl') || !existsSync(file)) return;
   const usage = M.transcriptUsage(readFileSync(file, 'utf8'));
@@ -775,6 +778,27 @@ function stirFinish(projectDir, action, args) {
   process.exitCode = 1;
 }
 
+/** CLI: organise brief | apply — regroup the finished map into a tree an owner would recognise, using one helper. */
+function cmdOrganise(args) {
+  const projectDir = requireProject();
+  const docFile = S.paths(projectDir).doc;
+  if (args[0] === 'brief') {
+    const doc = S.readJson(docFile, null);
+    if (!doc || !Array.isArray(doc.journeys) || !doc.journeys.length) throw new Error('There are no journeys to organise yet. Run /chefs-table:map-app first.');
+    console.log(`ORGANISE_BRIEF ${M.writeOrganiseBrief(projectDir, doc, CLI)}`);
+  } else if (args[0] === 'apply') {
+    const result = M.applyOrganise(projectDir);
+    if (result.ok) {
+      console.log(`ORGANISED areas=${result.areas} top=${result.top} moved=${result.moved}`);
+      return;
+    }
+    console.log(`ORGANISE_INVALID\n${result.errors.map((e) => `- ${e}`).join('\n')}`);
+    process.exitCode = 1;
+  } else {
+    throw new Error('Usage: journeys organise <brief|apply>');
+  }
+}
+
 /** CLI: budget — print tokens used and the usage limits. */
 function cmdBudget(args) {
   const projectDir = requireProject();
@@ -904,9 +928,10 @@ function main(argv) {
     stir: cmdStir,
     budget: cmdBudget,
     sync: cmdSync,
+    organise: cmdOrganise,
   };
   if (!commands[cmd]) {
-    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|chop|stir|budget|sync|hook <Event>> [--session id]');
+    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|chop|stir|budget|organise|sync|hook <Event>> [--session id]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }

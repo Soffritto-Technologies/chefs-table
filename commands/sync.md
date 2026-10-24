@@ -11,4 +11,4 @@ CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys
 2. **Run `journeys sync`** with those budget flags.
    - `SYNC_NOTHING`: tell the builder the map is already current, and stop.
    - `SYNC new=<n> changed_journeys=<n> units=<n>`: tell them in one plain sentence what changed, for example "3 new pages and 2 journeys whose code changed".
-3. **Run stir → check → plate → report** exactly as `/chefs-table:map-app` steps 3–6.
+3. **Run stir → check → organise → plate → report** exactly as `/chefs-table:map-app` steps 3–7, except: run the Organise step (5) only when the sync added journeys (`new` was above 0). When it only refreshed existing journeys, skip it so their groups stay put.

@@ -148,6 +148,38 @@ describe('validateDoc', () => {
     assert.equal(validateDoc(doc([journey('a', [step('s')], { area: 'buy' })], { areas })).ok, true);
   });
 
+  describe('area parents', () => {
+    const area = (id, parent) => ({ id, title: id.toUpperCase(), ...(parent === undefined ? {} : { parent }) });
+    const withAreas = (...areas) => doc([], { areas });
+
+    it('accepts sections up to four levels deep and keeps the parent', () => {
+      const result = validateDoc(withAreas(area('a'), area('b', 'a'), area('c', 'b'), area('d', 'c')));
+      assert.equal(result.ok, true);
+      assert.equal(result.doc.areas[3].parent, 'c');
+    });
+
+    it('rejects a parent that is missing, not text, or the area itself', () => {
+      assertRejected(withAreas(area('a', 'ghost')), /Area "a" sits inside area "ghost", which is not listed in "areas"/);
+      assertRejected(withAreas(area('a'), area('b', 7)), /Area "b": "parent" must be the id of the area it sits inside/);
+      assertRejected(withAreas(area('a', 'a')), /Area "a" cannot sit inside itself/);
+    });
+
+    it('rejects areas that sit inside each other in a circle, once per circle', () => {
+      assertRejected(withAreas(area('a', 'b'), area('b', 'c'), area('c', 'a')), /circle: "a" -> "b" -> "c" -> "a"/);
+      const tail = validateDoc(withAreas(area('x', 'a'), area('a', 'b'), area('b', 'a')));
+      assert.equal(tail.errors.filter((message) => /circle/.test(message)).length, 1, 'the tail leading into the circle is not a second circle');
+    });
+
+    it('rejects nesting five levels deep', () => {
+      assertRejected(withAreas(area('a'), area('b', 'a'), area('c', 'b'), area('d', 'c'), area('e', 'd')), /Area "e" is nested 5 levels deep; areas can be at most 4 levels deep/);
+    });
+
+    it('lets a journey sit in a section', () => {
+      const journeys = [journey('j', [step('s')], { area: 'b' })];
+      assert.equal(validateDoc(doc(journeys, { areas: [area('a'), area('b', 'a')] })).ok, true);
+    });
+  });
+
   it('allows any area value when there is no areas list', () => {
     assert.equal(validateDoc(doc([journey('a', [step('s')], { area: 'anything' })])).ok, true);
   });

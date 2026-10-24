@@ -3,7 +3,7 @@ description: Draw (or resume) a live, zoomable map of this whole app's user jour
 argument-hint: "[budget, e.g. 10% of 5-hour usage, or 2M tokens]"
 ---
 
-Map this entire app for a non-technical builder in four stages, **chop → stir → check → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
+Map this entire app for a non-technical builder in five stages, **chop → stir → check → organise → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
@@ -46,17 +46,29 @@ Run `journeys check --coverage`.
 - **`GAPS <n>`:** go back to step 3. The new units cover the missing pages.
 - **`MAP_DONE`,** or stirring stopped on budget: continue to step 5.
 
-## 5. Plate
+## 5. Organise
+
+The helpers wrote journeys one part of the app at a time, so the areas can be lopsided and the roles generic. One more helper regroups the whole map into a tree the owner would recognise. Do this even when the budget stopped the run: it reads one short list.
+
+1. Run `journeys organise brief`. It prints `ORGANISE_BRIEF <brief>`.
+2. Start one helper with the Agent tool, **model `sonnet`**, using this prompt with the marker as its first line (that's how its usage is metered):
+
+   > [chefs-table unit organise]
+   > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORGANISED or the errors.
+3. **`ORGANISE_INVALID`:** give the helper one retry with the errors. If it fails again, keep the map as it is and tell the builder it wasn't regrouped.
+
+## 6. Plate
 
 Run `journeys render --canonical`, then `journeys build --render`.
 - If `MAP_CHANGED <path>` is printed and the Artifact tool is available, publish that file and give the builder the link.
 - Otherwise give them the local path.
 - `journeys.html` at the project root is the clean map, meant to be committed.
 
-## 6. Report
+## 7. Report
 
 Tell the builder, in plain words:
 - coverage (the `COVERAGE` %), and the important pages still missing
+- how the map was grouped (the `ORGANISED` line: areas, and how many journeys moved)
 - usage spent (`journeys budget`)
 - anything unverified
 

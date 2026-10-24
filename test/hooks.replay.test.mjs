@@ -1402,3 +1402,80 @@ describe('first-map pipeline: budget and hooks', () => {
     assert.match(context, /… \d+ more journeys/);
   });
 });
+
+describe('first-map pipeline: organise', () => {
+  const output = () => ({
+    areas: [{ id: 'shopping', title: 'Shopping' }, { id: 'paying', title: 'Paying', parent: 'shopping' }],
+    assign: { browse: 'shopping', pay: 'paying' },
+    who: { browse: 'Visitor', pay: 'Customer' },
+  });
+
+  it('organise brief → apply regroups the map into sections', () => {
+    const project = makeProject();
+    const briefOut = run(project, 'organise', 'brief');
+    assert.equal(briefOut, `ORGANISE_BRIEF ${project.abs(`${BUILD}/organise.brief.md`)}\n`);
+    const brief = project.read(`${BUILD}/organise.brief.md`);
+    assert.equal(brief.split('\n')[0], '[chefs-table unit organise]');
+    assert.match(brief, /^browse \| Browse the shop \| - \| - \| \/$/m);
+    assert.match(brief, /^pay \| Pay for the order \| - \| - \| \/checkout$/m);
+    assert.ok(brief.includes(`node "${BIN}" organise apply`));
+    project.write(`${BUILD}/organise.out.json`, JSON.stringify(output()));
+    assert.equal(run(project, 'organise', 'apply'), 'ORGANISED areas=2 top=1 moved=2\n');
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.areas, [{ id: 'shopping', title: 'Shopping' }, { id: 'paying', title: 'Paying', parent: 'shopping' }]);
+    assert.deepEqual(doc.journeys.map((j) => [j.id, j.area, j.who]), [['browse', 'shopping', 'Visitor'], ['pay', 'paying', 'Customer']]);
+    assert.match(run(project, 'check'), /^VALID: 2 journeys/);
+  });
+
+  it('organise apply explains a bad output (exit 1) and leaves the map alone', () => {
+    const project = makeProject();
+    run(project, 'organise', 'brief');
+    const before = project.read('.journeys/journeys.json');
+    const missing = runCli(project, ['organise', 'apply']);
+    assert.equal(missing.status, 1);
+    assert.match(missing.stdout, /^ORGANISE_INVALID\n- I can't find .*organise\.out\.json/);
+    project.write(`${BUILD}/organise.out.json`, JSON.stringify({ areas: [{ id: 'paying', title: 'Paying', parent: 'ghost' }], assign: {} }));
+    const bad = runCli(project, ['organise', 'apply']);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stdout, /^ORGANISE_INVALID\n- .*sits inside area "ghost"/);
+    assert.equal(project.read('.journeys/journeys.json'), before);
+  });
+
+  it('organise needs journeys and a sub-command', () => {
+    const empty = makeProject({ doc: docOf([]) });
+    assert.match(runCli(empty, ['organise', 'brief']).stderr, /no journeys to organise yet/);
+    assert.match(runCli(makeProject(), ['organise']).stderr, /Usage: journeys organise <brief\|apply>/);
+    assert.match(runCli(makeProject({ doc: null, fixture: false }), ['organise', 'brief']).stderr, /not set up here/);
+  });
+
+  it('meters the organise helper toward the job, after stirring is over and only for a while', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    stirAll(project);
+    assert.match(run(project, 'check', '--coverage'), /^MAP_DONE$/m);
+    helperDone(project, { prompt: '[chefs-table unit organise]' });
+    assert.equal(jobOf(project).usedTokens, 0, 'no organise window yet');
+    run(project, 'organise', 'brief');
+    helperDone(project, { prompt: '[chefs-table unit organise]\nRead the brief at /x' });
+    const job = jobOf(project);
+    assert.equal(job.usedTokens, 1234);
+    assert.ok(job.units.every((u) => u.tokens === 0), 'the organiser is not a work unit');
+    project.write(`${BUILD}/job.json`, JSON.stringify({ ...job, organiseUntil: Date.now() - 1000 }));
+    helperDone(project, { prompt: '[chefs-table unit organise]' });
+    assert.equal(jobOf(project).usedTokens, 1234, 'the window has closed');
+  });
+
+  it('a fresh map nests the views of a big page under the page area', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    const { units } = jobOf(project);
+    project.write(`${BUILD}/job.json`, JSON.stringify({ ...jobOf(project), units: units.map((u) => (u.id === 'area-home' ? { ...u, title: 'Home · People' } : u)) }));
+    assert.match(run(project, 'stir', 'next', '--count', '9'), /^UNIT area-home /m);
+    const brief = project.read(`${BUILD}/units/area-home.brief.md`);
+    assert.ok(brief.includes('Declare an area with id "home-people", "parent": "home"'));
+    project.write(`${BUILD}/units/area-home.out.json`, JSON.stringify({ areas: [{ id: 'home-people', title: 'People', parent: 'home' }], journeys: [journey('people', 'People', [step('a', '/')], { area: 'home-people', who: 'Adviser' })] }));
+    assert.equal(run(project, 'stir', 'submit', 'area-home').trim(), 'UNIT_OK area-home');
+    assert.match(run(project, 'check', '--coverage'), /^COVERAGE \d+$/m);
+    assert.deepEqual(project.json('.journeys/journeys.json').areas, [{ id: 'home-people', title: 'People', parent: 'home' }, { id: 'home', title: 'Home' }]);
+  });
+});
