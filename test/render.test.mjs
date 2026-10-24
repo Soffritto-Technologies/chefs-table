@@ -536,6 +536,13 @@ describe('escapeJsonForHtml', () => {
 describe('renderHtml', () => {
   const HOSTILE = '</script><img src=x onerror=alert(1)>';
 
+  it('names the page after the app, escaped', () => {
+    const titleOf = (app) => renderHtml(buildViewModel({ mode: 'canonical', doc: { version: 1, app, journeys: [] } })).match(/<title>([^<]*)<\/title>/)[1];
+    assert.equal(titleOf('PineChat'), 'PineChat · Journey map');
+    assert.equal(titleOf(''), 'Journey map');
+    assert.equal(titleOf('A & B <x>'), 'A &amp; B &lt;x&gt; · Journey map');
+  });
+
   /**
    * Pulls the embedded JSON back out of rendered HTML.
    *
@@ -560,13 +567,16 @@ describe('renderHtml', () => {
     assert.deepEqual(embedded(html), vm);
   });
 
-  it('is deterministic and replaces only the data slot', () => {
+  it('is deterministic and replaces only the data slot and the title', () => {
     const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
     const a = renderHtml(vm, { templatePath: TEMPLATE_PATH });
     const b = renderHtml(buildViewModel({ mode: 'canonical', doc: SAMPLE }), { templatePath: TEMPLATE_PATH });
     assert.equal(a, b);
     const template = readFileSync(TEMPLATE_PATH, 'utf8');
-    assert.equal(a.replace(/(id="jm-data">)[\s\S]*?(<\/script>)/, '$1null$2'), template);
+    const normalised = a
+      .replace(/(id="jm-data">)[\s\S]*?(<\/script>)/, '$1null$2')
+      .replace(/<title>[^<]*<\/title>/, '<title>Journey map</title>');
+    assert.equal(normalised, template);
   });
 
   it('does not expand $ patterns in the data', () => {
