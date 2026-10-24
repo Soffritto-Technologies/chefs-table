@@ -33,6 +33,9 @@ The session-start note gives you this chat's **session folder** and the exact **
 - **A journey** is one goal of one kind of person ("Customer books a call"). **Steps** are what that person does or sees, in order, linked by `next`.
   - One journey per goal. Different routes to the same goal (a popup vs a redirect vs a small window, mobile vs desktop, different entry points) are **branches inside one journey**: give the step several `next` ids.
   - Technical hops (callback pages, popups that close, redirects) are steps inside the journey that triggers them, never journeys of their own.
+- **Apps.** When the map lists several apps (`apps` in `journeys.json`), tag each journey with the app or apps it happens in: `"apps": ["desktop"]`.
+  - One goal that spans apps (connecting Gmail on the web and iMessage on the Mac) is one journey tagged with both, in one section.
+  - For code with no web address (background jobs, emails, desktop windows), anchor steps to files and describe what the person turns on, sees or is told, and what happens in the background.
 - **Keep names short.**
   - Journey titles are 2–6 words, goal first ("Sign up with Google").
   - Every step gets a `label`: 2–6 words, verb first, at most 48 characters ("Allow Gmail access"). The map shows the label.

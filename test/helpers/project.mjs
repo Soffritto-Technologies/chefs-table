@@ -586,3 +586,23 @@ export function unitOutput(unit) {
 export function setGitHead(project, sha) {
   project.write('.git/HEAD', `${sha}\n`);
 }
+
+/**
+ * Writes a tiny monorepo into a project: a Next web app, an Electron app with a background agent, and a server with an email.
+ * Package names match their folders, so an app finder derives the ids frontend, desktop and backend.
+ *
+ * @param {Project} project - The project to fill (use `makeProject({ fixture: false })`).
+ * @returns {void}
+ */
+export function writeMultiApp(project) {
+  const pkg = (name, dependencies) => JSON.stringify({ name, version: '1.0.0', dependencies }, null, 2);
+  project.write('package.json', JSON.stringify({ name: 'monorepo', private: true, workspaces: ['packages/*'] }, null, 2));
+  project.write('packages/frontend/package.json', pkg('frontend', { next: '14.0.0', react: '18.2.0' }));
+  project.write('packages/frontend/app/page.tsx', 'export default function Home() {\n  return null;\n}\n');
+  project.write('packages/frontend/app/(shop)/checkout/page.tsx', 'export default function Checkout() {\n  return null;\n}\n');
+  project.write('packages/desktop/package.json', JSON.stringify({ name: 'desktop', main: 'src/main/index.ts', dependencies: { electron: '30.0.0' } }, null, 2));
+  project.write('packages/desktop/src/main/index.ts', "import { app, BrowserWindow } from 'electron';\napp.whenReady().then(() => new BrowserWindow({ width: 800 }).loadFile('index.html'));\n");
+  project.write('packages/desktop/src/agent/syncMessages.ts', 'export function syncMessages() {\n  return [];\n}\n');
+  project.write('packages/backend/package.json', pkg('backend', { express: '4.18.0' }));
+  project.write('packages/backend/src/emails/welcome.ts', 'export function sendWelcome(to: string) {\n  return to;\n}\n');
+}

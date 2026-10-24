@@ -10,7 +10,9 @@
  *   journeys hook <Event>             Claude Code hook entry (payload on stdin)
  *
  * First-map pipeline (chop → stir → check → organise → polish → plate), resumable and budgeted:
- *   journeys chop [--max-unit-tokens N] [--budget-percent P] [--budget-tokens T] [--start-percent S] [--restart]
+ *   journeys apps                     list the apps in a multi-app repo with their size
+ *   journeys rebase --prefix <dir>    move an existing single-app map under the folder its app lives in
+ *   journeys chop [--apps a,b|all] [--max-unit-tokens N] [--budget-percent P] [--budget-tokens T] [--start-percent S] [--restart]
  *   journeys stir next [--count K] [--now-percent P]   |  stir submit <id>  |  stir fail <id> <reason>
  *   journeys budget [--now-percent P]
  *   journeys check --coverage
@@ -31,6 +33,7 @@ import { checkAnchors, filesForStep, listRouteFiles, normalizeRoute } from '../l
 import { buildViewModel, renderHtml } from '../lib/render.mjs';
 import * as S from '../lib/session.mjs';
 import * as M from '../lib/mapjob.mjs';
+import { findApps } from '../lib/apps.mjs';
 import {
   buildInventory, coverage, diffInventory, planUnits, readGitHead,
 } from '../lib/inventory.mjs';
@@ -694,7 +697,9 @@ function printJobSummary(job, inventory) {
     const areas = new Set(job.units.map((unit) => unit.area)).size;
     console.log(`Polishing ${areas} ${areas === 1 ? 'area' : 'areas'}: ${todo.length} of ${job.units.length} work units to do, about ${sumTokens(todo).toLocaleString('en-US')} tokens of journeys to read.`);
   } else {
-    console.log(`Found ${inventory.pages.length} pages in ${inventory.areas.length} areas${found ? `; ${found}` : ''}.`);
+    const apps = inventory.apps?.length > 1 ? ` across ${inventory.apps.length} apps` : '';
+    const features = inventory.features?.length ? `, plus ${inventory.features.length} features without a web address` : '';
+    console.log(`Found ${inventory.pages.length} pages in ${inventory.areas.length} areas${apps}${features}${found ? `; ${found}` : ''}.`);
     console.log(`Work to do: ${todo.length} of ${job.units.length} units, about ${sumTokens(todo).toLocaleString('en-US')} tokens of code to read.`);
   }
   console.log(`Budget: ${limits.length ? `up to ${limits.join(' or ')}` : 'no limit set'}.`);
@@ -722,6 +727,69 @@ function reportResumed(projectDir, budget) {
   console.log(`RESUMED ${done}/${job.units.length}`);
 }
 
+/**
+ * Picks the apps `--apps` asks for.
+ *
+ * @param {string[]} args - CLI arguments.
+ * @param {Array<{ id: string }>} found - Apps found in the project.
+ * @returns {Array<object>} `all` (the default) gives every app found; `a,b` gives those.
+ * @throws {Error} When an id is not an app of this project.
+ */
+function chooseApps(args, found) {
+  const i = args.indexOf('--apps');
+  const value = i < 0 ? 'all' : args[i + 1];
+  if (!value || value.startsWith('--')) throw new Error('--apps needs a comma-separated list of app ids, or "all".');
+  if (value === 'all') return found;
+  const ids = value.split(',').map((id) => id.trim()).filter(Boolean);
+  const unknown = ids.filter((id) => !found.some((app) => app.id === id));
+  if (unknown.length) {
+    throw new Error(`${isMultiApp(found) ? `There is no app called ${unknown.map((id) => `"${id}"`).join(', ')}. Found: ${found.map((app) => app.id).join(', ')}.` : 'No separate apps were found in this project, so --apps does not apply.'} Run: journeys apps`);
+  }
+  return found.filter((app) => ids.includes(app.id));
+}
+
+/**
+ * Whether apps live in sub-folders (several of them, or one that is not the whole project).
+ *
+ * @param {Array<{ root: string }>} found - Apps from findApps.
+ * @returns {boolean} False for a plain single-app project.
+ */
+function isMultiApp(found) {
+  return found.length > 1 || (found.length === 1 && found[0].root !== '.');
+}
+
+/**
+ * The apps to scan: those already on the map plus the chosen ones (with the app finder's fuller details), or the single app found.
+ *
+ * @param {Array<object>} found - Apps from findApps.
+ * @param {object[]|undefined} onMap - `apps` of journeys.json.
+ * @param {object[]} [chosen] - Apps being added.
+ * @returns {object[]} Apps to hand to buildInventory.
+ */
+function appsToScan(found, onMap, chosen = []) {
+  const mapped = M.mergeApps(onMap, chosen);
+  return mapped.length ? mapped.map((app) => found.find((candidate) => candidate.id === app.id) ?? app) : found;
+}
+
+/** CLI: apps — list the apps in this project with their size, so the builder can choose what to map. */
+function cmdApps() {
+  const projectDir = requireProject();
+  const found = findApps(projectDir);
+  if (!isMultiApp(found)) {
+    console.log('No separate apps found: this project is a single app, so there is nothing to choose.');
+    return;
+  }
+  const inventory = buildInventory(projectDir, S.loadConfig(projectDir), { apps: found });
+  let total = 0;
+  for (const app of found) {
+    const sizes = Object.entries(inventory.files).filter(([file]) => M.appIdFor(found, file) === app.id).map(([, entry]) => entry.bytes);
+    const est = Math.ceil(sizes.reduce((sum, bytes) => sum + bytes, 0) / 4);
+    total += est;
+    console.log(`APP ${app.id} ${app.kind} files=${sizes.length} est=${est} root=${app.root}`);
+  }
+  console.log(`Found ${found.length} ${found.length === 1 ? 'app' : 'apps'}: ${found.map((app) => `${app.title} (${app.kind})`).join(', ')}. About ${total.toLocaleString('en-US')} tokens of code in all. Map them all, or pick some with: journeys chop --apps ${found[0].id}`);
+}
+
 /** CLI: chop — scan the code (no AI), cut it into work units and start (or resume) the job. */
 function cmdChop(args) {
   const projectDir = requireProject();
@@ -732,11 +800,65 @@ function cmdChop(args) {
     reportResumed(projectDir, budget);
     return;
   }
-  const inventory = buildInventory(projectDir, S.loadConfig(projectDir));
+  const p = S.paths(projectDir);
+  const doc = S.readJson(p.doc, null);
+  const found = findApps(projectDir);
+  const chosen = chooseApps(args, found);
+  const multiApp = isMultiApp(found) || Boolean(doc?.apps?.length);
+  const inventory = buildInventory(projectDir, S.loadConfig(projectDir), { apps: appsToScan(found, doc?.apps, chosen) });
   M.saveInventory(projectDir, inventory);
-  const units = planUnits(inventory, { maxTokens: numberFlag(args, 'max-unit-tokens') ?? PIPELINE.UNIT_MAX_TOKENS });
+  const mapped = M.mergeApps(doc?.apps, chosen);
+  if (multiApp && doc && mapped.length !== (doc.apps?.length ?? 0)) saveApps(p.doc, doc, mapped);
+  const wanted = new Set(chosen.map((app) => app.id));
+  const units = planUnits(inventory, { maxTokens: numberFlag(args, 'max-unit-tokens') ?? PIPELINE.UNIT_MAX_TOKENS })
+    .filter((unit) => !multiApp || !unit.app || wanted.has(unit.app));
   const { job } = M.startJob(projectDir, { kind: 'first-map', units, budget, restart });
   printJobSummary(job, inventory);
+}
+
+/**
+ * Writes the map's `apps` list (the journeys stay as they are).
+ *
+ * @param {string} file - Absolute path of journeys.json.
+ * @param {object} doc - The current map.
+ * @param {object[]} apps - The new apps list.
+ * @returns {void}
+ * @throws {Error} When the result would be invalid.
+ */
+function saveApps(file, doc, apps) {
+  const result = validateDoc({ ...doc, apps });
+  if (!result.ok) throw new Error(`The apps could not be saved:\n- ${result.errors.join('\n- ')}`);
+  S.writeTextAtomic(file, stableStringify(result.doc));
+}
+
+/**
+ * Turns a folder argument into a clean repo-relative path.
+ *
+ * @param {string|undefined} value - The `--prefix` value.
+ * @returns {string} e.g. "packages/frontend" (forward slashes, no leading "./" or trailing slash).
+ * @throws {Error} When it is empty, "." or leaves the project.
+ */
+function cleanPrefix(value) {
+  const prefix = String(value ?? '').replace(/\\/g, '/').replace(/^(\.\/)+/, '').replace(/\/+$/, '');
+  if (!prefix || prefix === '.' || prefix.startsWith('/') || /^[A-Za-z]:/.test(prefix) || prefix.split('/').includes('..') || /[\u0000-\u001F]/.test(prefix)) {
+    throw new Error('--prefix needs a folder inside the project, like packages/frontend.');
+  }
+  return prefix;
+}
+
+/** CLI: rebase --prefix <dir> — move an existing single-app map under the sub-folder its app lives in. */
+function cmdRebase(args) {
+  const projectDir = requireProject();
+  const i = args.indexOf('--prefix');
+  const prefix = cleanPrefix(i < 0 ? undefined : args[i + 1]);
+  const known = findApps(projectDir).find((app) => app.root === prefix);
+  const name = basename(prefix);
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'app';
+  const app = known
+    ? { id: known.id, title: known.title, kind: known.kind, root: prefix }
+    : { id, title: id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' '), kind: 'web', root: prefix };
+  const { anchors } = M.rebaseMap(projectDir, prefix, app);
+  console.log(`The map now lives under ${prefix} (app: ${app.title}).\nREBASED ${anchors} anchors`);
 }
 
 /** CLI: stir next | submit | fail — hand out work units, take back a helper's result, or give up on a unit. */
@@ -910,6 +1032,7 @@ function cmdCheckCoverage() {
   printMissing('pages', cov.pages);
   printMissing('forms', cov.forms);
   printMissing('endpoints', cov.endpoints);
+  if (cov.features) printMissing('features', cov.features);
   const remaining = job.units.filter((unit) => unit.status === 'pending' || unit.status === 'in_progress').length;
   const gaps = job.kind !== 'polish' && cov.percent < PIPELINE.COVERAGE_TARGET && remaining === 0 ? M.gapUnits(inventory, cov, job) : [];
   if (gaps.length) {
@@ -936,9 +1059,10 @@ function cmdSync(args) {
   }
   const before = S.readJson(p.inventory, null);
   if (!before) throw new Error('There is no saved inventory to compare with. Run /chefs-table:map-app first.');
-  const after = buildInventory(projectDir, S.loadConfig(projectDir));
+  const doc = S.readJson(p.doc, null);
+  const after = buildInventory(projectDir, S.loadConfig(projectDir), { apps: appsToScan(findApps(projectDir), doc?.apps) });
   const diff = diffInventory(before, after);
-  const targets = M.refreshTargets(S.readJson(p.doc, null), after, diff);
+  const targets = M.refreshTargets(doc, after, diff);
   const units = targets.routes.length ? planUnits(after, { routes: targets.routes, kind: 'refresh', idPrefix: 'refresh' }) : [];
   M.saveInventory(projectDir, after);
   if (!units.length) {
@@ -1001,9 +1125,11 @@ function main(argv) {
     sync: cmdSync,
     organise: cmdOrganise,
     polish: cmdPolish,
+    apps: cmdApps,
+    rebase: cmdRebase,
   };
   if (!commands[cmd]) {
-    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|chop|stir|budget|organise|polish|sync|hook <Event>> [--session id]');
+    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|apps|chop|stir|budget|organise|polish|rebase|sync|hook <Event>> [--session id]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }

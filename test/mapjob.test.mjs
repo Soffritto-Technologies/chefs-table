@@ -919,3 +919,147 @@ describe('polish: units finished in any order', () => {
     assert.equal(JSON.parse(project.read('.journeys/journeys.json')).journeys[1].steps[1].subflow, 'sign-up-google');
   });
 });
+
+describe('apps: tags, merging and briefs', () => {
+  const apps = [
+    { id: 'frontend', title: 'Web app', kind: 'web', root: 'packages/frontend' },
+    { id: 'desktop', title: 'Mac app', kind: 'desktop', root: 'packages/desktop' },
+    { id: 'backend', title: 'Background', kind: 'server', root: 'packages/backend' },
+  ];
+  const file = (value, extra = {}) => step('s', null, { anchor: fileAnchor(value), ...extra });
+  const mapOf = (...journeys) => docOf(journeys, { apps });
+
+  it('tags a journey with every app its file anchors and detail files touch, in the order of the app list', () => {
+    const doc = mapOf(
+      journey('both', 'Connect Gmail', [file('packages/desktop/src/a.ts'), step('t', '/x', { anchor: fileAnchor('packages/frontend/app/x.tsx'), detail: { files: ['packages/backend/src/mail.ts'] } })]),
+      journey('route-only', 'Browse', [step('r', '/shop')]),
+      journey('tagged', 'Tagged already', [file('packages/desktop/src/a.ts')], { apps: ['frontend'] }),
+      journey('outside', 'Outside', [file('tools/script.ts')]),
+    );
+    const tagged = M.tagApps(doc, apps);
+    assert.deepEqual(tagged.journeys.map((j) => j.apps), [['frontend', 'desktop', 'backend'], undefined, ['frontend'], undefined]);
+    assert.deepEqual(M.tagApps(doc, apps), tagged, 'the same map always gives the same tags');
+    assert.equal(doc.journeys[0].apps, undefined, 'the input is not changed');
+  });
+
+  it('does nothing for a single-app map', () => {
+    const doc = docOf([journey('a', 'A', [file('src/a.ts')])]);
+    assert.equal(M.tagApps(doc, undefined), doc);
+    assert.equal(M.tagApps(doc, []), doc);
+  });
+
+  it('merges apps by id and keeps the ones already listed as they are', () => {
+    const merged = M.mergeApps([{ ...apps[0], title: 'My own name' }], [apps[0], { ...apps[1], extra: 'x' }]);
+    assert.deepEqual(merged, [{ ...apps[0], title: 'My own name' }, apps[1]]);
+    assert.deepEqual(M.mergeApps(undefined, [apps[2]]), [apps[2]]);
+  });
+
+  it('tags journeys from unit output when the maps are merged, and rejects an unknown app', () => {
+    const { project, dir } = jobProject({ doc: { ...baseDoc(), apps, areas: [] } });
+    const out = unitOutput(sampleUnits()[0]);
+    out.journeys[0].steps[0] = step('s0', null, { anchor: fileAnchor('packages/desktop/src/main/index.ts') });
+    writeOut(project, 'area-home', out);
+    assert.deepEqual(M.submitUnit(dir, 'area-home'), { ok: true });
+    const merged = M.mergeUnits(dir, JSON.parse(project.read('.journeys/journeys.json')));
+    assert.deepEqual(merged.doc.journeys.find((j) => j.id === 'j-area-home').apps, ['desktop']);
+    out.journeys[0].apps = ['mac'];
+    writeOut(project, 'area-blog', out);
+    assert.match(M.submitUnit(dir, 'area-blog').errors.join('\n'), /happens in app "mac", which is not listed in "apps"/);
+  });
+
+  it('unit briefs name the app and ask for its tag', () => {
+    const { dir } = jobProject({ doc: { ...baseDoc(), apps } });
+    const unit = { ...sampleUnits()[0], app: 'desktop' };
+    const text = readBrief(M.writeBrief(dir, unit, { ...sampleInventory(), apps }, { ...baseDoc(), apps }, CLI_PATH));
+    assert.ok(text.includes('App: Mac app (desktop), id "desktop".'));
+    assert.ok(text.includes('- Set "apps": ["desktop"] on every journey'));
+    assert.ok(text.includes('"apps":["desktop"]'), 'the example carries the tag');
+    const plain = readBrief(M.writeBrief(dir, sampleUnits()[0], sampleInventory(), baseDoc(), CLI_PATH));
+    assert.doesNotMatch(plain, /App:|"apps"/);
+  });
+
+  it('feature briefs say the code has no web address and start from a file', () => {
+    const { dir } = jobProject({ doc: { ...baseDoc(), apps } });
+    const unit = { id: 'feature-desktop-agent', kind: 'feature', app: 'desktop', area: 'desktop-agent', title: 'Mac app · Message sync', routes: [], files: ['packages/desktop/src/agent/syncMessages.ts'], estTokens: 10 };
+    const text = readBrief(M.writeBrief(dir, unit, { ...sampleInventory(), apps }, { ...baseDoc(), apps }, CLI_PATH));
+    assert.ok(text.includes('This code has no web address. Describe what the person turns on, sees, or is told, and what happens in the background (when it runs, what it reads, what can go wrong); anchor steps to files.'));
+    assert.doesNotMatch(text, /## Pages to cover|Cover every page/);
+    assert.match(text, /## What to cover\nThe feature "Mac app · Message sync"\./);
+    assert.ok(text.includes('"screen":null,"anchor":{"type":"file","value":"packages/desktop/src/agent/syncMessages.ts"}'));
+    assert.ok(text.includes('"apps":["desktop"]'));
+    assert.ok(text.includes('- Use area id "desktop-agent".'), 'a feature is not a view of a page');
+    assert.doesNotMatch(text, /big page/);
+    assert.equal(M.viewOf(unit), null);
+  });
+
+  it('the organise brief shows apps per journey and asks to group across apps', () => {
+    const { dir } = jobProject();
+    const doc = mapOf(journey('gmail-web', 'Connect Gmail', [step('a', '/connect')], { apps: ['frontend'] }), journey('imessage', 'Connect iMessage', [file('packages/desktop/src/i.ts')], { apps: ['desktop'] }), journey('plain', 'Plain', [step('a', '/p')]));
+    const text = readBrief(M.writeOrganiseBrief(dir, doc, CLI_PATH));
+    assert.match(text, /^## Apps \(id \| title \| kind\)\nfrontend \| Web app \| web\ndesktop \| Mac app \| desktop\nbackend \| Background \| server$/m);
+    assert.match(text, /^## Journeys \(id \| title \| area \| who \| apps \| screens\)$/m);
+    assert.match(text, /^gmail-web \| Connect Gmail \| - \| - \| frontend \| \/connect$/m);
+    assert.match(text, /^imessage \| Connect iMessage \| - \| - \| desktop \| -$/m);
+    assert.match(text, /^plain \| Plain \| - \| - \| - \| \/p$/m);
+    assert.ok(text.includes('Group by business goal across apps (for example, connecting Gmail on the web and iMessage on the Mac belong in the same section); keep each journey\'s apps.'));
+    const single = readBrief(M.writeOrganiseBrief(dir, baseDoc(), CLI_PATH));
+    assert.doesNotMatch(single, /across apps|## Apps/);
+  });
+
+  it('the polish brief keeps apps', () => {
+    const doc = mapOf(journey('a', 'A', [step('s', '/a')], { area: 'x', apps: ['frontend'] }));
+    doc.areas = [{ id: 'x', title: 'X' }];
+    const { dir } = polishProject(doc);
+    const text = readBrief(M.writePolishBrief(dir, M.polishUnits(doc)[0], doc, CLI_PATH));
+    assert.ok(text.includes('Keep each journey\'s "apps" (a merged journey lists every app its variants happen in).'));
+    assert.doesNotMatch(readBrief(M.writePolishBrief(dir, M.polishUnits(polishDoc())[0], polishDoc(), CLI_PATH)), /Keep each journey's "apps"/);
+  });
+});
+
+describe('rebaseMap', () => {
+  const app = { id: 'frontend', title: 'Web app', kind: 'web', root: 'packages/frontend' };
+  const doc = () => docOf([
+    journey('a', 'A', [step('r', '/shop'), step('f', null, { anchor: fileAnchor('src/a.ts'), detail: { files: ['src/b.ts', 'src/c.ts'] } })]),
+    journey('b', 'B', [step('g', null, { anchor: fileAnchor('packages/frontend/src/already.ts') })], { apps: ['frontend'] }),
+  ]);
+
+  it('prefixes file anchors, detail files, the inventory and the anchor cache, lists the app and tags untagged journeys', () => {
+    const project = makeProject({ fixture: false, doc: doc() });
+    project.write('.journeys/inventory.json', JSON.stringify({ ...sampleInventory(), imports: { 'src/a.ts': ['src/b.ts'] }, files: { 'src/a.ts': { bytes: 1, sha1: 'x' } }, features: [{ app: 'frontend', key: 'k', title: 'K', files: ['src/c.ts'] }] }));
+    project.write('.journeys/.anchor-cache.json', JSON.stringify({ files: { 'src/a.ts': { defs: [] } }, routeFiles: [{ file: 'src/a.ts', route: '/shop' }], results: { 's:a/f': 'ok' } }));
+    assert.deepEqual(M.rebaseMap(project.dir, 'packages/frontend', app), { anchors: 3 });
+    const moved = JSON.parse(project.read('.journeys/journeys.json'));
+    assert.deepEqual(moved.apps, [app]);
+    assert.deepEqual(moved.journeys.map((j) => j.apps), [['frontend'], ['frontend']]);
+    assert.deepEqual(moved.journeys[0].steps[0].anchor, { type: 'route', value: '/shop' }, 'route anchors stay');
+    assert.equal(moved.journeys[0].steps[1].anchor.value, 'packages/frontend/src/a.ts');
+    assert.deepEqual(moved.journeys[0].steps[1].detail.files, ['packages/frontend/src/b.ts', 'packages/frontend/src/c.ts']);
+    assert.equal(moved.journeys[1].steps[0].anchor.value, 'packages/frontend/src/already.ts', 'no double prefix');
+    const inventory = JSON.parse(project.read('.journeys/inventory.json'));
+    assert.deepEqual(inventory.pages.map((p) => p.file)[0], 'packages/frontend/app/page.tsx');
+    assert.deepEqual(inventory.imports, { 'packages/frontend/src/a.ts': ['packages/frontend/src/b.ts'] });
+    assert.deepEqual(Object.keys(inventory.files), ['packages/frontend/src/a.ts']);
+    assert.deepEqual(inventory.features[0].files, ['packages/frontend/src/c.ts']);
+    assert.ok(inventory.items.every((i) => i.file.startsWith('packages/frontend/')));
+    const cache = JSON.parse(project.read('.journeys/.anchor-cache.json'));
+    assert.deepEqual([Object.keys(cache.files), cache.routeFiles[0].file, cache.results], [['packages/frontend/src/a.ts'], 'packages/frontend/src/a.ts', { 's:a/f': 'ok' }]);
+  });
+
+  it('is idempotent', () => {
+    const project = makeProject({ fixture: false, doc: doc() });
+    M.saveInventory(project.dir, sampleInventory());
+    M.rebaseMap(project.dir, 'packages/frontend', app);
+    const once = [project.read('.journeys/journeys.json'), project.read('.journeys/inventory.json')];
+    assert.deepEqual(M.rebaseMap(project.dir, 'packages/frontend', app), { anchors: 0 });
+    assert.deepEqual([project.read('.journeys/journeys.json'), project.read('.journeys/inventory.json')], once);
+  });
+
+  it('keeps apps the map already lists, adds the new one and leaves existing tags alone', () => {
+    const other = { id: 'desktop', title: 'Mac app', kind: 'desktop', root: 'packages/desktop' };
+    const project = makeProject({ fixture: false, doc: { ...doc(), apps: [other] } });
+    M.rebaseMap(project.dir, 'packages/frontend', app);
+    const moved = JSON.parse(project.read('.journeys/journeys.json'));
+    assert.deepEqual(moved.apps, [other, app]);
+    assert.deepEqual(moved.journeys.map((j) => j.apps), [['frontend'], ['frontend']]);
+  });
+});

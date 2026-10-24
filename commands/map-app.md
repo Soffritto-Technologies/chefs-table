@@ -7,6 +7,15 @@ Map this entire app for a non-technical builder in six stages, **chop → stir �
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
+## 0. Find the apps
+
+Run `journeys apps`.
+- **No `APP` lines** (it says no separate apps were found): the project is one app. Skip to step 1.
+- **`APP <id> <kind> files=<n> est=<tokens> root=<dir>` lines:** the repo ships several apps. Show the builder the list in plain words with the sizes (for example "Web app, about 300k tokens of code; Mac app, about 120k; Background services, about 80k").
+  - By default map every user-facing app (web, desktop, mobile). For servers and agents, only what users notice (emails, scheduled jobs, notifications) is mapped.
+  - Unless the builder already said go or named the apps, confirm which ones before continuing. Keep their choice as `--apps a,b` (the default is `--apps all`).
+- **The project already has a map made when only one app was mapped** (its file anchors lack the app's folder): run `journeys rebase --prefix <that app's folder>` first. It moves the old map under that folder and tags its journeys with the app (`REBASED <n> anchors`). Then chop only the new apps. Journeys already on the map are kept: mapping another app adds to them, never drops them.
+
 ## 1. Set the stopper
 
 The budget comes from: $ARGUMENTS. If none is given, the default is **10 percentage points of the 5-hour usage window**.
@@ -21,8 +30,8 @@ The budget comes from: $ARGUMENTS. If none is given, the default is **10 percent
 
 ## 2. Chop (no AI)
 
-Run `journeys chop` with the budget flags. In 2–3 plain sentences, tell the builder:
-- what was found (pages, areas, forms, endpoints)
+Run `journeys chop` with the budget flags, plus `--apps a,b` when the builder chose some apps in step 0. In 2–3 plain sentences, tell the builder:
+- what was found (pages, areas, forms, endpoints, and in a multi-app repo the apps and the features that have no web address)
 - how many work units
 - the estimated size and the budget
 
@@ -80,7 +89,8 @@ Run `journeys render --canonical`, then `journeys build --render`.
 ## 8. Report
 
 Tell the builder, in plain words:
-- coverage (the `COVERAGE` %), and the important pages still missing
+- coverage (the `COVERAGE` %), and the important pages and features still missing
+- which apps are on the map (each journey is tagged with the app or apps it happens in)
 - how the map was grouped (the `ORGANISED` line: areas, and how many journeys moved)
 - what polish did (the `POLISHED` line: journeys merged, step labels written)
 - usage spent (`journeys budget`)

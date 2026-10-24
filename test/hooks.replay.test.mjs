@@ -1616,3 +1616,146 @@ describe('first-map pipeline: polish', () => {
     assert.equal(jobOf(project).phase, 'stopped');
   });
 });
+
+import { cpSync } from 'node:fs';
+import { ROOT, writeMultiApp } from './helpers/project.mjs';
+
+describe('multi-app repos', () => {
+  const FRONTEND = { id: 'frontend', title: 'Web app', kind: 'web', root: 'packages/frontend' };
+  const mappedFrontend = () => docOf([
+    journey('browse', 'Browse the shop', [step('home', '/', { anchor: fileAnchor('packages/frontend/app/page.tsx') })], { area: 'shop', who: 'Visitor', apps: ['frontend'] }),
+  ], { apps: [FRONTEND], areas: [{ id: 'shop', title: 'Shop' }] });
+
+  /**
+   * A monorepo whose web app is already on the map.
+   *
+   * @returns {object} The project.
+   */
+  function monorepo(doc = mappedFrontend()) {
+    const project = makeProject({ fixture: false, doc });
+    writeMultiApp(project);
+    return project;
+  }
+
+  it('apps lists every app with its size, or says the project is a single app', () => {
+    const out = run(monorepo(), 'apps');
+    assert.match(out, /^APP frontend web files=\d+ est=\d+ root=packages\/frontend$/m);
+    assert.match(out, /^APP desktop desktop files=\d+ est=\d+ root=packages\/desktop$/m);
+    assert.match(out, /^APP backend server files=\d+ est=\d+ root=packages\/backend$/m);
+    assert.match(out, /^Found 3 apps: .*\((web|desktop|server)\).*\. About [\d,]+ tokens of code in all\./m);
+    for (const kind of ['web', 'desktop', 'server']) assert.ok(out.split('\n').find((line) => line.startsWith('Found 3 apps')).includes(`(${kind})`), kind);
+    assert.match(run(makeProject(), 'apps'), /^No separate apps found/);
+  });
+
+  it('chop --apps desktop adds the app to an existing map, keeps its journeys and plans units for that app only', () => {
+    const project = monorepo();
+    const out = run(project, 'chop', '--apps', 'desktop');
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.apps.map((a) => a.id), ['frontend', 'desktop'], 'merged by id, the app already on the map first');
+    assert.deepEqual(doc.journeys.map((j) => j.id), ['browse'], 'what was mapped stays');
+    const { units } = jobOf(project);
+    assert.ok(units.length > 0 && units.every((u) => u.app === 'desktop'), JSON.stringify(units.map((u) => [u.id, u.app])));
+    const inventory = project.json('.journeys/inventory.json');
+    assert.ok(Object.keys(inventory.files).some((f) => f.startsWith('packages/frontend/')), 'the inventory still covers the apps already mapped');
+    assert.ok(Object.keys(inventory.files).some((f) => f.startsWith('packages/desktop/')));
+    assert.equal(Object.keys(inventory.files).some((f) => f.startsWith('packages/backend/')), false, 'apps nobody chose are not scanned');
+    assert.match(out, /^UNITS \d+$/m);
+  });
+
+  it('chop maps every app by default, lists them on the map, and --apps validates its value', () => {
+    const project = monorepo(docOf([], { areas: [] }));
+    run(project, 'chop');
+    assert.deepEqual(project.json('.journeys/journeys.json').apps.map((a) => a.id).sort(), ['backend', 'desktop', 'frontend']);
+    assert.deepEqual([...new Set(jobOf(project).units.map((u) => u.app))].sort(), ['backend', 'desktop', 'frontend']);
+    const unknown = runCli(monorepo(), ['chop', '--apps', 'phone']);
+    assert.equal(unknown.status, 1);
+    assert.match(unknown.stderr, /There is no app called "phone"\. Found: [a-z, ]+\. Run: journeys apps/);
+    assert.match(runCli(monorepo(), ['chop', '--apps']).stderr, /--apps needs a comma-separated list/);
+    assert.match(runCli(makeProject(), ['chop', '--apps', 'x']).stderr, /No separate apps were found/);
+  });
+
+  it('a helper\'s journey with no apps gets them from its file anchors when the units are checked', () => {
+    const project = monorepo();
+    run(project, 'chop', '--apps', 'desktop');
+    const [first] = jobOf(project).units;
+    run(project, 'stir', 'next');
+    project.write(`${BUILD}/units/${first.id}.out.json`, JSON.stringify({
+      areas: [{ id: first.area, title: 'Mac things' }],
+      journeys: [journey('mac-sync', 'Sync messages', [step('s', null, { anchor: fileAnchor('packages/desktop/src/agent/syncMessages.ts'), detail: { files: ['packages/backend/src/emails/welcome.ts'] } })], { area: first.area })],
+    }));
+    assert.match(run(project, 'stir', 'submit', first.id), /^UNIT_OK /);
+    run(project, 'check', '--coverage');
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.journeys.find((j) => j.id === 'mac-sync').apps, ['desktop', 'backend'].filter((id) => doc.apps.some((a) => a.id === id)));
+    assert.deepEqual(doc.journeys.find((j) => j.id === 'browse').apps, ['frontend']);
+    const bad = project.json(`${BUILD}/job.json`).units.find((u) => u.id !== first.id);
+    if (bad) {
+      run(project, 'stir', 'next');
+      project.write(`${BUILD}/units/${bad.id}.out.json`, JSON.stringify({ areas: [{ id: bad.area, title: 'X' }], journeys: [journey('wrong', 'Wrong', [step('s', null, { anchor: fileAnchor('packages/desktop/src/main/index.ts') })], { area: bad.area, apps: ['mac'] })] }));
+      const result = runCli(project, ['stir', 'submit', bad.id]);
+      assert.equal(result.status, 1);
+      assert.match(result.stdout, /happens in app "mac", which is not listed in "apps"/);
+    }
+  });
+
+  it('works on the multi-app fixture: apps, chop --apps desktop, a feature brief and a tagged submit', () => {
+    const project = makeProject({ fixture: false, doc: docOf([], { areas: [] }) });
+    cpSync(path.join(ROOT, 'fixtures', 'multi-app'), project.dir, { recursive: true });
+    const apps = run(project, 'apps');
+    for (const [id, kind] of [['desktop', 'desktop'], ['server', 'server'], ['web', 'web']]) assert.match(apps, new RegExp(`^APP ${id} ${kind} files=\\d+ est=\\d+ root=packages/${id}$`, 'm'));
+    run(project, 'chop', '--apps', 'desktop');
+    const { units } = jobOf(project);
+    assert.ok(units.length > 0 && units.every((u) => u.kind === 'feature' && u.app === 'desktop'), JSON.stringify(units.map((u) => [u.id, u.kind, u.app])));
+    assert.deepEqual(project.json('.journeys/journeys.json').apps.map((a) => a.id), ['desktop']);
+    const [unit] = units;
+    run(project, 'stir', 'next');
+    const brief = project.read(`${BUILD}/units/${unit.id}.brief.md`);
+    assert.ok(brief.includes('App: Desktop app (desktop), id "desktop".'));
+    assert.ok(brief.includes('This code has no web address. Describe what the person turns on, sees, or is told'));
+    assert.ok(brief.includes('- Set "apps": ["desktop"] on every journey'));
+    project.write(`${BUILD}/units/${unit.id}.out.json`, JSON.stringify({
+      areas: [{ id: unit.area, title: 'Chat sync' }],
+      journeys: [journey('sync-chats', 'Sync chats', [step('s', null, { anchor: fileAnchor(unit.files[0]) })], { area: unit.area })],
+    }));
+    assert.match(run(project, 'stir', 'submit', unit.id), /^UNIT_OK /);
+    const checked = run(project, 'check', '--coverage');
+    assert.match(checked, /^Missing features \(1 of \d+ covered\):/m);
+    assert.deepEqual(project.json('.journeys/journeys.json').journeys[0].apps, ['desktop']);
+  });
+
+  it('rebase moves a single-app map under its folder, once', () => {
+    const project = makeProject({ fixture: false, doc: docOf([journey('a', 'A', [step('r', '/shop'), step('f', null, { anchor: fileAnchor('app/page.tsx'), detail: { files: ['src/x.ts'] } })])]) });
+    writeMultiApp(project);
+    const out = run(project, 'rebase', '--prefix', './packages/frontend/');
+    assert.match(out, /^REBASED 2 anchors$/m);
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.apps, [{ id: 'frontend', title: doc.apps[0].title, kind: 'web', root: 'packages/frontend' }]);
+    assert.deepEqual(doc.journeys[0].apps, ['frontend']);
+    assert.equal(doc.journeys[0].steps[1].anchor.value, 'packages/frontend/app/page.tsx');
+    assert.deepEqual(doc.journeys[0].steps[1].detail.files, ['packages/frontend/src/x.ts']);
+    assert.equal(doc.journeys[0].steps[0].anchor.value, '/shop');
+    const before = project.read('.journeys/journeys.json');
+    assert.match(run(project, 'rebase', '--prefix', 'packages/frontend'), /^REBASED 0 anchors$/m);
+    assert.equal(project.read('.journeys/journeys.json'), before);
+    assert.match(run(project, 'check'), /^VALID: 1 journeys, anchors ok 1, broken 0/);
+  });
+
+  it('rebase rejects a folder outside the project, and falls back to a web app named after the folder', () => {
+    const project = makeProject();
+    for (const prefix of ['../up', '/abs', '.', '']) assert.match(runCli(project, ['rebase', '--prefix', prefix]).stderr, /--prefix needs a folder inside the project/, prefix);
+    assert.match(runCli(project, ['rebase']).stderr, /--prefix needs a folder/);
+    run(project, 'rebase', '--prefix', 'web/My Site');
+    assert.deepEqual(project.json('.journeys/journeys.json').apps, [{ id: 'my-site', title: 'My site', kind: 'web', root: 'web/My Site' }]);
+  });
+
+  it('sync keeps looking at every mapped app', () => {
+    const project = monorepo(docOf([], { areas: [] }));
+    run(project, 'chop');
+    const before = project.json('.journeys/inventory.json');
+    project.write(`${BUILD}/job.json`, JSON.stringify({ ...jobOf(project), phase: 'done' }));
+    assert.equal(run(project, 'sync').trim(), 'SYNC_NOTHING');
+    const after = project.json('.journeys/inventory.json');
+    assert.deepEqual(after.apps.map((a) => a.id), before.apps.map((a) => a.id));
+    assert.deepEqual(Object.keys(after.files), Object.keys(before.files));
+  });
+});

@@ -148,6 +148,57 @@ describe('validateDoc', () => {
     assert.equal(validateDoc(doc([journey('a', [step('s')], { area: 'buy' })], { areas })).ok, true);
   });
 
+  describe('apps', () => {
+    const app = (overrides = {}) => ({ id: 'desktop', title: 'Mac app', kind: 'desktop', root: 'packages/desktop', ...overrides });
+    const withApps = (apps, journeyApps) => doc([journey('j', [step('s')], journeyApps === undefined ? {} : { apps: journeyApps })], apps === undefined ? {} : { apps });
+
+    it('allows single-app maps, with no apps anywhere', () => {
+      assert.equal(validateDoc(withApps()).ok, true);
+      assert.equal(validateDoc(withApps(undefined, ['anything'])).ok, true, 'a journey tag is free text while the map lists no apps');
+    });
+
+    it('accepts a list of apps and journeys tagged with them, dropping duplicate tags and empty lists', () => {
+      const result = validateDoc(withApps([app(), app({ id: 'backend', kind: 'server', root: '.' })], ['desktop', 'backend', 'desktop']));
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.doc.journeys[0].apps, ['desktop', 'backend']);
+      assert.equal(validateDoc(withApps([app()], [])).doc.journeys[0].apps, undefined);
+    });
+
+    it('checks ids: letters, digits, "-" and "_", unique', () => {
+      assertRejected(withApps([app({ id: 'Mac app!' })]), /app id "Mac app!" can only use letters, numbers/);
+      assertRejected(withApps([app(), app()]), /App "desktop" appears more than once/);
+      assertRejected(withApps([{ title: 'x', kind: 'web', root: '.' }]), /Every app needs an "id"/);
+      assertRejected(withApps({ id: 'desktop' }), /"apps" must be a list/);
+    });
+
+    it('checks the kind', () => {
+      assertRejected(withApps([app({ kind: 'toaster' })]), /App "desktop": "kind" must be one of "web", "desktop", "mobile", "server", "agent"/);
+      for (const kind of ['web', 'desktop', 'mobile', 'server', 'agent']) assert.equal(validateDoc(withApps([app({ kind })])).ok, true, kind);
+    });
+
+    it('checks the root: a folder inside the project, written with forward slashes', () => {
+      assertRejected(withApps([app({ root: '/etc' })]), /root "\/etc" must be a folder inside the project, not a full path/);
+      assertRejected(withApps([app({ root: 'C:\\apps' })]), /not a full path/);
+      assertRejected(withApps([app({ root: '../outside' })]), /must stay inside the project folder/);
+      assertRejected(withApps([app({ root: '' })]), /needs a "root"/);
+      assertRejected(withApps([app({ root: undefined })]), /needs a "root"/);
+      assert.deepEqual(validateDoc(withApps([app({ root: '.\\packages\\desktop\\' }), app({ id: 'all', root: '.' })])).doc.apps.map((a) => a.root), ['packages/desktop', '.']);
+    });
+
+    it('requires a journey\'s apps to be listed once the map lists apps', () => {
+      assertRejected(withApps([app()], ['web']), /Journey "j" happens in app "web", which is not listed in "apps"/);
+      assertRejected(withApps([app()], 'desktop'), /Journey "j": "apps" must be a list of app ids/);
+      assertRejected(withApps([app()], ['desktop', '']), /"apps" must be a list of app ids/);
+    });
+
+    it('writes apps in a fixed order: after the app name on the map, after "who" on a journey', () => {
+      const parsed = JSON.parse(stableStringify({ journeys: [{ steps: [], apps: ['desktop'], who: 'w', title: 't', id: 'j' }], apps: [{ root: 'r', kind: 'web', title: 'T', id: 'a' }], app: 'Demo', version: 1 }));
+      assert.deepEqual(Object.keys(parsed), ['version', 'app', 'apps', 'journeys']);
+      assert.deepEqual(Object.keys(parsed.apps[0]), ['id', 'title', 'kind', 'root']);
+      assert.deepEqual(Object.keys(parsed.journeys[0]), ['id', 'title', 'who', 'apps', 'steps']);
+    });
+  });
+
   describe('area parents', () => {
     const area = (id, parent) => ({ id, title: id.toUpperCase(), ...(parent === undefined ? {} : { parent }) });
     const withAreas = (...areas) => doc([], { areas });
