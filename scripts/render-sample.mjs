@@ -16,6 +16,7 @@ const PLANNED_JOURNEY = {
     {
       id: 'choose-plan',
       say: 'Picks 3, 6 or 12 months of flowers',
+      label: 'Pick a plan length',
       screen: '/gifts/subscribe',
       anchor: { type: 'route', value: '/gifts/subscribe' },
       next: ['recipient'],
@@ -24,6 +25,7 @@ const PLANNED_JOURNEY = {
     {
       id: 'recipient',
       say: 'Adds who the flowers are for',
+      label: 'Add the recipient',
       screen: '/gifts/subscribe/recipient',
       anchor: { type: 'route', value: '/gifts/subscribe/recipient' },
       next: ['cart'],
@@ -32,6 +34,7 @@ const PLANNED_JOURNEY = {
     {
       id: 'cart',
       say: 'Reviews the subscription in the basket',
+      label: 'Review the subscription',
       screen: '/cart',
       anchor: { type: 'route', value: '/cart' },
       next: ['pay'],
@@ -40,6 +43,7 @@ const PLANNED_JOURNEY = {
     {
       id: 'pay',
       say: 'Pays for the whole subscription up front',
+      label: 'Pay up front',
       screen: '/checkout/pay',
       anchor: { type: 'route', value: '/checkout/pay' },
       next: [],
@@ -54,19 +58,20 @@ const REMOVED_JOURNEY = {
   area: 'shop',
   who: 'Customer',
   steps: [
-    { id: 'heart', say: 'Taps the heart on a bouquet', screen: '/bouquets/[slug]', anchor: { type: 'route', value: '/bouquets/[slug]' }, next: ['list'] },
-    { id: 'list', say: 'Sees their saved bouquets', screen: '/account/wishlist', anchor: { type: 'route', value: '/account/wishlist' }, next: [] },
+    { id: 'heart', say: 'Taps the heart on a bouquet', label: 'Save a bouquet', screen: '/bouquets/[slug]', anchor: { type: 'route', value: '/bouquets/[slug]' }, next: ['list'] },
+    { id: 'list', say: 'Sees their saved bouquets', label: 'See saved bouquets', screen: '/account/wishlist', anchor: { type: 'route', value: '/account/wishlist' }, next: [] },
   ],
 };
 
 const REMOVED_STEP = {
   journeyId: 'sign-in',
-  step: { id: 'remember-me', say: 'Ticks "Remember me"', screen: '/sign-in', anchor: { type: 'route', value: '/sign-in' }, next: ['account'] },
+  step: { id: 'remember-me', say: 'Ticks "Remember me"', label: 'Tick Remember me', screen: '/sign-in', anchor: { type: 'route', value: '/sign-in' }, next: ['account'] },
 };
 
 const WALLET_STEP = {
   id: 'wallet',
   say: 'Or pays with Apple Pay or Google Pay',
+  label: 'Pay with a phone wallet',
   screen: '/checkout/pay',
   anchor: { type: 'file', value: 'src/components/WalletButton.tsx' },
   next: ['result'],

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildViewModel, escapeJsonForHtml, renderHtml, viewModelHash } from '../lib/render.mjs';
-import { OTHER_AREA_ID } from '../lib/types.mjs';
+import { LIMITS, OTHER_AREA_ID } from '../lib/types.mjs';
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../templates/journeys.html', import.meta.url));
 const SAMPLE = JSON.parse(readFileSync(new URL('../fixtures/sample-journeys.json', import.meta.url), 'utf8'));
@@ -284,6 +284,80 @@ describe('buildViewModel: nested areas and layout', () => {
     const b = buildViewModel({ mode: 'canonical', doc: crowdedDoc(40) });
     assert.equal(viewModelHash(a), viewModelHash(b));
     assert.equal(renderHtml(a, { templatePath: TEMPLATE_PATH }), renderHtml(b, { templatePath: TEMPLATE_PATH }));
+  });
+});
+
+describe('buildViewModel: step labels', () => {
+  /**
+   * Builds one journey whose steps have the given sentences (and optional labels) and returns its step nodes.
+   *
+   * @param {Array<string | { say: string, label?: string }>} specs - Step sentences or { say, label }.
+   * @returns {object[]} Step nodes.
+   */
+  function stepsFor(specs) {
+    const steps = specs.map((spec, i) => {
+      const { say, label } = typeof spec === 'string' ? { say: spec } : spec;
+      return { ...step(`s${i}`), say, ...(label === undefined ? {} : { label }) };
+    });
+    return buildViewModel({ mode: 'canonical', doc: { version: 1, app: 'A', journeys: [journey('j', 'x', steps)] } }).journeys.j.children;
+  }
+
+  it('shows a given label and keeps the full sentence for the card', () => {
+    const [node] = stepsFor([{ say: 'A popup says "Waiting for authentication..." and tells the person to finish signing in', label: 'Finish signing in' }]);
+    assert.equal(node.title, 'Finish signing in');
+    assert.equal(node.say, 'A popup says "Waiting for authentication..." and tells the person to finish signing in');
+    assert.equal('derivedLabel' in node, false);
+  });
+
+  it('derives a label from the first clause when there is none', () => {
+    const nodes = stepsFor([
+      'Fills in name, email and password',
+      'Opens the app and signs in',
+      'Picks a sign-in method — Google or email',
+      'Confirms with the bank; a code arrives by text',
+      'Lands on the page. Then waits',
+    ]);
+    assert.deepEqual(nodes.map((n) => n.title), ['Fills in name', 'Opens the app', 'Picks a sign-in method', 'Confirms with the bank', 'Lands on the page']);
+    assert.ok(nodes.every((n) => n.derivedLabel === true));
+    assert.equal(nodes[0].say, 'Fills in name, email and password');
+  });
+
+  it('cuts a long single clause at a word boundary with an ellipsis, within 48 characters', () => {
+    const [node] = stepsFor(['Reviews every single item in the basket before deciding whether to continue to checkout']);
+    assert.equal(node.title, 'Reviews every single item in the basket before…');
+    assert.ok([...node.title].length <= LIMITS.LABEL);
+  });
+
+  it('keeps a clause of exactly 48 characters whole, and cuts one of 49', () => {
+    const exact = 'Checks the delivery address against the postcode';
+    assert.equal(exact.length, 48);
+    const [whole, cut] = stepsFor([exact, `${exact}s`]);
+    assert.equal(whole.title, exact);
+    assert.equal(cut.title, 'Checks the delivery address against the…');
+    assert.ok([...cut.title].length <= 48);
+  });
+
+  it('falls back to the step id when there is no sentence and shortens over-long given labels', () => {
+    const [empty, long] = stepsFor([{ say: '' }, { say: 'x', label: 'Open the very long settings page for notification preferences' }]);
+    assert.equal(empty.title, 's0');
+    assert.equal('say' in empty, false);
+    assert.equal(long.title, 'Open the very long settings page for…');
+    assert.equal('derivedLabel' in long, false);
+  });
+
+  it('labels most sample steps and derives the one without a label', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
+    const handOver = stepNode(vm, 'fulfil-orders/hand-over');
+    assert.equal(handOver.title, 'Hands it to the courier');
+    assert.equal(handOver.derivedLabel, true);
+    assert.equal(stepNode(vm, 'checkout/pay').title, 'Pay for the order');
+  });
+
+  it('escapes hostile labels when rendering', () => {
+    const doc = smallDoc();
+    doc.journeys[0].steps[0].label = '</script><img src=x onerror=alert(1)>';
+    const html = renderHtml(buildViewModel({ mode: 'canonical', doc }), { templatePath: TEMPLATE_PATH });
+    assert.ok(!html.includes('</script><img'));
   });
 });
 
@@ -660,6 +734,13 @@ describe('templates/journeys.html', () => {
     assert.ok(script.includes('event.ctrlKey || event.metaKey || mouse'));
     assert.ok(script.includes("c.world.style.transform = 'translate("));
     assert.ok(script.includes('reducedMotion()'));
+  });
+
+  it('shows step labels on boxes and the full sentence on hover and in the card', () => {
+    assert.ok(script.includes("node.kind === 'step' ? [node.say || node.title] : [node.title]"));
+    assert.ok(script.includes('var BW = stepBoxWidth(steps)'));
+    assert.ok(script.includes("h('p', { 'class': 'card-say' }, txt(step.say))"));
+    assert.ok(script.includes("(node.derivedLabel ? ' derived' : '')"));
   });
 
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {

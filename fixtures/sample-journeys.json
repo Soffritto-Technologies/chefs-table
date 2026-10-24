@@ -18,6 +18,7 @@
         {
           "id": "home",
           "say": "Lands on the home page and sees this week's bouquets",
+          "label": "See this week's bouquets",
           "screen": "/",
           "anchor": { "type": "route", "value": "/" },
           "next": ["occasion", "bouquet"],
@@ -31,6 +32,7 @@
         {
           "id": "occasion",
           "say": "Filters bouquets by occasion",
+          "label": "Filter by occasion",
           "screen": "/shop/[occasion]",
           "anchor": { "type": "route", "value": "/shop/[occasion]" },
           "next": ["bouquet"],
@@ -43,6 +45,7 @@
         {
           "id": "bouquet",
           "say": "Opens a bouquet, picks a size and adds it to the basket",
+          "label": "Pick a size and add to basket",
           "screen": "/bouquets/[slug]",
           "anchor": { "type": "route", "value": "/bouquets/[slug]" },
           "next": [],
@@ -65,6 +68,7 @@
         {
           "id": "cart",
           "say": "Reviews the basket",
+          "label": "Review the basket",
           "screen": "/cart",
           "anchor": { "type": "route", "value": "/cart" },
           "next": ["delivery"],
@@ -78,6 +82,7 @@
         {
           "id": "delivery",
           "say": "Chooses a delivery date and address",
+          "label": "Choose delivery day and address",
           "screen": "/checkout/delivery",
           "anchor": { "type": "route", "value": "/checkout/delivery" },
           "next": ["gift-note", "pay"],
@@ -92,6 +97,7 @@
         {
           "id": "gift-note",
           "say": "Adds a gift message for the card",
+          "label": "Add a gift message",
           "screen": "/checkout/gift-note",
           "anchor": { "type": "route", "value": "/checkout/gift-note" },
           "next": ["pay"],
@@ -105,6 +111,7 @@
         {
           "id": "pay",
           "say": "Pays for the order",
+          "label": "Pay for the order",
           "screen": "/checkout/pay",
           "anchor": { "type": "route", "value": "/checkout/pay" },
           "next": ["confirmation"],
@@ -119,6 +126,7 @@
         {
           "id": "confirmation",
           "say": "Sees the order confirmation",
+          "label": "See the order confirmation",
           "screen": "/checkout/done",
           "anchor": { "type": "route", "value": "/checkout/done" },
           "next": ["receipt"],
@@ -131,6 +139,7 @@
         {
           "id": "receipt",
           "say": "Gets a receipt by email",
+          "label": "Get the email receipt",
           "screen": null,
           "anchor": { "type": "file", "value": "src/emails/receipt.tsx" },
           "next": [],
@@ -149,6 +158,7 @@
         {
           "id": "card-details",
           "say": "Enters card details",
+          "label": "Enter card details",
           "screen": "/checkout/pay",
           "anchor": { "type": "file", "value": "src/components/CardForm.tsx" },
           "next": ["bank-check"],
@@ -162,6 +172,7 @@
         {
           "id": "bank-check",
           "say": "Confirms the payment with their bank",
+          "label": "Confirm with the bank",
           "screen": "/checkout/pay/verify",
           "anchor": { "type": "route", "value": "/checkout/pay/verify" },
           "next": ["result"],
@@ -174,6 +185,7 @@
         {
           "id": "result",
           "say": "The payment goes through, or is declined",
+          "label": "Payment approved or declined",
           "screen": "/checkout/pay",
           "anchor": { "type": "file", "value": "src/lib/payments.ts" },
           "next": ["card-details"],
@@ -194,6 +206,7 @@
         {
           "id": "form",
           "say": "Fills in name, email and password",
+          "label": "Fill in the sign-up form",
           "screen": "/sign-up",
           "anchor": { "type": "route", "value": "/sign-up" },
           "next": ["verify-email"],
@@ -208,6 +221,7 @@
         {
           "id": "verify-email",
           "say": "Clicks the link in the welcome email",
+          "label": "Confirm the email address",
           "screen": null,
           "anchor": { "type": "file", "value": "src/emails/verify.tsx" },
           "next": ["welcome"],
@@ -221,6 +235,7 @@
         {
           "id": "welcome",
           "say": "Lands on their new account page",
+          "label": "Land on the account page",
           "screen": "/account",
           "anchor": { "type": "route", "value": "/account" },
           "next": [],
@@ -237,6 +252,7 @@
         {
           "id": "sign-in",
           "say": "Enters email and password",
+          "label": "Enter email and password",
           "screen": "/sign-in",
           "anchor": { "type": "route", "value": "/sign-in" },
           "next": ["account", "forgot"],
@@ -249,6 +265,7 @@
         {
           "id": "forgot",
           "say": "Resets a forgotten password",
+          "label": "Reset a forgotten password",
           "screen": "/forgot-password",
           "anchor": { "type": "route", "value": "/forgot-password" },
           "next": ["sign-in"],
@@ -257,6 +274,7 @@
         {
           "id": "account",
           "say": "Sees their account",
+          "label": "See the account",
           "screen": "/account",
           "anchor": { "type": "route", "value": "/account" },
           "next": [],
@@ -273,6 +291,7 @@
         {
           "id": "orders",
           "say": "Opens the list of past orders",
+          "label": "Open past orders",
           "screen": "/account/orders",
           "anchor": { "type": "route", "value": "/account/orders" },
           "next": ["order"],
@@ -281,6 +300,7 @@
         {
           "id": "order",
           "say": "Sees where the order is",
+          "label": "See where the order is",
           "screen": "/account/orders/[id]",
           "anchor": { "type": "route", "value": "/account/orders/[id]" },
           "next": ["reorder"],
@@ -293,6 +313,7 @@
         {
           "id": "reorder",
           "say": "Orders the same bouquet again",
+          "label": "Order the same bouquet again",
           "screen": "/cart",
           "anchor": { "type": "route", "value": "/cart" },
           "next": [],
@@ -309,6 +330,7 @@
         {
           "id": "queue",
           "say": "Sees today's orders by delivery time",
+          "label": "See today's orders",
           "screen": "/studio/orders",
           "anchor": { "type": "route", "value": "/studio/orders" },
           "next": ["mark-made"],
@@ -321,6 +343,7 @@
         {
           "id": "mark-made",
           "say": "Marks a bouquet as made",
+          "label": "Mark a bouquet as made",
           "screen": "/studio/orders/[id]",
           "anchor": { "type": "route", "value": "/studio/orders/[id]" },
           "next": ["hand-over"],
@@ -350,6 +373,7 @@
         {
           "id": "details",
           "say": "Enters the name, price and sizes",
+          "label": "Enter name, price and sizes",
           "screen": "/studio/bouquets/new",
           "anchor": { "type": "route", "value": "/studio/bouquets/new" },
           "next": ["photos"],
@@ -358,6 +382,7 @@
         {
           "id": "photos",
           "say": "Uploads photos",
+          "label": "Upload photos",
           "screen": "/studio/bouquets/new/photos",
           "anchor": { "type": "route", "value": "/studio/bouquets/new/photos" },
           "next": ["publish"],
@@ -371,6 +396,7 @@
         {
           "id": "publish",
           "say": "Publishes it to the shop",
+          "label": "Publish to the shop",
           "screen": "/studio/bouquets/new",
           "anchor": { "type": "route", "value": "/studio/bouquets/new" },
           "next": [],
@@ -387,6 +413,7 @@
         {
           "id": "find",
           "say": "Finds the bouquet in the catalogue",
+          "label": "Find the bouquet",
           "screen": "/studio/bouquets",
           "anchor": { "type": "route", "value": "/studio/bouquets" },
           "next": ["toggle"],
@@ -395,6 +422,7 @@
         {
           "id": "toggle",
           "say": "Switches it to sold out until a chosen date",
+          "label": "Mark as sold out",
           "screen": "/studio/bouquets/[id]",
           "anchor": { "type": "route", "value": "/studio/bouquets/[id]" },
           "next": [],
@@ -416,6 +444,7 @@
         {
           "id": "report",
           "say": "Opens the weekly sales summary",
+          "label": "Open the weekly sales",
           "screen": "/studio/sales",
           "anchor": { "type": "route", "value": "/studio/sales" },
           "next": [],
@@ -431,6 +460,7 @@
         {
           "id": "signup-box",
           "say": "Leaves an email in the footer box",
+          "label": "Leave an email address",
           "screen": "/",
           "anchor": { "type": "file", "value": "src/components/Footer.tsx" },
           "next": ["confirm"],
@@ -439,6 +469,7 @@
         {
           "id": "confirm",
           "say": "Confirms by email",
+          "label": "Confirm by email",
           "screen": null,
           "anchor": { "type": "file", "value": "src/emails/newsletter-confirm.tsx" },
           "next": [],

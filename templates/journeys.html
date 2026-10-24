@@ -218,6 +218,7 @@ svg text { font-family: var(--font); }
 .sublabel { font-size: 12px; fill: var(--muted); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; stroke-linejoin: round; }
 .title { font-size: 13.5px; font-weight: 600; }
 .subflow-ind { font-size: 11.5px; font-weight: 600; fill: var(--accent-ink); }
+.derived .title { opacity: .72; font-style: italic; }
 
 .look-new { --lc: var(--new); }
 .look-new .shape { fill: var(--new); stroke: var(--new); }
@@ -350,6 +351,7 @@ svg text { font-family: var(--font); }
 .pill-inside-broken { color: var(--broken-ink); background: var(--broken-soft); }
 .card-title { margin: 12px 0 4px; font-size: 22px; line-height: 1.3; font-weight: 650; }
 .card-title:focus { outline: none; }
+.card-say { margin: 0 0 6px; font-size: 16px; line-height: 1.5; color: var(--ink); }
 .card-sub { margin: 0 0 18px; color: var(--muted); }
 .card-sub strong { color: var(--ink-2); font-weight: 600; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; align-items: center; margin: 0 0 22px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
@@ -582,9 +584,24 @@ svg text { font-family: var(--font); }
     if (lines.length <= maxLines) return lines;
     var kept = lines.slice(0, maxLines);
     var tail = kept[maxLines - 1];
-    while (tail && !fits(tail + '…')) tail = tail.slice(0, -1);
-    kept[maxLines - 1] = tail.replace(/\s+$/, '') + '…';
+    while (tail && !fits(tail + '…')) tail = tail.indexOf(' ') > 0 ? tail.slice(0, tail.lastIndexOf(' ')) : tail.slice(0, -1);
+    kept[maxLines - 1] = tail.replace(/[\s.,;:]+$/, '') + '…';
     return kept;
+  }
+
+  /** Whether text wraps into `maxLines` lines of `maxWidth` without splitting any word. */
+  function fitsWhole(value, maxWidth, maxLines, font) {
+    var words = String(value == null ? '' : value).trim().split(/\s+/).filter(Boolean);
+    var lines = 1;
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      if (measure(words[i], font) > maxWidth) return false;
+      var next = line ? line + ' ' + words[i] : words[i];
+      if (!line || measure(next, font) <= maxWidth) { line = next; continue; }
+      lines += 1;
+      line = words[i];
+    }
+    return lines <= maxLines;
   }
 
   /** Draws wrapped text lines; removed nodes get an explicit strike line (text-decoration clashes with the halo stroke). */
@@ -628,7 +645,7 @@ svg text { font-family: var(--font); }
     return mods.join(' ');
   }
 
-  function nodeClass(node) { return 'n k-' + node.kind + ' ' + modifiersOf(node); }
+  function nodeClass(node) { return 'n k-' + node.kind + ' ' + modifiersOf(node) + (node.derivedLabel ? ' derived' : ''); }
 
   /** Text tags shown with a node, so no state relies on colour alone. */
   function tagsOf(node) {
@@ -652,14 +669,15 @@ svg text { font-family: var(--font); }
 
   function ariaOf(node, parent) {
     var parts = [node.title, kindName(node, parent)];
+    if (node.kind === 'step' && node.say && node.say !== node.title) parts.push(node.say);
     if (node.kind === 'area' || node.kind === 'journey') parts.push(plural(countOf(node), unitOf(node, 1), unitOf(node, 2)));
     tagsOf(node).forEach(function (tag) { parts.push(tag.text.replace('⚠ ', '')); });
     return parts.concat(extraCues(node), ['press Enter to open']).join(', ');
   }
 
   function tooltipOf(node) {
-    var lines = [node.title];
-    if (node.say) lines.push(node.say);
+    var lines = node.kind === 'step' ? [node.say || node.title] : [node.title];
+    if (node.say && node.kind !== 'step') lines.push(node.say);
     var notes = tagsOf(node).map(function (tag) { return tag.text; }).concat(extraCues(node));
     if (notes.length) lines.push(notes.join(' · '));
     return lines.join('\n');
@@ -1303,7 +1321,7 @@ svg text { font-family: var(--font); }
     var spacing = Math.min.apply(null, ringsFor().map(function (ring) { return ellipsePerimeter(ring.rx, ring.ry) / Math.max(1, ring.count); }));
     var r = clamp(Math.min(spacing * 0.24, ry * k * 0.3, W * 0.09), 14, 42);
     var labelW = clamp(Math.min(spacing * 0.92, (W / 2 - 124) * 2), 66, 176);
-    var labelLines = spacing >= 84 ? 2 : 1;
+    var labelLines = 2;
     var side = Math.max(labelW / 2, r);
     var above = r + 34;
     var below = r + 34 + 17 * labelLines;
@@ -1458,6 +1476,16 @@ svg text { font-family: var(--font); }
       s('path', { 'class': cls, d: 'M0 0 L10 5 L0 10 z' }));
   }
 
+  /** Narrowest step-box width (from a small set) at which every label fits in two lines of whole words. */
+  function stepBoxWidth(steps) {
+    var widths = [208, 224, 240, 256, 272, 288, 304];
+    for (var i = 0; i < widths.length; i++) {
+      var inner = widths[i] - 30;
+      if (steps.every(function (step) { return fitsWhole(step.title, inner, 2, FONTS.title); })) return widths[i];
+    }
+    return widths[widths.length - 1];
+  }
+
   function drawStepBox(trail, step, p, BW, BH) {
     var g = s('g', {
       'class': nodeClass(step), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
@@ -1526,7 +1554,7 @@ svg text { font-family: var(--font); }
       view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt('This journey has no steps yet.'))));
       return;
     }
-    var BW = 208, BH = 80, CG = 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
+    var BW = stepBoxWidth(steps), BH = 80, CG = 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
     var byDepth = [];
     steps.forEach(function (step) {
       var d = Number.isInteger(step.depth) && step.depth >= 0 ? step.depth : 0;
@@ -1607,6 +1635,7 @@ svg text { font-family: var(--font); }
     if (tags.length) card.appendChild(pillRow(tags));
     var title = h('h2', { id: 'jm-card-title', 'class': 'card-title', tabindex: '-1' }, txt(step.title));
     card.appendChild(title);
+    if (step.say && step.say !== step.title) card.appendChild(h('p', { 'class': 'card-say' }, txt(step.say)));
     card.appendChild(h('p', { 'class': 'card-sub' }, txt('A step in '), h('strong', {}, txt(journey.title))));
 
     var facts = h('dl', { 'class': 'facts' },
