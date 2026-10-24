@@ -361,6 +361,74 @@ describe('buildViewModel: step labels', () => {
   });
 });
 
+describe('buildViewModel: apps', () => {
+  /**
+   * smallDoc with apps; `checkout` is in both apps, `login` only on the desktop.
+   *
+   * @param {object[]} [apps] - JourneysDoc.apps.
+   * @returns {object} JourneysDoc.
+   */
+  function appsDoc(apps = [{ id: 'web', title: 'Web app', kind: 'web', root: 'web' }, { id: 'mac', title: 'Mac app', kind: 'desktop', root: 'mac' }]) {
+    const doc = smallDoc();
+    doc.apps = apps;
+    doc.journeys[0].apps = ['mac', 'web', 'ghost'];
+    doc.journeys[1].apps = ['mac'];
+    return doc;
+  }
+
+  it('carries the apps and each journey node its app ids in the apps order', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: appsDoc() });
+    assert.deepEqual(vm.apps, [{ id: 'web', title: 'Web app', kind: 'web' }, { id: 'mac', title: 'Mac app', kind: 'desktop' }]);
+    assert.deepEqual(vm.journeys.checkout.apps, ['web', 'mac']);
+    assert.deepEqual(vm.journeys.login.apps, ['mac']);
+    assert.deepEqual(vm.journeys.loose.apps, []);
+    assert.equal('apps' in stepNode(vm, 'checkout/cart'), false);
+    assert.equal(vm.root.rollup, 'stable');
+  });
+
+  it('gives the app and every area its layout per app', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: appsDoc() });
+    assert.deepEqual(vm.root.layouts, { web: 'ring', mac: 'ring' });
+    for (const area of vm.root.children) assert.deepEqual(Object.keys(area.layouts), ['web', 'mac']);
+    const doc = appsDoc();
+    for (let i = 0; i < 30; i++) doc.journeys.push({ ...journey(`big${i}`, 'buy', [step('s')]), apps: i < 26 ? ['web'] : ['mac'] });
+    const buy = buildViewModel({ mode: 'canonical', doc }).root.children.find((a) => a.id === 'buy');
+    assert.equal(buy.layout, 'grid');
+    assert.deepEqual(buy.layouts, { web: 'grid', mac: 'ring' });
+  });
+
+  it('shows no apps, tags or per-app layouts on a single-app map', () => {
+    for (const apps of [null, [{ id: 'web', title: 'Web app', kind: 'web', root: '.' }]]) {
+      const doc = appsDoc(apps);
+      if (apps === null) delete doc.apps;
+      const vm = buildViewModel({ mode: 'canonical', doc });
+      assert.equal('apps' in vm, false);
+      assert.equal('apps' in vm.journeys.checkout, false);
+      assert.equal('layouts' in vm.root, false);
+    }
+  });
+
+  it('defaults unknown kinds to web, skips duplicate ids and stays deterministic', () => {
+    const doc = appsDoc([{ id: 'a', title: 'A', kind: 'toaster' }, { id: 'a', title: 'Again' }, { id: 'b', title: 'B', kind: 'server' }]);
+    const vm = buildViewModel({ mode: 'canonical', doc });
+    assert.deepEqual(vm.apps, [{ id: 'a', title: 'A', kind: 'web' }, { id: 'b', title: 'B', kind: 'server' }]);
+    assert.equal(viewModelHash(vm), viewModelHash(buildViewModel({ mode: 'canonical', doc: appsDoc([{ id: 'a', title: 'A', kind: 'toaster' }, { id: 'a', title: 'Again' }, { id: 'b', title: 'B', kind: 'server' }]) })));
+  });
+
+  it('escapes hostile app titles when rendering', () => {
+    const doc = appsDoc([{ id: 'x', title: '</script><img src=x onerror=alert(1)>', kind: 'web' }, { id: 'y', title: 'Y', kind: 'agent' }]);
+    const html = renderHtml(buildViewModel({ mode: 'canonical', doc }), { templatePath: TEMPLATE_PATH });
+    assert.ok(!html.includes('</script><img'));
+  });
+
+  it('tags the sample with a web app and a Mac app, one journey in both', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
+    assert.deepEqual(vm.apps.map((a) => a.title), ['Web app', 'Mac app']);
+    assert.deepEqual(vm.journeys['track-order'].apps, ['web', 'mac']);
+    assert.deepEqual(vm.journeys['fulfil-orders'].apps, ['mac']);
+  });
+});
+
 describe('buildViewModel: depth', () => {
   it('uses the longest path from entry steps, across a branch', () => {
     const doc = {
@@ -708,7 +776,8 @@ describe('templates/journeys.html', () => {
   });
 
   it('draws grid levels from the view model flag and routes areas at any depth', () => {
-    assert.ok(script.includes("node.layout === 'grid'"));
+    assert.ok(script.includes("layoutOf(node) === 'grid'"));
+    assert.ok(script.includes('node.layouts[appFilter]'));
     assert.ok(script.includes("seg.t === 'a' && (node.kind === 'app' || node.kind === 'area')"));
     assert.ok(script.includes("'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button'"));
   });
@@ -741,6 +810,15 @@ describe('templates/journeys.html', () => {
     assert.ok(script.includes('var BW = stepBoxWidth(steps)'));
     assert.ok(script.includes("h('p', { 'class': 'card-say' }, txt(step.say))"));
     assert.ok(script.includes("(node.derivedLabel ? ' derived' : '')"));
+  });
+
+  it('has an app filter in the header and app tags, with the filter kept in the hash', () => {
+    assert.match(template, /<div id="jm-apps" class="appfilter" role="group" aria-label="Show journeys in" hidden><\/div>/);
+    assert.ok(script.includes("'aria-pressed': 'false'"));
+    assert.ok(script.includes("var prefix = /^app=([^/]*)/.exec(raw);"));
+    assert.ok(script.includes("'#' + (app ? 'app=' + encodeURIComponent(app) : '') + '/'"));
+    assert.ok(script.includes("'class': 'appbadge ak-' + kindOf(app)"));
+    for (const kind of ['web', 'desktop', 'mobile', 'server', 'agent']) assert.ok(template.includes(`.ak-${kind} {`));
   });
 
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {

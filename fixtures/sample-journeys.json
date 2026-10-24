@@ -1,6 +1,10 @@
 {
   "version": 1,
   "app": "Petal & Stem",
+  "apps": [
+    { "id": "web", "title": "Web app", "kind": "web", "root": "apps/shop" },
+    { "id": "mac", "title": "Mac app", "kind": "desktop", "root": "apps/studio-mac" }
+  ],
   "areas": [
     { "id": "shop", "title": "Shopping", "say": "Finding flowers and paying for them" },
     { "id": "account", "title": "Your account", "say": "Signing up, signing in and tracking orders" },
@@ -12,6 +16,7 @@
     {
       "id": "browse",
       "title": "Browse and pick a bouquet",
+      "apps": ["web"],
       "area": "shop",
       "who": "Customer",
       "steps": [
@@ -62,6 +67,7 @@
     {
       "id": "checkout",
       "title": "Checkout",
+      "apps": ["web"],
       "area": "shop",
       "who": "Customer",
       "steps": [
@@ -153,6 +159,7 @@
     {
       "id": "card-payment",
       "title": "Card payment",
+      "apps": ["web"],
       "who": "Customer",
       "steps": [
         {
@@ -200,6 +207,7 @@
     {
       "id": "sign-up",
       "title": "Create an account",
+      "apps": ["web"],
       "area": "account",
       "who": "New customer",
       "steps": [
@@ -246,6 +254,7 @@
     {
       "id": "sign-in",
       "title": "Sign in",
+      "apps": ["web"],
       "area": "account",
       "who": "Customer",
       "steps": [
@@ -285,6 +294,7 @@
     {
       "id": "track-order",
       "title": "Track an order",
+      "apps": ["web", "mac"],
       "area": "account",
       "who": "Customer",
       "steps": [
@@ -324,6 +334,7 @@
     {
       "id": "fulfil-orders",
       "title": "Fulfil today's orders",
+      "apps": ["mac"],
       "area": "studio-orders",
       "who": "Florist",
       "steps": [
@@ -367,6 +378,7 @@
     {
       "id": "add-bouquet",
       "title": "Add a new bouquet",
+      "apps": ["mac"],
       "area": "studio-catalogue",
       "who": "Florist",
       "steps": [
@@ -407,6 +419,7 @@
     {
       "id": "sold-out",
       "title": "Mark a bouquet sold out",
+      "apps": ["mac"],
       "area": "studio-catalogue",
       "who": "Florist",
       "steps": [
@@ -438,6 +451,7 @@
     {
       "id": "weekly-sales",
       "title": "See this week's sales",
+      "apps": ["mac"],
       "area": "studio",
       "who": "Florist",
       "steps": [
@@ -455,6 +469,7 @@
     {
       "id": "newsletter",
       "title": "Join the newsletter",
+      "apps": ["web"],
       "who": "Visitor",
       "steps": [
         {

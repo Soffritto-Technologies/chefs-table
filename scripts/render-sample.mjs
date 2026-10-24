@@ -10,6 +10,7 @@ const OUTPUT = fileURLToPath(new URL('../docs/sample.html', import.meta.url));
 const PLANNED_JOURNEY = {
   id: 'gift-subscription',
   title: 'Gift a flower subscription',
+  apps: ['web'],
   area: 'shop',
   who: 'Customer',
   steps: [
@@ -55,6 +56,7 @@ const PLANNED_JOURNEY = {
 const REMOVED_JOURNEY = {
   id: 'wishlist',
   title: 'Save bouquets for later',
+  apps: ['web'],
   area: 'shop',
   who: 'Customer',
   steps: [
