@@ -16,6 +16,9 @@ Chef's Table is a Claude Code plugin made of four parts:
     ├── journeys.json                committed · source of truth (see lib/types.mjs)
     ├── config.json                  committed · shared screens, route dirs, globs
     ├── .local.json                  gitignored · this person's share link
+    ├── inventory.json               committed · the chop (no-AI) inventory, baseline for sync
+    ├── aliases.json                 committed · old journey id → merged journey id (from polish)
+    ├── build/                       gitignored · resumable map/sync/polish job, unit briefs and outputs
     └── .session/<session_id>/       gitignored · one folder per chat, swept after 7 days
         start.json  last.json  routes.json  touched.json  plan.json  approval.json
         view.html   view.hash  published    anchor-cache.json  flags.json  turn.json  errors.log
@@ -26,6 +29,15 @@ Chef's Table is a Claude Code plugin made of four parts:
 - **Detail.** Steps can carry `detail` (what the user sees and does, rules, data saved, files).
 - **Sub-flows.** Steps can carry a `subflow` pointing at another journey that zooms in on them.
 - **Derived, not stored.** States like new, changed or conflict are never stored. They're computed by diffing snapshots.
+
+## First map: chop → stir → check → organise → polish → plate
+
+- **chop** (no AI): inventory of pages, links, forms, endpoints; work units sized for one helper (big single pages split by feature folder).
+- **stir**: one helper per unit writes journeys; metered from SubagentStop transcripts; stops at the budget and resumes later.
+- **check** (no AI): merge units, coverage; gap units for missing pages.
+- **organise**: one helper regroups the whole map into ≤8 areas with sections, real roles, same-goal variants side by side.
+- **polish**: one helper per area merges same-goal variants into one journey with branches and writes short step labels; rejected if any code anchor is lost.
+- **plate**: render and publish.
 
 ## Zoom levels
 

@@ -9,13 +9,14 @@
  *   journeys render --canonical       redraw the committed journeys.html
  *   journeys hook <Event>             Claude Code hook entry (payload on stdin)
  *
- * First-map pipeline (chop → stir → check → organise → plate), resumable and budgeted:
+ * First-map pipeline (chop → stir → check → organise → polish → plate), resumable and budgeted:
  *   journeys chop [--max-unit-tokens N] [--budget-percent P] [--budget-tokens T] [--start-percent S] [--restart]
  *   journeys stir next [--count K] [--now-percent P]   |  stir submit <id>  |  stir fail <id> <reason>
  *   journeys budget [--now-percent P]
  *   journeys check --coverage
  *   journeys sync [--budget-percent P] [--budget-tokens T] [--start-percent S]
  *   journeys organise brief  |  organise apply         regroup the finished map into a business-level tree
+ *   journeys polish start [budget flags] [--areas a,b|touched]   merge variants, shorten titles, write step labels (then stir next/submit)
  *
  * The session id defaults to $CLAUDE_CODE_SESSION_ID, which Claude Code sets for every Bash call.
  */
@@ -683,14 +684,19 @@ function budgetFlags(args) {
 function printJobSummary(job, inventory) {
   const todo = job.units.filter((unit) => unit.status !== 'done');
   const counts = {};
-  for (const item of inventory.items) counts[item.kind] = (counts[item.kind] || 0) + 1;
+  for (const item of inventory?.items ?? []) counts[item.kind] = (counts[item.kind] || 0) + 1;
   const found = Object.entries(counts).map(([kind, n]) => `${kind} ${n}`).join(', ');
   const { tokens, percent, startPercent } = job.budget;
   const limits = [];
   if (tokens !== null) limits.push(`${tokens.toLocaleString('en-US')} tokens`);
   if (percent !== null) limits.push(`${percent} points of your 5-hour usage${startPercent !== null ? ` (starting at ${startPercent}%)` : ''}`);
-  console.log(`Found ${inventory.pages.length} pages in ${inventory.areas.length} areas${found ? `; ${found}` : ''}.`);
-  console.log(`Work to do: ${todo.length} of ${job.units.length} units, about ${sumTokens(todo).toLocaleString('en-US')} tokens of code to read.`);
+  if (job.kind === 'polish') {
+    const areas = new Set(job.units.map((unit) => unit.area)).size;
+    console.log(`Polishing ${areas} ${areas === 1 ? 'area' : 'areas'}: ${todo.length} of ${job.units.length} work units to do, about ${sumTokens(todo).toLocaleString('en-US')} tokens of journeys to read.`);
+  } else {
+    console.log(`Found ${inventory.pages.length} pages in ${inventory.areas.length} areas${found ? `; ${found}` : ''}.`);
+    console.log(`Work to do: ${todo.length} of ${job.units.length} units, about ${sumTokens(todo).toLocaleString('en-US')} tokens of code to read.`);
+  }
   console.log(`Budget: ${limits.length ? `up to ${limits.join(' or ')}` : 'no limit set'}.`);
   if (percent !== null && startPercent === null) console.log('Note: no --start-percent was given, so the percent limit cannot be enforced. Pass the current 5-hour usage percentage.');
   console.log(`UNITS ${job.units.length}\nEST_TOKENS ${sumTokens(todo)}`);
@@ -747,15 +753,19 @@ function stirNext(projectDir, args) {
   const count = numberFlag(args, 'count') ?? 1;
   const nowPercent = numberFlag(args, 'now-percent');
   const inventory = S.readJson(M.jobPaths(projectDir).inventory, null);
-  if (!inventory) throw new Error('No inventory yet. Run: journeys chop');
   const doc = S.readJson(S.paths(projectDir).doc, null) || emptyDoc(basename(projectDir));
+  const briefFor = (unit) => {
+    if (unit.kind === 'polish') return M.writePolishBrief(projectDir, unit, doc, CLI);
+    if (!inventory) throw new Error('No inventory yet. Run: journeys chop');
+    return M.writeBrief(projectDir, unit, inventory, doc, CLI);
+  };
   const lines = M.updateJob(projectDir, (job) => {
     M.budgetStatus(job, { nowPercent });
     M.resumeJob(job);
     const units = M.nextUnits(job, count);
     if (job.phase === 'stopped') return [`BUDGET_REACHED ${job.stopReason}`];
     if (!units.length && job.phase === 'stir') job.phase = 'check';
-    return units.length ? units.map((unit) => `UNIT ${unit.id} ${M.writeBrief(projectDir, unit, inventory, doc, CLI)}`) : ['STIR_DONE'];
+    return units.length ? units.map((unit) => `UNIT ${unit.id} ${briefFor(unit)}`) : ['STIR_DONE'];
   });
   console.log(lines.join('\n'));
 }
@@ -776,6 +786,63 @@ function stirFinish(projectDir, action, args) {
   }
   console.log(`UNIT_INVALID ${id}\n${result.errors.map((e) => `- ${e}`).join('\n')}`);
   process.exitCode = 1;
+}
+
+/**
+ * Reads the raw value of `--areas`.
+ *
+ * @param {string[]} args - CLI arguments.
+ * @returns {string|null} The value, or null when the flag is absent.
+ * @throws {Error} When the flag has no value.
+ */
+function areasValue(args) {
+  const i = args.indexOf('--areas');
+  if (i < 0) return null;
+  if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error('--areas needs a comma-separated list of area ids, or "touched".');
+  return args[i + 1];
+}
+
+/**
+ * Turns `--areas a,b` (or `--areas touched`, the areas the last finished sync wrote into) into area ids.
+ *
+ * @param {string|null} value - From {@link areasValue}.
+ * @param {string} projectDir - Absolute project directory.
+ * @param {object} doc - The current map.
+ * @returns {string[]|null} Area ids, or null when every area is wanted.
+ * @throws {Error} When `touched` has no sync to read from.
+ */
+function areasFlag(value, projectDir, doc) {
+  if (value === null) return null;
+  if (value !== 'touched') return value.split(',').map((id) => id.trim()).filter(Boolean);
+  const touched = M.touchedAreas(projectDir, doc);
+  if (!touched) throw new Error('There is no sync job to take the touched areas from. Pass --areas a,b instead.');
+  return touched;
+}
+
+/** CLI: polish start — start a job that merges variant journeys, shortens titles and writes step labels, one unit per area. */
+function cmdPolish(args) {
+  if (args[0] !== 'start') throw new Error('Usage: journeys polish start [--budget-percent P --start-percent S | --budget-tokens T] [--areas a,b|touched] [--restart]');
+  const projectDir = requireProject();
+  const budget = budgetFlags(args);
+  const areas = areasValue(args);
+  const restart = args.includes('--restart');
+  const existing = M.loadJob(projectDir);
+  if (M.isUnfinished(existing) && !restart) {
+    if (existing.kind !== 'polish') {
+      const done = existing.units.filter((unit) => unit.status === 'done').length;
+      throw new Error(`An unfinished ${existing.kind} map job is still open (${done} of ${existing.units.length} work units done). Finish it with /chefs-table:map-app, or add --restart to drop it and polish the map as it is.`);
+    }
+    reportResumed(projectDir, budget);
+    return;
+  }
+  const doc = S.readJson(S.paths(projectDir).doc, null);
+  if (!doc || !Array.isArray(doc.journeys) || !doc.journeys.length) throw new Error('There are no journeys to polish yet. Run /chefs-table:map-app first.');
+  const units = M.polishUnits(doc, { areas: areasFlag(areas, projectDir, doc) });
+  if (!units.length) {
+    console.log('POLISH_NOTHING');
+    return;
+  }
+  printJobSummary(M.startJob(projectDir, { kind: 'polish', units, budget, restart }).job);
 }
 
 /** CLI: organise brief | apply — regroup the finished map into a tree an owner would recognise, using one helper. */
@@ -836,11 +903,15 @@ function cmdCheckCoverage() {
   const cov = coverage(merged.doc, inventory);
   S.writeJson(p.coverage, cov);
   console.log(`COVERAGE ${cov.percent}`);
+  if (job.kind === 'polish') {
+    const total = (key) => job.units.reduce((sum, unit) => sum + (unit[key] || 0), 0);
+    console.log(`POLISHED merged=${total('merged')} labels=${total('labels')}`);
+  }
   printMissing('pages', cov.pages);
   printMissing('forms', cov.forms);
   printMissing('endpoints', cov.endpoints);
   const remaining = job.units.filter((unit) => unit.status === 'pending' || unit.status === 'in_progress').length;
-  const gaps = cov.percent < PIPELINE.COVERAGE_TARGET && remaining === 0 ? M.gapUnits(inventory, cov, job) : [];
+  const gaps = job.kind !== 'polish' && cov.percent < PIPELINE.COVERAGE_TARGET && remaining === 0 ? M.gapUnits(inventory, cov, job) : [];
   if (gaps.length) {
     M.updateJob(projectDir, (current) => M.addUnits(current, gaps));
     console.log(`GAPS ${gaps.length}`);
@@ -929,9 +1000,10 @@ function main(argv) {
     budget: cmdBudget,
     sync: cmdSync,
     organise: cmdOrganise,
+    polish: cmdPolish,
   };
   if (!commands[cmd]) {
-    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|chop|stir|budget|organise|sync|hook <Event>> [--session id]');
+    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|chop|stir|budget|organise|polish|sync|hook <Event>> [--session id]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }

@@ -180,6 +180,46 @@ describe('validateDoc', () => {
     });
   });
 
+  describe('step label', () => {
+    const labelled = (label) => {
+      const result = validateDoc(doc([journey('j', [step('s', { label })])]));
+      return result.ok ? result.doc.journeys[0].steps[0].label : result.errors;
+    };
+
+    it('keeps a short label as it is', () => {
+      assert.equal(labelled('Allow Gmail access'), 'Allow Gmail access');
+      assert.equal(labelled('a'.repeat(48)), 'a'.repeat(48));
+    });
+
+    it('strips control characters and extra spaces', () => {
+      assert.equal(labelled('  Open\u0007 the   page\n'), 'Open the page');
+    });
+
+    it('drops a label that is empty after cleaning, and a step may have none at all', () => {
+      assert.equal(labelled('  \u0007 '), undefined);
+      assert.equal(labelled(''), undefined);
+      assert.equal(validateDoc(doc([journey('j', [step('s')])])).doc.journeys[0].steps[0].label, undefined);
+    });
+
+    it('cuts a long label at a word boundary and adds an ellipsis, within 48 characters', () => {
+      const cut = labelled('See the "Waiting" popup while Google finishes signing you in');
+      assert.equal(cut, 'See the "Waiting" popup while Google finishes…');
+      assert.ok(cut.length <= 48);
+      const oneWord = labelled('x'.repeat(80));
+      assert.equal(oneWord, `${'x'.repeat(47)}…`);
+      assert.equal(labelled(`${'a'.repeat(46)} bbbb`), `${'a'.repeat(46)}…`);
+    });
+
+    it('rejects a label that is not text', () => {
+      assert.match(labelled(5)[0], /step "s": "label" must be text/);
+    });
+
+    it('writes the label right after the id', () => {
+      const text = stableStringify(doc([journey('j', [step('s', { label: 'Do it' })])]));
+      assert.deepEqual(Object.keys(JSON.parse(text).journeys[0].steps[0]).slice(0, 3), ['id', 'label', 'say']);
+    });
+  });
+
   it('allows any area value when there is no areas list', () => {
     assert.equal(validateDoc(doc([journey('a', [step('s')], { area: 'anything' })])).ok, true);
   });

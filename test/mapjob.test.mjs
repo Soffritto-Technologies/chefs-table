@@ -652,3 +652,270 @@ describe('organise apply', () => {
     assert.ok(out.endsWith('organise.out.json'));
   });
 });
+
+describe('goal, label and variant rules', () => {
+  it('unit briefs teach one journey per goal, short labels and short titles', () => {
+    const { dir } = jobProject();
+    const text = readBrief(M.writeBrief(dir, sampleUnits()[0], sampleInventory(), baseDoc(), CLI_PATH));
+    for (const rule of [
+      'One journey per user goal.', '(popup vs redirect vs small window, mobile vs desktop handoff, different entry points)', 'branches inside ONE journey', 'a step may have several "next" ids',
+      'Technical hops (callback pages, popups that close, redirects) are steps inside the journey that triggers them, never journeys of their own.',
+      'short "label" shown on the map: 2–6 words, verb first, at most 48 characters', '"Allow Gmail access"', 'one plain sentence for the step card (aim for under 140 characters)',
+      'Journey titles are 2–6 words, goal first (like "Sign up with Google")',
+    ]) assert.ok(text.includes(rule), rule);
+    assert.ok(text.includes('"label":"Do the first thing"'), 'the example shows a label');
+    assert.doesNotMatch(text, /under 200 characters/);
+  });
+
+  it('the organise brief puts variants of one goal side by side', () => {
+    const { dir } = jobProject();
+    const text = readBrief(M.writeOrganiseBrief(dir, baseDoc(), CLI_PATH));
+    assert.ok(text.includes('Put journeys that are variants of the same user goal in the same section, so polish can merge them.'));
+  });
+});
+
+/**
+ * A map with variants of one goal in the "signing-in" area, a journey in another area that zooms into a variant, and a loose journey.
+ *
+ * @returns {object} A fresh document each call.
+ */
+function polishDoc() {
+  return docOf([
+    journey('sign-up-google', 'Sign up with Google', [step('s1', '/signup', { next: ['s2'] }), step('s2', null, { anchor: fileAnchor('app/auth/google.ts') })], { area: 'signing-in', who: 'Visitor' }),
+    journey('sign-up-google-popup', 'Sign up with Google in a popup', [
+      step('p1', null, { anchor: fileAnchor('app/auth/popup.tsx'), next: ['p2'], detail: { files: ['app/auth/popup-helper.ts'] } }),
+      step('p2', null, { anchor: fileAnchor('app/auth/callback.tsx') }),
+    ], { area: 'signing-in', who: 'Visitor' }),
+    journey('connect-gmail', 'Connect Gmail', [step('c1', '/connect', { next: ['c2'] }), step('c2', null, { anchor: fileAnchor('app/connect/gmail.ts'), subflow: 'sign-up-google-popup' })], { area: 'meetings', who: 'Adviser' }),
+    journey('loose', 'Loose end', [step('l1', '/loose')]),
+  ], { areas: [{ id: 'clients', title: 'Clients' }, { id: 'meetings', title: 'Meetings', parent: 'clients' }, { id: 'signing-in', title: 'Signing in' }] });
+}
+
+/**
+ * A polish job over a map.
+ *
+ * @param {object} [doc] - The map (default {@link polishDoc}).
+ * @param {object} [options] - Passed to polishUnits, plus `budget` for the job.
+ * @returns {{ project: object, dir: string, units: object[] }} The project and its polish units.
+ */
+function polishProject(doc = polishDoc(), { budget, ...options } = {}) {
+  const project = makeProject({ fixture: false, doc });
+  const units = M.polishUnits(doc, options);
+  M.startJob(project.dir, { kind: 'polish', units, budget });
+  return { project, dir: project.dir, units };
+}
+
+/**
+ * What a helper writes when it merges the two sign-up variants into one journey with two branches.
+ *
+ * @returns {object} Contents of the polish unit's out.json.
+ */
+function mergedSignUp() {
+  return {
+    journeys: [journey('sign-up-google', 'Sign up with Google', [
+      step('start', '/signup', { label: 'Choose Google', next: ['popup', 'redirect'] }),
+      step('popup', null, { label: 'Allow in popup', anchor: fileAnchor('app/auth/popup.tsx'), next: ['done'], detail: { files: ['app/auth/popup-helper.ts', 'app/auth/callback.tsx'] } }),
+      step('redirect', null, { anchor: fileAnchor('app/auth/google.ts'), next: ['done'] }),
+      step('done', null, { anchor: fileAnchor('app/auth/done.ts') }),
+    ], { area: 'signing-in', who: 'Visitor' })],
+    replaced: { 'sign-up-google-popup': 'sign-up-google' },
+  };
+}
+
+describe('polishUnits and the polish brief', () => {
+  it('makes one unit per area that directly holds journeys', () => {
+    const units = M.polishUnits(polishDoc());
+    assert.deepEqual(units.map((u) => [u.id, u.kind, u.area, u.title]), [
+      ['polish-meetings', 'polish', 'meetings', 'Clients › Meetings'],
+      ['polish-signing-in', 'polish', 'signing-in', 'Signing in'],
+      ['polish-other', 'polish', 'other', 'Other'],
+    ]);
+    assert.deepEqual(units.map((u) => u.journeyIds), [['connect-gmail'], ['sign-up-google', 'sign-up-google-popup'], ['loose']]);
+    assert.ok(units.every((u) => u.estTokens > 0 && u.routes.length === 0 && u.files.length === 0));
+  });
+
+  it('can be limited to some areas, and splits an area only when its journeys are too big', () => {
+    assert.deepEqual(M.polishUnits(polishDoc(), { areas: ['signing-in', 'nowhere'] }).map((u) => u.id), ['polish-signing-in']);
+    const parts = M.polishUnits(polishDoc(), { areas: ['signing-in'], maxTokens: 130 });
+    assert.deepEqual(parts.map((u) => [u.id, u.title, u.journeyIds]), [
+      ['polish-signing-in', 'Signing in (part 1 of 2)', ['sign-up-google']],
+      ['polish-signing-in-2', 'Signing in (part 2 of 2)', ['sign-up-google-popup']],
+    ]);
+  });
+
+  it('the brief starts with the marker and holds the area path, the full JSON, the rules and the output contract', () => {
+    const { dir, units } = polishProject();
+    const doc = polishDoc();
+    const unit = units.find((u) => u.area === 'signing-in');
+    const text = readBrief(M.writePolishBrief(dir, unit, doc, CLI_PATH));
+    assert.equal(text.split('\n')[0], '[chefs-table unit polish-signing-in]');
+    assert.match(text, /^# Polish: Signing in$/m);
+    for (const j of doc.journeys.slice(0, 2)) assert.ok(text.includes(JSON.stringify(j)), `full JSON of ${j.id}`);
+    assert.ok(!text.includes('"connect-gmail"') && !text.includes('"loose"'), 'only this area\'s journeys');
+    for (const rule of [
+      'One journey per user goal.', 'branches inside ONE journey', 'never journeys of their own', 'short "label" shown on the map', 'Journey titles are 2–6 words, goal first',
+      'Keep every code anchor', 'listed in a merged step\'s "detail.files"', 'Keep the area and "who" of each journey unless clearly wrong', 'Keep surviving journey ids stable',
+      '{ "journeys": Journey[], "replaced": { "<oldJourneyId>": "<newJourneyId>" } }',
+    ]) assert.ok(text.includes(rule), rule);
+    assert.ok(text.includes(`Write one JSON file: ${M.unitPaths(dir, unit.id).out}`));
+    assert.ok(text.includes(`Then run: node "${CLI_PATH}" stir submit polish-signing-in`));
+    const nested = readBrief(M.writePolishBrief(dir, units.find((u) => u.area === 'meetings'), doc, CLI_PATH));
+    assert.match(nested, /^# Polish: Clients › Meetings$/m);
+  });
+});
+
+describe('submitting a polish unit', () => {
+  const read = (project, rel) => JSON.parse(project.read(rel));
+
+  it('replaces the area\'s journeys, rewrites subflows, records aliases and counts the work', () => {
+    const { project, dir } = polishProject();
+    writeOut(project, 'polish-signing-in', mergedSignUp());
+    assert.deepEqual(M.submitUnit(dir, 'polish-signing-in'), { ok: true });
+    const doc = read(project, '.journeys/journeys.json');
+    assert.deepEqual(doc.journeys.map((j) => j.id), ['sign-up-google', 'connect-gmail', 'loose'], 'the merged journey takes the first old one\'s place');
+    assert.deepEqual(doc.journeys[0].steps[0].next, ['popup', 'redirect'], 'two routes branch from one step');
+    assert.equal(doc.journeys[0].steps[0].label, 'Choose Google');
+    assert.equal(doc.journeys[1].steps[1].subflow, 'sign-up-google', 'the zoom-in now points at the merged journey');
+    assert.deepEqual(read(project, '.journeys/aliases.json'), { 'sign-up-google-popup': 'sign-up-google' });
+    const unit = M.loadJob(dir).units.find((u) => u.id === 'polish-signing-in');
+    assert.deepEqual([unit.status, unit.merged, unit.labels], ['done', 1, 2]);
+  });
+
+  it('drops a zoom-in that a merge turned into a self reference, and follows alias chains', () => {
+    const doc = polishDoc();
+    doc.journeys[0].steps[1].subflow = 'sign-up-google-popup';
+    const { project, dir } = polishProject(doc);
+    project.write('.journeys/aliases.json', JSON.stringify({ 'very-old': 'sign-up-google-popup', 'sign-up-google': 'stale-entry' }));
+    writeOut(project, 'polish-signing-in', mergedSignUp());
+    assert.deepEqual(M.submitUnit(dir, 'polish-signing-in'), { ok: true });
+    assert.equal(read(project, '.journeys/journeys.json').journeys[0].steps.every((s) => s.subflow === undefined), true);
+    assert.deepEqual(read(project, '.journeys/aliases.json'), { 'sign-up-google-popup': 'sign-up-google', 'very-old': 'sign-up-google' });
+  });
+
+  it('rejects output that loses a code anchor, listing the missing ones, and changes nothing', () => {
+    const { project, dir } = polishProject();
+    const before = project.read('.journeys/journeys.json');
+    const lost = mergedSignUp();
+    lost.journeys[0].steps[1].detail.files = ['app/auth/popup-helper.ts'];
+    lost.journeys[0].steps[2].anchor = fileAnchor('app/auth/other.ts');
+    writeOut(project, 'polish-signing-in', lost);
+    const result = M.submitUnit(dir, 'polish-signing-in');
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join('\n'), /code anchors from the old journeys are missing from the new ones: app\/auth\/google\.ts, app\/auth\/callback\.tsx\./);
+    assert.equal(project.read('.journeys/journeys.json'), before);
+    assert.equal(project.exists('.journeys/aliases.json'), false);
+    assert.equal(M.loadJob(dir).units.find((u) => u.id === 'polish-signing-in').status, 'pending');
+  });
+
+  it('keeps a route anchor alive when it lives on as a step\'s screen, and requires detail files to survive', () => {
+    const { project, dir } = polishProject();
+    const out = mergedSignUp();
+    out.journeys[0].steps[0] = step('start', '/signup', { label: 'Choose Google', anchor: fileAnchor('app/auth/google.ts'), next: ['popup', 'redirect'] });
+    writeOut(project, 'polish-signing-in', out);
+    assert.deepEqual(M.submitUnit(dir, 'polish-signing-in'), { ok: true });
+    const missingHelper = polishProject();
+    const bad = mergedSignUp();
+    bad.journeys[0].steps[1].detail.files = ['app/auth/callback.tsx'];
+    writeOut(missingHelper.project, 'polish-signing-in', bad);
+    assert.match(M.submitUnit(missingHelper.dir, 'polish-signing-in').errors.join('\n'), /missing from the new ones: app\/auth\/popup-helper\.ts\./);
+  });
+
+  it('rejects journeys in another area, vanished journeys and bad "replaced" entries', () => {
+    const { project, dir } = polishProject();
+    const problems = (patch) => {
+      writeOut(project, 'polish-signing-in', { ...mergedSignUp(), ...patch });
+      const result = M.submitUnit(dir, 'polish-signing-in');
+      assert.equal(result.ok, false);
+      return result.errors.join('\n');
+    };
+    const elsewhere = mergedSignUp().journeys;
+    elsewhere[0].area = 'meetings';
+    assert.match(problems({ journeys: elsewhere }), /Journey "sign-up-google" is in area "meetings", but this unit may only write journeys for area "signing-in"/);
+    assert.match(problems({ replaced: {} }), /Journey "sign-up-google-popup" is missing from your output\. Keep it, or list it in "replaced"/);
+    assert.match(problems({ replaced: { 'sign-up-google-popup': 'nope' } }), /sends "sign-up-google-popup" to "nope", which is not in your output/);
+    assert.match(problems({ replaced: { 'sign-up-google-popup': 'sign-up-google', loose: 'sign-up-google' } }), /"replaced" names "loose", which is not one of this unit's journeys/);
+    assert.match(problems({ replaced: { 'sign-up-google': 'sign-up-google', 'sign-up-google-popup': 'sign-up-google' } }), /still has a journey with that id/);
+    assert.match(problems({ replaced: ['x'] }), /"replaced" must be an object/);
+  });
+
+  it('rejects a result that would leave the whole map invalid', () => {
+    const { project, dir } = polishProject();
+    const out = mergedSignUp();
+    out.journeys[0].steps[0].next = ['ghost'];
+    writeOut(project, 'polish-signing-in', out);
+    assert.match(M.submitUnit(dir, 'polish-signing-in').errors.join('\n'), /leads to step "ghost"/);
+    const collide = mergedSignUp();
+    collide.journeys.push(journey('loose', 'Clash', [step('x', '/x')], { area: 'signing-in' }));
+    writeOut(project, 'polish-signing-in', collide);
+    assert.match(M.submitUnit(dir, 'polish-signing-in').errors.join('\n'), /Journey id "loose" is used more than once/);
+  });
+
+  it('is skipped when the map is merged for the coverage check, since it was applied already', () => {
+    const { project, dir } = polishProject();
+    writeOut(project, 'polish-signing-in', mergedSignUp());
+    M.submitUnit(dir, 'polish-signing-in');
+    const current = read(project, '.journeys/journeys.json');
+    const merged = M.mergeUnits(dir, current);
+    assert.deepEqual(merged.errors, []);
+    assert.deepEqual(merged.doc.journeys.map((j) => j.id), ['sign-up-google', 'connect-gmail', 'loose']);
+  });
+
+  it('does not lose changes when several helpers submit different areas at the same moment', async () => {
+    const { project, dir } = polishProject();
+    const labelled = (id) => {
+      const j = polishDoc().journeys.find((candidate) => candidate.id === id);
+      return { journeys: [{ ...j, steps: j.steps.map((s) => ({ ...s, label: `Open ${s.id}` })) }], replaced: {} };
+    };
+    writeOut(project, 'polish-meetings', labelled('connect-gmail'));
+    writeOut(project, 'polish-other', labelled('loose'));
+    writeOut(project, 'polish-signing-in', mergedSignUp());
+    const submits = ['polish-meetings', 'polish-other', 'polish-signing-in'].map((id) => new Promise((resolve, reject) => {
+      const script = `import(${JSON.stringify(MODULE_URL)}).then((M) => { if (!M.submitUnit(${JSON.stringify(dir)}, ${JSON.stringify(id)}).ok) process.exit(3); });`;
+      spawn(process.execPath, ['-e', script], { stdio: 'inherit' }).on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${id} exited ${code}`))));
+    }));
+    await Promise.all(submits);
+    const doc = read(project, '.journeys/journeys.json');
+    assert.deepEqual(doc.journeys.map((j) => j.id), ['sign-up-google', 'connect-gmail', 'loose']);
+    assert.equal(doc.journeys[1].steps[0].label, 'Open c1');
+    assert.equal(doc.journeys[2].steps[0].label, 'Open l1');
+    assert.equal(doc.journeys[0].steps[0].label, 'Choose Google');
+    assert.equal(doc.journeys[1].steps[1].subflow, 'sign-up-google');
+    assert.ok(M.loadJob(dir).units.every((u) => u.status === 'done'));
+  });
+});
+
+describe('polish jobs and budgets', () => {
+  it('stop handing out polish units once the token budget is spent', () => {
+    const { dir } = polishProject(polishDoc(), { budget: { tokens: 100 } });
+    M.recordTokens(dir, { tokens: 100, unitId: 'polish-meetings' });
+    const job = M.loadJob(dir);
+    assert.deepEqual(M.nextUnits(job, 3), []);
+    assert.equal(job.phase, 'stopped');
+    assert.match(job.stopReason, /used 100 of its 100 allowed tokens/);
+    assert.ok(job.units.every((u) => u.status === 'pending'));
+  });
+
+  it('touchedAreas names the areas a sync wrote into, and is null for other jobs', () => {
+    const { project, dir } = jobProject({ doc: { ...baseDoc(), areas: [] } });
+    assert.equal(M.touchedAreas(dir, baseDoc()), null);
+    M.startJob(dir, { kind: 'sync', units: sampleUnits(), restart: true });
+    writeOut(project, 'area-home', unitOutput(sampleUnits()[0]));
+    assert.deepEqual(M.submitUnit(dir, 'area-home'), { ok: true });
+    const merged = M.mergeUnits(dir, JSON.parse(project.read('.journeys/journeys.json'))).doc;
+    merged.journeys.find((j) => j.id === 'j-area-home').area = 'moved-here';
+    assert.deepEqual(M.touchedAreas(dir, merged), ['moved-here']);
+    assert.deepEqual(M.touchedAreas(dir, baseDoc()), [], 'nothing of the sync is on this map');
+  });
+});
+
+describe('polish: units finished in any order', () => {
+  it('re-points a stale zoom-in in a later helper\'s output to the journey that replaced it', () => {
+    const { project, dir } = polishProject();
+    writeOut(project, 'polish-signing-in', mergedSignUp());
+    assert.deepEqual(M.submitUnit(dir, 'polish-signing-in'), { ok: true });
+    const stale = polishDoc().journeys.find((j) => j.id === 'connect-gmail');
+    writeOut(project, 'polish-meetings', { journeys: [stale] });
+    assert.deepEqual(M.submitUnit(dir, 'polish-meetings'), { ok: true });
+    assert.equal(JSON.parse(project.read('.journeys/journeys.json')).journeys[1].steps[1].subflow, 'sign-up-google');
+  });
+});

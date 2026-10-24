@@ -31,6 +31,12 @@ The session-start note gives you this chat's **session folder** and the exact **
 
 - **Areas** group the app into 3–8 parts a business owner would recognise (Buying, Booking, Accounts, Admin).
 - **A journey** is one goal of one kind of person ("Customer books a call"). **Steps** are what that person does or sees, in order, linked by `next`.
+  - One journey per goal. Different routes to the same goal (a popup vs a redirect vs a small window, mobile vs desktop, different entry points) are **branches inside one journey**: give the step several `next` ids.
+  - Technical hops (callback pages, popups that close, redirects) are steps inside the journey that triggers them, never journeys of their own.
+- **Keep names short.**
+  - Journey titles are 2–6 words, goal first ("Sign up with Google").
+  - Every step gets a `label`: 2–6 words, verb first, at most 48 characters ("Allow Gmail access"). The map shows the label.
+  - `say` stays one plain sentence for the step card (aim for under 140 characters).
 - **Anchor** every step to code.
   - Use `{ "type": "file", "value": "src/pages/Book.tsx" }` for the file that renders it.
   - Use `{ "type": "route", "value": "/book" }` when the URL is the clearest anchor.

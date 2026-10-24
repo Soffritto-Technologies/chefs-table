@@ -3,7 +3,7 @@ description: Draw (or resume) a live, zoomable map of this whole app's user jour
 argument-hint: "[budget, e.g. 10% of 5-hour usage, or 2M tokens]"
 ---
 
-Map this entire app for a non-technical builder in five stages, **chop → stir → check → organise → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
+Map this entire app for a non-technical builder in six stages, **chop → stir → check → organise → polish → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
@@ -57,18 +57,32 @@ The helpers wrote journeys one part of the app at a time, so the areas can be lo
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORGANISED or the errors.
 3. **`ORGANISE_INVALID`:** give the helper one retry with the errors. If it fails again, keep the map as it is and tell the builder it wasn't regrouped.
 
-## 6. Plate
+## 6. Polish
+
+Helpers worked on separate parts of the app, so one goal can appear as several journeys (a popup version, a redirect version) and step text can be long. One helper per area now merges variants into a single journey with branches, shortens titles, and gives every step a short label. Skip this step when the budget has been reached.
+
+1. Run `journeys polish start` with the budget flags for what is left of the budget (a fresh `--budget-percent <P> --start-percent <NOW>`, or `--budget-tokens <what is left>`).
+   - **`POLISH_NOTHING`:** go to step 7.
+   - **`RESUMED d/n`:** you're picking up an earlier polish.
+2. Repeat until `STIR_DONE` or `BUDGET_REACHED`, exactly like step 3: `journeys stir next --count 3` (with `--now-percent` when you can read it), one helper per `UNIT` line (model `sonnet`, all of the wave in parallel), and one retry on `UNIT_INVALID` before `journeys stir fail`. Use this prompt, marker first:
+
+   > [chefs-table unit <id>]
+   > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the submit command it gives, and reply with UNIT_OK or the errors.
+3. Run `journeys check --coverage`. It prints `POLISHED merged=<n> labels=<n>` and `MAP_DONE`; coverage doesn't drop, because polish keeps every code anchor.
+
+## 7. Plate
 
 Run `journeys render --canonical`, then `journeys build --render`.
 - If `MAP_CHANGED <path>` is printed and the Artifact tool is available, publish that file and give the builder the link.
 - Otherwise give them the local path.
 - `journeys.html` at the project root is the clean map, meant to be committed.
 
-## 7. Report
+## 8. Report
 
 Tell the builder, in plain words:
 - coverage (the `COVERAGE` %), and the important pages still missing
 - how the map was grouped (the `ORGANISED` line: areas, and how many journeys moved)
+- what polish did (the `POLISHED` line: journeys merged, step labels written)
 - usage spent (`journeys budget`)
 - anything unverified
 

@@ -1479,3 +1479,140 @@ describe('first-map pipeline: organise', () => {
     assert.deepEqual(project.json('.journeys/journeys.json').areas, [{ id: 'home-people', title: 'People', parent: 'home' }, { id: 'home', title: 'Home' }]);
   });
 });
+
+describe('first-map pipeline: polish', () => {
+  const polishOutput = (project, unit) => ({
+    journeys: project.json('.journeys/journeys.json').journeys
+      .filter((j) => unit.journeyIds.includes(j.id))
+      .map((j) => ({ ...j, steps: j.steps.map((s) => ({ ...s, label: `Open ${s.id}` })) })),
+    replaced: {},
+  });
+
+  /**
+   * Plays the polish helpers for the units a `stir next` handed out.
+   *
+   * @param {object} project - Test project.
+   * @param {string} stdout - Output of `stir next`.
+   * @param {(project: object, unit: object) => object} [outputFor] - What each helper writes.
+   * @returns {string[]} The unit ids finished.
+   */
+  function polishWave(project, stdout, outputFor = polishOutput) {
+    const ids = [...stdout.matchAll(/^UNIT (\S+) /gm)].map((match) => match[1]);
+    for (const id of ids) {
+      project.write(`${BUILD}/units/${id}.out.json`, JSON.stringify(outputFor(project, jobOf(project).units.find((u) => u.id === id))));
+      assert.match(run(project, 'stir', 'submit', id), new RegExp(`^UNIT_OK ${id}\n`));
+    }
+    return ids;
+  }
+
+  /**
+   * A finished first map plus a second checkout journey that is a variant of the first one.
+   *
+   * @returns {object} The project.
+   */
+  function mappedProject() {
+    const project = makeProject();
+    run(project, 'chop');
+    stirAll(project);
+    run(project, 'check', '--coverage');
+    const doc = project.json('.journeys/journeys.json');
+    const variant = journey('j-area-checkout-popup', 'Checkout in a popup', [step('p0', null, { anchor: fileAnchor('app/(shop)/checkout/page.tsx') })], { area: 'checkout' });
+    project.writeDoc({ ...doc, journeys: [...doc.journeys, variant] });
+    return project;
+  }
+
+  it('polish start makes one unit per area, then next → submit → check finishes the job', () => {
+    const project = mappedProject();
+    const started = run(project, 'polish', 'start', '--budget-tokens', '9000');
+    assert.match(started, /^Polishing 5 areas: 5 of 5 work units to do, about \d+ tokens of journeys to read\.$/m);
+    assert.match(started, /^Budget: up to 9,000 tokens\.$/m);
+    assert.match(started, /^UNITS 5$/m);
+    const job = jobOf(project);
+    assert.deepEqual([job.kind, job.phase, job.budget.tokens], ['polish', 'stir', 9000]);
+    assert.deepEqual(job.units.map((u) => u.id).sort(), ['polish-blog', 'polish-checkout', 'polish-home', 'polish-legacy', 'polish-other']);
+    const wave = run(project, 'stir', 'next', '--count', '9');
+    for (const id of job.units.map((u) => u.id)) assert.ok(project.read(`${BUILD}/units/${id}.brief.md`).startsWith(`[chefs-table unit ${id}]\n`));
+    polishWave(project, wave);
+    const done = run(project, 'check', '--coverage');
+    assert.match(done, /^COVERAGE 100$/m);
+    assert.match(done, /^POLISHED merged=0 labels=8$/m);
+    assert.match(done, /^MAP_DONE$/m);
+    assert.equal(project.json('.journeys/journeys.json').journeys.every((j) => j.steps.every((s) => s.label)), true);
+    assert.match(run(project, 'check'), /^VALID: 7 journeys/);
+  });
+
+  it('merges a variant into one journey and writes the old id to aliases.json', () => {
+    const project = mappedProject();
+    run(project, 'polish', 'start', '--areas', 'checkout');
+    assert.deepEqual(jobOf(project).units.map((u) => u.id), ['polish-checkout']);
+    polishWave(project, run(project, 'stir', 'next'), (p) => ({
+      journeys: [journey('j-area-checkout', 'Pay for the order', [
+        step('s0', '/checkout', { label: 'Open checkout', next: ['p0'] }),
+        step('p0', null, { label: 'Pay in a popup', anchor: fileAnchor('app/(shop)/checkout/page.tsx') }),
+      ], { area: 'checkout' })],
+      replaced: { 'j-area-checkout-popup': 'j-area-checkout' },
+    }));
+    const doc = project.json('.journeys/journeys.json');
+    assert.deepEqual(doc.journeys.map((j) => j.id), ['browse', 'pay', 'j-area-blog', 'j-area-checkout', 'j-area-home', 'j-area-legacy']);
+    assert.deepEqual(project.json('.journeys/aliases.json'), { 'j-area-checkout-popup': 'j-area-checkout' });
+    const done = run(project, 'check', '--coverage');
+    assert.match(done, /^COVERAGE 100$/m);
+    assert.match(done, /^POLISHED merged=1 labels=2$/m);
+  });
+
+  it('submit refuses output that loses an anchor (UNIT_INVALID, exit 1)', () => {
+    const project = mappedProject();
+    run(project, 'polish', 'start', '--areas', 'checkout');
+    const [id] = [...run(project, 'stir', 'next').matchAll(/^UNIT (\S+) /gm)].map((m) => m[1]);
+    project.write(`${BUILD}/units/${id}.out.json`, JSON.stringify({ journeys: [journey('j-area-checkout', 'Pay', [step('s0', '/checkout')], { area: 'checkout' })], replaced: { 'j-area-checkout-popup': 'j-area-checkout' } }));
+    const result = runCli(project, ['stir', 'submit', id]);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /^UNIT_INVALID polish-checkout\n- These code anchors from the old journeys are missing from the new ones: app\/\(shop\)\/checkout\/page\.tsx\./);
+    assert.equal(jobOf(project).units[0].status, 'in_progress');
+  });
+
+  it('polish start resumes its own job, refuses to bury an unfinished map job, and says when there is nothing to do', () => {
+    const project = mappedProject();
+    run(project, 'polish', 'start');
+    polishWave(project, run(project, 'stir', 'next'));
+    assert.match(run(project, 'polish', 'start'), /^RESUMED 1\/5$/m);
+    assert.equal(run(project, 'polish', 'start', '--restart', '--areas', 'nowhere').trim(), 'POLISH_NOTHING');
+
+    const open = makeProject();
+    run(open, 'chop');
+    const refused = runCli(open, ['polish', 'start']);
+    assert.equal(refused.status, 1);
+    assert.match(refused.stderr, /An unfinished first-map map job is still open \(0 of 4 work units done\)\. Finish it with \/chefs-table:map-app, or add --restart/);
+    assert.match(run(open, 'polish', 'start', '--restart'), /^Polishing 1 area: 1 of 1 work units/m);
+    assert.equal(jobOf(open).kind, 'polish');
+
+    assert.match(runCli(open, ['polish']).stderr, /Usage: journeys polish start/);
+    assert.match(runCli(open, ['polish', 'start', '--areas']).stderr, /--areas needs a comma-separated list/);
+    assert.match(runCli(open, ['polish', 'start', '--restart', '--areas', 'touched']).stderr, /no sync job to take the touched areas from/);
+    assert.match(runCli(makeProject({ doc: docOf([]) }), ['polish', 'start']).stderr, /no journeys to polish yet/);
+  });
+
+  it('--areas touched polishes only the areas a finished sync wrote into', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    stirAll(project);
+    run(project, 'check', '--coverage');
+    project.write('app/gift/page.tsx', 'export default function Gift() {\n  return null;\n}\n');
+    assert.match(run(project, 'sync'), /^SYNC new=1 /m);
+    stirAll(project);
+    run(project, 'check', '--coverage');
+    assert.match(run(project, 'polish', 'start', '--areas', 'touched'), /^Polishing 1 area: 1 of 1 work units/m);
+    assert.deepEqual(jobOf(project).units.map((u) => u.id), ['polish-gift']);
+  });
+
+  it('meters a polish helper toward its unit and stops at the token budget', () => {
+    const project = mappedProject();
+    run(project, 'polish', 'start', '--budget-tokens', '1500');
+    const [first, second] = [...run(project, 'stir', 'next', '--count', '2').matchAll(/^UNIT (\S+) /gm)].map((m) => m[1]);
+    helperDone(project, { prompt: `[chefs-table unit ${first}]\nRead the brief` });
+    helperDone(project, { prompt: `[chefs-table unit ${second}]\nRead the brief` });
+    assert.deepEqual(jobOf(project).units.filter((u) => u.tokens).map((u) => [u.id, u.tokens]), [[first, 1234], [second, 1234]]);
+    assert.match(run(project, 'stir', 'next'), /^BUDGET_REACHED This run has used 2,468 of its 1,500 allowed tokens\.$/m);
+    assert.equal(jobOf(project).phase, 'stopped');
+  });
+});
