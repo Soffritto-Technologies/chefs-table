@@ -217,7 +217,7 @@ describe('writeBrief', () => {
     assert.match(text, /- app\/\(shop\)\/checkout\/page\.tsx \(~1,000 tokens\)/);
     assert.match(text, /Update these rather than duplicating them[^\n]*\n- pay: Pay for the order/);
     assert.doesNotMatch(text, /- browse:/);
-    assert.match(text, new RegExp(`Write one JSON file: ${dir}/\\.journeys/build/units/area-checkout\\.out\\.json`));
+    assert.ok(text.includes(`Write one JSON file: ${join(dir, '.journeys', 'build', 'units', 'area-checkout.out.json')}`));
     assert.ok(text.includes(`node "${CLI_PATH}" stir submit area-checkout`));
     for (const rule of ['non-technical', 'file or a route', 'sees, does, rules, saves, files', 'lowercase-hyphen', 'subflow', 'Do not invent']) {
       assert.ok(text.includes(rule), rule);
