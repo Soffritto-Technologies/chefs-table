@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildInventory, coverage, diffInventory, planUnits, readGitHead } from '../lib/inventory.mjs';
+import { appForFile, findApps } from '../lib/apps.mjs';
 import { DEFAULT_CONFIG, PIPELINE } from '../lib/types.mjs';
 
 const fixture = (name) => path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', name);
@@ -13,6 +14,7 @@ const RICH = fixture('rich-app');
 const NEXT = fixture('next-app');
 const VITE = fixture('vite-router');
 const SPA = fixture('spa-app');
+const MULTI = fixture('multi-app');
 const RICH_CONFIG = { ...DEFAULT_CONFIG, sourceGlobs: ['src/**', 'server/**', 'emails/**', 'prisma/**'] };
 const rich = buildInventory(RICH, RICH_CONFIG);
 const spa = buildInventory(SPA, DEFAULT_CONFIG);
@@ -30,7 +32,7 @@ function project(t, files = {}) {
 }
 
 const WIDE_CONFIG = { ...DEFAULT_CONFIG, sourceGlobs: [...DEFAULT_CONFIG.sourceGlobs, 'server/**', 'db/**', 'web/**'] };
-const scan = (t, files, config = WIDE_CONFIG) => buildInventory(project(t, files), config);
+const scan = (t, files, config = WIDE_CONFIG, apps, options = {}) => buildInventory(project(t, files), config, { apps, ...options });
 const itemsOfKind = (inventory, kind) => inventory.items.filter((item) => item.kind === kind);
 const details = (inventory, kind, file) => itemsOfKind(inventory, kind).filter((item) => !file || item.file === file).map((item) => item.detail);
 const pageFiles = (inventory) => Object.fromEntries(inventory.pages.map((page) => [page.route, page.file]));
@@ -911,5 +913,322 @@ describe('diffInventory', () => {
     fs.writeFileSync(path.join(dir, 'src', 'router.tsx'), "export const r = [{ path: '/a' }, { path: '/b' }];\n");
     const second = buildInventory(dir, DEFAULT_CONFIG);
     assert.deepEqual(diffInventory(first, second), { newPages: ['/b'], removedPages: [], changedFiles: ['src/router.tsx'], headChanged: false });
+  });
+});
+
+describe('multi-app inventory', () => {
+  const apps = findApps(MULTI);
+  const multi = buildInventory(MULTI, DEFAULT_CONFIG, { apps, minFeatureTokens: 0 });
+  const ALL_FEATURES = { minFeatureTokens: 0 };
+  const app = (id, kind, root) => ({ id, title: { web: 'Web app', desktop: 'Desktop app', server: 'Backend' }[kind], kind, root });
+  const featureSummary = (inventory) => inventory.features.map((feature) => [feature.app, feature.key, feature.files.map((file) => file.replace(/^packages\/[^/]+\//, ''))]);
+  const DESKTOP = 'packages/desktop';
+
+  test('apps are recorded and pages and items carry the id of the app they belong to', () => {
+    assert.deepEqual(multi.apps, [app('desktop', 'desktop', DESKTOP), app('server', 'server', 'packages/server'), app('web', 'web', 'packages/web')]);
+    assert.deepEqual(multi.pages.map((page) => [page.route, page.app, page.file]), [
+      ['/', 'web', 'packages/web/src/pages/Home.tsx'],
+      ['/pricing', 'web', 'packages/web/src/pages/Pricing.tsx'],
+    ]);
+    for (const item of multi.items) assert.equal(item.app, appForFile(apps, item.file), item.file);
+    assert.deepEqual(multi.links, [{ from: 'packages/web/src/pages/Home.tsx', to: '/pricing' }]);
+    assert.deepEqual(multi.areas.map((area) => area.id), ['home', 'pricing']);
+  });
+
+  test('window, menu and ipc items of the desktop app', () => {
+    const desktopItems = multi.items.filter((item) => ['window', 'menu', 'ipc'].includes(item.kind));
+    assert.deepEqual(desktopItems.map((item) => [item.kind, item.file.replace(`${DESKTOP}/`, ''), item.line, item.detail]), [
+      ['window', 'main.js', 6, 'window loads http://localhost:5173'],
+      ['menu', 'main.js', 13, 'tray icon'],
+      ['menu', 'main.js', 15, 'Open Acme, Connect iMessage, Quit'],
+      ['ipc', 'main.js', 24, 'connect-imessage'],
+      ['ipc', 'main.js', 25, 'open-settings'],
+      ['ipc', 'preload.js', 3, 'acme'],
+    ]);
+  });
+
+  test('window, menu and ipc variants: load targets, labels outside the call, parentheses in labels', (t) => {
+    const inventory = scan(t, {
+      'src/windows.js': [
+        'const a = new BrowserWindow({});',
+        "a.loadFile(path.join(__dirname, 'index.html'));",
+        'const b = new BrowserWindow({ width: 1 });',
+        'const c = new BrowserWindow({});',
+        "c.loadURL(isDev ? 'http://localhost:3000' : `file://${x}`);",
+      ].join('\n'),
+      'src/menus.js': [
+        "Menu.buildFromTemplate([{ label: 'Inline (x)', submenu: [{ label: 'Deep' }] }, { type: 'separator' }]);",
+        'new Tray(icon);',
+      ].join('\n'),
+      'src/menu-var.js': [
+        "const template = [{ label: 'File' }, { label: 'Quit (Cmd+Q)' }];",
+        'Menu.setApplicationMenu(Menu.buildFromTemplate(template));',
+        'Menu.buildFromTemplate(fromElsewhere());',
+      ].join('\n'),
+      'src/ipc.ts': "ipcMain.once('a:b', f);\nipcMain.handleOnce(`c`, f);\nipcRenderer.on('not-main', f);\nipcMain.on('a:b', g);\n",
+    });
+    assert.deepEqual(details(inventory, 'window'), ['window loads index.html', 'window', 'window loads http://localhost:3000']);
+    assert.deepEqual(details(inventory, 'menu'), ['File, Quit (Cmd+Q)', 'Inline (x), Deep', 'tray icon']);
+    assert.deepEqual(details(inventory, 'ipc'), ['a:b', 'c']);
+  });
+
+  test('features are the code no page reaches, grouped by feature folder with stem merging; tests and utilities are left out', () => {
+    assert.deepEqual(featureSummary(multi), [
+      ['desktop', 'beeper', ['agent/beeper/beeper.go', 'agent/cmd/agent/beeper.go']],
+      ['desktop', 'imessage', ['agent/imessage/imessage.go']],
+      ['desktop', 'main', ['agent/cmd/agent/main.go', 'main.js']],
+      ['desktop', 'preload', ['preload.js']],
+      ['desktop', 'tray', ['src/tray.js']],
+      ['desktop', 'updater', ['src/updater.js']],
+      ['desktop', 'windows', ['src/windows.js']],
+      ['server', 'billing', ['src/services/billing/invoice.ts']],
+      ['server', 'emails', ['src/emails/welcome.ts']],
+      ['server', 'jobs', ['src/jobs/nightly.ts']],
+    ]);
+    assert.ok(multi.features.every((feature) => feature.title === feature.key.charAt(0).toUpperCase() + feature.key.slice(1)));
+    assert.ok(!Object.hasOwn(multi.files, `${DESKTOP}/agent/imessage/imessage_test.go`), 'Go tests are not scanned');
+    assert.ok(Object.hasOwn(multi.files, `${DESKTOP}/agent/internal/log/log.go`), 'but utility code is scanned');
+    assert.ok(!multi.features.some((feature) => feature.files.some((file) => file.includes('/log/') || file.includes('/routes/') || file.includes('/search/'))));
+    assert.ok(!multi.features.some((feature) => feature.app === 'web'), 'web apps have no features');
+  });
+
+  test('files in other languages are scanned for sizes but not parsed', () => {
+    const go = `${DESKTOP}/agent/beeper/beeper.go`;
+    assert.ok(multi.files[go].bytes > 0);
+    assert.ok(!Object.hasOwn(multi.imports, go));
+    assert.ok(multi.items.every((item) => !item.file.endsWith('.go')));
+  });
+
+  test('a desktop app is scanned whole (any language, no tests or build output); web apps keep to sourceGlobs', (t) => {
+    const inventory = scan(
+      t,
+      {
+        'mac/package.json': '{}',
+        'mac/agent/ok.go': 'package ok',
+        'mac/tool/run.py': 'x = 1',
+        'mac/lib/x.rb': 'x',
+        'mac/Sources/App.swift': 'x',
+        'mac/app/Main.kt': 'x',
+        'mac/src/a.ts': 'x',
+        'mac/agent/a_test.go': 'x',
+        'mac/tool/test_run.py': 'x',
+        'mac/src/__tests__/q.ts': 'x',
+        'mac/src/a.test.ts': 'x',
+        'mac/testdata/t.go': 'x',
+        'mac/fixtures/f.go': 'x',
+        'mac/mocks/m.go': 'x',
+        'mac/dist/out.js': 'x',
+        'mac/build/gen.go': 'x',
+        'mac/vendor/dep.go': 'x',
+        'mac/notes.md': 'x',
+        'site/other/not-in-globs.go': 'x',
+        'site/other/not-in-globs.ts': 'x',
+        'site/src/b.ts': 'x',
+      },
+      DEFAULT_CONFIG,
+      [app('mac', 'desktop', 'mac'), app('site', 'web', 'site')],
+    );
+    assert.deepEqual(Object.keys(inventory.files), [
+      'mac/Sources/App.swift', 'mac/agent/ok.go', 'mac/app/Main.kt', 'mac/lib/x.rb', 'mac/src/a.ts', 'mac/tool/run.py', 'site/src/b.ts',
+    ]);
+  });
+
+  test('two apps with an area of the same name keep them apart as <app>-<area>; other areas keep their name', (t) => {
+    const router = (...paths) => `export const r = [${paths.map((path_) => `{ path: '${path_}' }`).join(', ')}];\n`;
+    const inventory = scan(
+      t,
+      {
+        'web/src/router.tsx': router('/settings', '/billing'),
+        'admin/src/router.tsx': router('/settings/team', '/users'),
+      },
+      DEFAULT_CONFIG,
+      [app('admin', 'web', 'admin'), app('web', 'web', 'web')],
+    );
+    assert.deepEqual(inventory.areas.map((area) => [area.id, area.title, area.routes]), [
+      ['admin-settings', 'Admin settings', ['/settings/team']],
+      ['billing', 'Billing', ['/billing']],
+      ['users', 'Users', ['/users']],
+      ['web-settings', 'Web settings', ['/settings']],
+    ]);
+    assert.deepEqual(inventory.pages.map((page) => [page.route, page.area, page.app]), [
+      ['/billing', 'billing', 'web'],
+      ['/settings', 'web-settings', 'web'],
+      ['/settings/team', 'admin-settings', 'admin'],
+      ['/users', 'users', 'admin'],
+    ]);
+    const units = planUnits(inventory);
+    assert.deepEqual(units.map((unit) => [unit.id, unit.app]), [
+      ['area-admin-settings', 'admin'], ['area-billing', 'web'], ['area-users', 'admin'], ['area-web-settings', 'web'],
+    ]);
+  });
+
+  test('a file belongs to the app with the longest matching root', (t) => {
+    const inventory = scan(
+      t,
+      { 'o/main.js': 'x', 'o/inner/src/jobs/a.ts': 'cron.schedule("* * * * *", f);', 'o/lib/b.ts': 'x' },
+      DEFAULT_CONFIG,
+      [app('o', 'desktop', 'o'), app('inner', 'server', 'o/inner')],
+      ALL_FEATURES,
+    );
+    assert.deepEqual(inventory.items.map((item) => [item.file, item.app]), [['o/inner/src/jobs/a.ts', 'inner']]);
+    assert.deepEqual(featureSummary(inventory), [
+      ['inner', 'jobs', ['o/inner/src/jobs/a.ts']],
+      ['o', 'b', ['o/lib/b.ts']],
+      ['o', 'main', ['o/main.js']],
+    ]);
+  });
+
+  test('a single plain web app gives the same inventory with or without apps', () => {
+    const single = [{ id: 'app', title: 'Web app', kind: 'web', root: '.' }];
+    assert.equal(JSON.stringify(buildInventory(RICH, RICH_CONFIG, { apps: single })), JSON.stringify(rich));
+    assert.ok(!('apps' in rich) && !('features' in rich));
+  });
+
+  test('a single desktop app at the root gets features but no app tags', (t) => {
+    const dir = project(t, {
+      'main.js': "ipcMain.handle('ping', f);\n",
+      'agent/sync/sync.go': 'package sync',
+    });
+    const inventory = buildInventory(dir, DEFAULT_CONFIG, { apps: [{ id: 'app', title: 'Desktop app', kind: 'desktop', root: '.' }], ...ALL_FEATURES });
+    assert.ok(!('apps' in inventory));
+    assert.deepEqual(inventory.items, [{ kind: 'ipc', file: 'main.js', line: 1, detail: 'ping' }]);
+    assert.deepEqual(inventory.features.map((feature) => [feature.app, feature.key]), [['app', 'main'], ['app', 'sync']]);
+  });
+
+  test('feature units: one per feature, files first, kind feature with the app, no routes', () => {
+    const units = planUnits(multi);
+    const features = units.filter((unit) => unit.kind === 'feature');
+    assert.deepEqual(units.slice(0, 2).map((unit) => [unit.id, unit.kind, unit.app]), [['area-home', 'area', 'web'], ['area-pricing', 'area', 'web']]);
+    assert.deepEqual(features.map((unit) => [unit.id, unit.app, unit.area, unit.title, unit.routes]), [
+      ['feature-desktop-beeper', 'desktop', 'beeper', 'Desktop app · Beeper', []],
+      ['feature-desktop-imessage', 'desktop', 'imessage', 'Desktop app · Imessage', []],
+      ['feature-desktop-main', 'desktop', 'main', 'Desktop app · Main', []],
+      ['feature-desktop-preload', 'desktop', 'preload', 'Desktop app · Preload', []],
+      ['feature-desktop-tray', 'desktop', 'tray', 'Desktop app · Tray', []],
+      ['feature-desktop-updater', 'desktop', 'updater', 'Desktop app · Updater', []],
+      ['feature-desktop-windows', 'desktop', 'windows', 'Desktop app · Windows', []],
+      ['feature-server-billing', 'server', 'billing', 'Backend · Billing', []],
+      ['feature-server-emails', 'server', 'emails', 'Backend · Emails', []],
+      ['feature-server-jobs', 'server', 'jobs', 'Backend · Jobs', []],
+    ]);
+    assert.deepEqual(features[0].files, [`${DESKTOP}/agent/beeper/beeper.go`, `${DESKTOP}/agent/cmd/agent/beeper.go`]);
+    for (const unit of features) assert.equal(unit.estTokens, Math.ceil(unit.files.reduce((sum, file) => sum + multi.files[file].bytes, 0) / 4));
+  });
+
+  test('a feature over budget is split into -2 parts; direct imports follow the feature files while budget remains', (t) => {
+    const inventory = scan(
+      t,
+      {
+        'api/src/jobs/a.ts': "import { fmt } from '../util/fmt';\nimport { big } from '../util/big';\ncron.schedule('* * * * *', fmt);\n",
+        'api/src/jobs/b.ts': 'export const b = 1;\n',
+        'api/src/util/fmt.ts': 'export const fmt = 1;\n',
+        'api/src/util/big.ts': `export const big = '${'x'.repeat(2000)}';\n`,
+      },
+      DEFAULT_CONFIG,
+      [app('api', 'server', 'api')],
+    );
+    const bytes = (file) => inventory.files[file].bytes;
+    const jobs = planUnits(inventory, { maxTokens: 100 }).filter((unit) => unit.kind === 'feature');
+    assert.deepEqual(jobs.map((unit) => [unit.id, unit.files]), [
+      ['feature-api-jobs', ['api/src/jobs/a.ts', 'api/src/jobs/b.ts', 'api/src/util/fmt.ts']],
+    ]);
+    assert.ok(bytes('api/src/util/big.ts') > 400, 'precondition: big.ts does not fit in the budget');
+
+    const tight = planUnits(inventory, { maxTokens: Math.ceil(bytes('api/src/jobs/a.ts') / 4) }).filter((unit) => unit.kind === 'feature');
+    assert.deepEqual(tight.map((unit) => [unit.id, unit.title, unit.files[0]]), [
+      ['feature-api-jobs', 'Backend · Jobs (part 1 of 2)', 'api/src/jobs/a.ts'],
+      ['feature-api-jobs-2', 'Backend · Jobs (part 2 of 2)', 'api/src/jobs/b.ts'],
+    ]);
+  });
+
+  test('feature units are only added to the area plan, not to gap or route-limited plans', () => {
+    assert.deepEqual(planUnits(multi, { routes: ['/pricing'], kind: 'gap' }).map((unit) => [unit.id, unit.app]), [['gap-1', 'web']]);
+    assert.ok(planUnits(multi, { routes: ['/pricing'] }).every((unit) => unit.kind === 'area'));
+    assert.ok(planUnits(rich).every((unit) => unit.kind === 'area' && !('app' in unit)));
+  });
+
+  test('coverage counts features, covered when any of their files is a step anchor or in detail.files', () => {
+    const step = (id, anchor, detail) => ({ id, say: id, screen: null, anchor, next: [], ...(detail ? { detail } : {}) });
+    const doc = {
+      version: 1,
+      app: 'x',
+      journeys: [{
+        id: 'j',
+        title: 'J',
+        steps: [
+          step('a', { type: 'file', value: `${DESKTOP}/agent/imessage/imessage.go` }),
+          step('b', { type: 'route', value: '/' }, { files: ['packages/server/src/jobs/nightly.ts', 'packages/server/src/routes/users.ts'] }),
+        ],
+      }],
+    };
+    const result = coverage(doc, multi);
+    assert.deepEqual(result.features, {
+      covered: 2,
+      total: 10,
+      missing: ['desktop/beeper', 'desktop/main', 'desktop/preload', 'desktop/tray', 'desktop/updater', 'desktop/windows', 'server/billing', 'server/emails'],
+    });
+    assert.equal(result.percent, 50, 'percent stays page-based');
+    assert.ok(!('features' in coverage(doc, rich)), 'inventories without features have no features bucket');
+    assert.deepEqual(coverage(doc, { ...rich, features: [] }).features, { covered: 0, total: 0, missing: [] });
+  });
+
+  test('small files in a container root form one "shell" feature; a big one keeps its own; small features fold into "other"', () => {
+    const size = (file) => multi.files[`${DESKTOP}/${file}`].bytes;
+    const threshold = Math.floor(Math.min(size('main.js'), size('src/updater.js')) / 4);
+    for (const small of ['preload.js', 'src/tray.js', 'src/windows.js']) assert.ok(size(small) < threshold * 4, `precondition: ${small} is small`);
+    const folded = buildInventory(MULTI, DEFAULT_CONFIG, { apps, minFeatureTokens: threshold });
+    assert.deepEqual(folded.features.map((feature) => [feature.app, feature.key, feature.title, feature.files.map((file) => file.replace(/^packages\/[^/]+\//, ''))]), [
+      ['desktop', 'main', 'Main', ['agent/cmd/agent/main.go', 'main.js']],
+      ['desktop', 'other', 'Desktop app · other parts', ['agent/beeper/beeper.go', 'agent/cmd/agent/beeper.go', 'agent/imessage/imessage.go']],
+      ['desktop', 'shell', 'Desktop app shell', ['preload.js', 'src/tray.js', 'src/windows.js']],
+      ['desktop', 'updater', 'Updater', ['src/updater.js']],
+      ['server', 'other', 'Backend · other parts', ['src/emails/welcome.ts', 'src/jobs/nightly.ts', 'src/services/billing/invoice.ts']],
+    ]);
+  });
+
+  test('with the default 3000-token threshold every feature of the fixture is tiny: a shell and an "other" per app', () => {
+    const folded = buildInventory(MULTI, DEFAULT_CONFIG, { apps });
+    assert.deepEqual(folded.features.map((feature) => [feature.app, feature.key]), [['desktop', 'other'], ['desktop', 'shell'], ['server', 'other']]);
+    assert.deepEqual(folded.features[1].files.map((file) => file.replace(`${DESKTOP}/`, '')), ['main.js', 'preload.js', 'src/tray.js', 'src/updater.js', 'src/windows.js']);
+    assert.ok(folded.features[0].files.includes(`${DESKTOP}/agent/cmd/agent/main.go`), 'a file under cmd/<binary>/ is not part of the shell');
+  });
+
+  test('a lone small feature keeps its own name instead of being folded; the shell is never folded into "other"', (t) => {
+    const inventory = scan(
+      t,
+      { 'm/src/tray.js': 'x', 'm/agent/sync/sync.go': 'package sync', 'm/agent/big/big.go': `package big // ${'x'.repeat(2000)}` },
+      DEFAULT_CONFIG,
+      [app('m', 'desktop', 'm')],
+      { minFeatureTokens: 100 },
+    );
+    assert.deepEqual(inventory.features.map((feature) => [feature.key, feature.title]), [
+      ['big', 'Big'],
+      ['shell', 'Desktop app shell'],
+      ['sync', 'Sync'],
+    ]);
+  });
+
+  test('feature units of the folded features: titles name the app once, and "other" is split when over budget', () => {
+    const folded = buildInventory(MULTI, DEFAULT_CONFIG, { apps });
+    const features = planUnits(folded).filter((unit) => unit.kind === 'feature');
+    assert.deepEqual(features.map((unit) => [unit.id, unit.title]), [
+      ['feature-desktop-other', 'Desktop app · other parts'],
+      ['feature-desktop-shell', 'Desktop app shell'],
+      ['feature-server-other', 'Backend · other parts'],
+    ]);
+    const split = planUnits(folded, { maxTokens: 60 }).filter((unit) => unit.id.startsWith('feature-desktop-other'));
+    assert.deepEqual(split.map((unit) => [unit.id, unit.title, unit.files.length]), [
+      ['feature-desktop-other', 'Desktop app · other parts (part 1 of 2)', 2],
+      ['feature-desktop-other-2', 'Desktop app · other parts (part 2 of 2)', 2],
+    ]);
+  });
+
+  test('is deterministic, also from a copy in another folder', (t) => {
+    assert.equal(JSON.stringify(buildInventory(MULTI, DEFAULT_CONFIG, { apps, ...ALL_FEATURES })), JSON.stringify(multi));
+    const copy = project(t);
+    fs.cpSync(MULTI, copy, { recursive: true });
+    const other = buildInventory(copy, DEFAULT_CONFIG, { apps: findApps(copy), ...ALL_FEATURES });
+    assert.equal(JSON.stringify({ ...other, head: null }), JSON.stringify({ ...multi, head: null }));
+    assert.equal(JSON.stringify(planUnits(other)), JSON.stringify(planUnits(multi)));
   });
 });
