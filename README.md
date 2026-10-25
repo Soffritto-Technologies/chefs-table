@@ -54,18 +54,23 @@ Plans are framed as user goals ("Customer books a call"), not files. That keeps 
 
 ## Install
 
+Run these two commands yourself, in a terminal:
+
 ```bash
-claude plugin marketplace add Soffritto-Technologies/chefs-table && claude plugin install chefs-table@chefs-table
+claude plugin marketplace add Soffritto-Technologies/chefs-table
+claude plugin install chefs-table@chefs-table
 ```
 
-Or from inside Claude Code:
+Or type them into the Claude Code prompt:
 
 ```
 /plugin marketplace add Soffritto-Technologies/chefs-table
 /plugin install chefs-table@chefs-table
 ```
 
-Then open your project in Claude Code and run:
+> **Install it yourself, not by asking Claude.** If you ask Claude to install it while auto mode is on, auto mode stops the install with "Untrusted Code Integration". That's auto mode working as intended: a plugin runs code on your machine, so a person should be the one who chooses to install it. When you run the commands yourself, that check never comes up.
+
+Then start a new Claude Code chat in your project and run:
 
 ```
 /chefs-table:map-app
@@ -91,7 +96,7 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
 
 **Light on your session**
 - About 120 tokens of always-on context.
-- The four hooks are plain Node: no AI calls and no network.
+- The five hooks are plain Node: no AI calls and no network.
 - They take about 0.1s even on a 50,000-file repo.
 - They never block a turn more than once, and they never break your session.
 
@@ -110,6 +115,17 @@ Environment variable `CHEFS_TABLE_GATE`:
 - `on` (default): ask before risky edits.
 - `warn`: build anyway, and mark the change "built without approval" on the map.
 - `off`: no gate. Use `warn` or `off` for headless and CI runs, where nobody can answer a prompt.
+
+## What it runs on your machine
+
+A plugin is code that runs on your computer, so here is exactly what this one does:
+
+- **Hooks:** small Node scripts run when a chat starts, around each file edit, when a helper finishes and at the end of each turn. They read your project's files. They write only to `.journeys/` and `journeys.html`, and `init` adds four lines to `.gitignore`.
+- **No network, no packages, no shell commands:** zero dependencies. The hooks never contact the internet, never start other programs and never call an AI.
+- **Map text is treated as data:** whatever the hooks pass to Claude from the map is cleaned, capped in length and labelled as data, so a booby-trapped `journeys.json` in someone else's repo can't slip instructions to Claude.
+- **Your map stays yours:** Claude publishes the live map as a private claude.ai Artifact, which only you see until you share it. `journeys.json` and `journeys.html` describe your app's flows and are committed with your code, so in a public repo they're public too.
+- **Usage:** `/chefs-table:map-app` uses helper agents, which spends your Claude usage. It stops at the budget you give it.
+- **Updates:** installing or updating pulls the latest `main` from this repo. To audit what you run, read `hooks/hooks.json` and `bin/`.
 
 ## Status
 
