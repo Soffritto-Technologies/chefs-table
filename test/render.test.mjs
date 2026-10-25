@@ -429,6 +429,134 @@ describe('buildViewModel: apps', () => {
   });
 });
 
+describe('buildViewModel: flow logic', () => {
+  /**
+   * One journey from raw steps; returns the view model.
+   *
+   * @param {object[]} steps - Steps.
+   * @param {object[]} [extra] - More journeys.
+   * @returns {object} View model.
+   */
+  function vmFor(steps, extra = []) {
+    return buildViewModel({ mode: 'canonical', doc: { version: 1, app: 'A', journeys: [journey('j', 'x', steps), ...extra] } });
+  }
+
+  it('keeps conditions on edges as a third element, accepting ids and { to, when } links', () => {
+    const vm = vmFor([
+      step('ask', [{ to: 'yes', when: 'Approved' }, 'no', { to: 'no', when: 'dup' }, { to: 'ghost', when: 'x' }, { when: 'no target' }], { kind: 'decision' }),
+      step('yes'),
+      step('no'),
+    ]);
+    assert.deepEqual(vm.journeys.j.edges, [['j/ask', 'j/yes', 'Approved'], ['j/ask', 'j/no']]);
+    assert.deepEqual(vm.journeys.j.children.map((s) => s.depth), [0, 1, 1]);
+  });
+
+  it('carries decision, outcome and background logic on step nodes', () => {
+    const vm = vmFor([
+      step('ask', ['ok', 'bad', 'quit', 'end'], { kind: 'decision' }),
+      step('ok', [], { kind: 'outcome', result: 'success' }),
+      step('bad', [], { kind: 'outcome', result: 'failure' }),
+      step('quit', [], { kind: 'outcome', result: 'abandoned' }),
+      step('end', [], { kind: 'outcome', result: 'maybe' }),
+      step('job', [], { kind: 'background', trigger: `Every hour ${'and then some more '.repeat(5)}` }),
+      step('plain', [], { kind: 'nonsense', result: 'success' }),
+    ]);
+    const [ask, ok, bad, quit, end, job, plain] = vm.journeys.j.children;
+    assert.equal(ask.stepKind, 'decision');
+    assert.deepEqual([ok, bad, quit].map((n) => [n.stepKind, n.result]), [['outcome', 'success'], ['outcome', 'failure'], ['outcome', 'abandoned']]);
+    assert.equal(end.stepKind, 'outcome');
+    assert.equal('result' in end, false);
+    assert.equal(job.stepKind, 'background');
+    assert.ok(job.trigger.startsWith('Every hour') && [...job.trigger].length <= 60);
+    assert.equal('stepKind' in plain, false);
+    assert.equal('result' in plain, false);
+  });
+
+  it('links continues only to another journey that is on the map', () => {
+    const vm = vmFor(
+      [step('a', [], { continues: 'pay' }), step('b', [], { continues: 'nowhere' }), step('c', [], { continues: 'j' })],
+      [journey('pay', 'x', [step('p')])],
+    );
+    const [a, b, c] = vm.journeys.j.children;
+    assert.equal(a.continues, 'pay');
+    assert.equal('continues' in b, false);
+    assert.equal('continues' in c, false);
+  });
+
+  it('makes up to two short rule chips and counts the rest', () => {
+    const rules = ['Card declined → the error stays on the page and nothing is charged', 'Three wrong codes cancel', 'One', 'Two', 'Three'];
+    const [many, few, none] = vmFor([step('a', [], { detail: { rules } }), step('b', [], { detail: { rules: ['Only rule'] } }), step('c')]).journeys.j.children;
+    assert.equal(many.ruleChips.length, 2);
+    assert.ok(many.ruleChips[0].endsWith('…') && [...many.ruleChips[0]].length <= 30);
+    assert.equal(many.ruleChips[1], 'Three wrong codes cancel');
+    assert.equal(many.moreRules, 3);
+    assert.deepEqual(many.detail.rules, rules);
+    assert.deepEqual(few.ruleChips, ['Only rule']);
+    assert.equal('moreRules' in few, false);
+    assert.equal('ruleChips' in none, false);
+  });
+
+  it('shows the sample decision, its conditions, every outcome kind, a continues link and a background trigger', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
+    assert.equal(stepNode(vm, 'card-payment/bank-check').stepKind, 'decision');
+    assert.ok(vm.journeys['card-payment'].edges.some((e) => e[2] === 'Card declined' || e[2] === 'Declined'));
+    const results = Object.values(vm.journeys).flatMap((j) => j.children).filter((n) => n.stepKind === 'outcome').map((n) => n.result).sort();
+    assert.deepEqual([...new Set(results)], ['abandoned', 'failure', 'success']);
+    assert.equal(stepNode(vm, 'browse/bouquet').continues, 'checkout');
+    assert.equal(stepNode(vm, 'newsletter/weekly-send').trigger, 'Every Friday at 9:00');
+  });
+});
+
+describe('buildViewModel: findings', () => {
+  const FINDINGS = [
+    { id: 'f-low', check: 'complex-journey', severity: 'low', target: 'j:checkout', message: 'Long' },
+    { id: 'f-high', check: 'dead-end', severity: 'high', target: 's:checkout/done', message: 'Stops', evidence: ['a.ts', 3, ''] },
+    { id: 'f-med', check: 'no-recovery', severity: 'medium', target: 's:checkout/pay', message: 'No retry' },
+    { id: 'f-page', check: 'orphan-page', severity: 'medium', target: 'page:/admin', message: 'Unreached' },
+    { id: 'f-sub', check: 'dead-end', severity: 'bogus', target: 's:card/bank', message: 'Sub-flow' },
+    { id: 'f-high', check: 'dup', severity: 'low', target: 'j:login', message: 'Duplicate id' },
+    { check: 'no-id', severity: 'high', target: 'j:login', message: 'Dropped' },
+  ];
+
+  it('lists findings cleaned and ordered by severity, target and id', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: smallDoc(), findings: FINDINGS });
+    assert.deepEqual(vm.findings.map((f) => [f.id, f.severity]), [['f-high', 'high'], ['f-page', 'medium'], ['f-med', 'medium'], ['f-low', 'low'], ['f-sub', 'low']]);
+    assert.deepEqual(vm.findings[0].evidence, ['a.ts']);
+  });
+
+  it('marks steps, journeys, areas and the app with counts and the strongest severity', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: smallDoc(), findings: FINDINGS });
+    assert.deepEqual([stepNode(vm, 'checkout/done').findingCount, stepNode(vm, 'checkout/done').findingSeverity], [1, 'high']);
+    assert.deepEqual([stepNode(vm, 'checkout/pay').findingCount, stepNode(vm, 'checkout/pay').findingSeverity], [1, 'medium']);
+    assert.equal('findingCount' in stepNode(vm, 'checkout/cart'), false);
+    assert.deepEqual([vm.journeys.checkout.findingCount, vm.journeys.checkout.findingSeverity], [3, 'high']);
+    const buy = vm.root.children.find((a) => a.id === 'buy');
+    assert.deepEqual([buy.findingCount, buy.findingSeverity], [3, 'high']);
+    assert.deepEqual([vm.root.findingCount, vm.root.findingSeverity], [3, 'high']);
+    assert.deepEqual([vm.journeys.card.findingCount, stepNode(vm, 'card/bank').findingSeverity], [1, 'low']);
+    assert.equal('findingCount' in vm.journeys.login, false);
+  });
+
+  it('adds nothing without findings and an empty list when given none', () => {
+    const plain = buildViewModel({ mode: 'canonical', doc: smallDoc() });
+    assert.equal('findings' in plain, false);
+    assert.equal('findingCount' in plain.root, false);
+    const empty = buildViewModel({ mode: 'canonical', doc: smallDoc(), findings: [] });
+    assert.deepEqual(empty.findings, []);
+  });
+
+  it('escapes hostile finding text and stays deterministic', () => {
+    const hostile = [{ id: 'x', check: '</script><b>', severity: 'high', target: 'page:</script><img src=x onerror=alert(1)>', message: '</script><img src=x onerror=alert(1)>', evidence: ['</script>'] }];
+    const html = renderHtml(buildViewModel({ mode: 'canonical', doc: smallDoc(), findings: hostile }), { templatePath: TEMPLATE_PATH });
+    assert.ok(!html.includes('</script><img'));
+    assert.ok(!html.includes('</script><b>'));
+    const unique = FINDINGS.slice(0, 5);
+    const a = buildViewModel({ mode: 'canonical', doc: SAMPLE, findings: unique });
+    const b = buildViewModel({ mode: 'canonical', doc: SAMPLE, findings: [...unique].reverse() });
+    assert.equal(viewModelHash(a), viewModelHash(b));
+  });
+});
+
 describe('buildViewModel: depth', () => {
   it('uses the longest path from entry steps, across a branch', () => {
     const doc = {
@@ -474,7 +602,8 @@ describe('buildViewModel: depth', () => {
 
   it('computes depths for the sample card payment loop', () => {
     const vm = buildViewModel({ mode: 'canonical', doc: SAMPLE });
-    assert.deepEqual(vm.journeys['card-payment'].children.map((s) => s.depth), [0, 1, 2]);
+    const depths = Object.fromEntries(vm.journeys['card-payment'].children.map((s) => [s.id.split('/')[1], s.depth]));
+    assert.deepEqual(depths, { 'card-details': 0, 'bank-check': 1, declined: 2, paid: 2, 'gave-up': 3 });
   });
 });
 
@@ -819,6 +948,18 @@ describe('templates/journeys.html', () => {
     assert.ok(script.includes("'#' + (app ? 'app=' + encodeURIComponent(app) : '') + '/'"));
     assert.ok(script.includes("'class': 'appbadge ak-' + kindOf(app)"));
     for (const kind of ['web', 'desktop', 'mobile', 'server', 'agent']) assert.ok(template.includes(`.ak-${kind} {`));
+  });
+
+  it('draws decisions, outcomes, conditions and chips, and has a findings layer', () => {
+    assert.ok(script.includes("if (step.stepKind === 'decision') {"));
+    assert.ok(script.includes("'class': 'res-badge res-' + res"));
+    assert.ok(script.includes('function drawConditions(layer, placed, edge, mid, maxW)'));
+    assert.ok(script.includes("cls: 'chip-continue'"));
+    assert.ok(script.includes("icon: 'clock'"));
+    assert.match(template, /<button id="jm-findings-toggle" class="ftoggle" type="button" aria-pressed="false" aria-controls="jm-findings" hidden><\/button>/);
+    assert.match(template, /<aside id="jm-findings" class="fpanel" aria-label="Findings" hidden>/);
+    assert.match(template, /<button id="jm-findings-close" class="fpanel-close" type="button" aria-label="Hide findings">/);
+    assert.ok(script.includes("h('p', { 'class': 'fmsg' }, txt(finding.message))"));
   });
 
   it('has the empty-state message, focusable nodes and reduced-motion support', () => {

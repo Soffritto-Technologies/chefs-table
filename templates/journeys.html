@@ -45,6 +45,11 @@
   --app-mobile: #2d7586; --app-mobile-soft: #e8f2f4;
   --app-server: #7a6347; --app-server-soft: #f5f0e8;
   --app-agent: #86567f; --app-agent-soft: #f6eef4;
+  --ok: #0f766e; --ok-soft: #dff2ef;
+  --fail: #be123c; --fail-soft: #fde7ec;
+  --gaveup: #5f6b7d; --gaveup-soft: #edf0f4;
+  --on-res: #ffffff;
+  --finding: #1c1f24;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -84,6 +89,11 @@
     --app-mobile: #8fc7d3; --app-mobile-soft: #1a2b30;
     --app-server: #d5bd97; --app-server-soft: #2d271e;
     --app-agent: #dcaad5; --app-agent-soft: #2f2230;
+    --ok: #5cc5b7; --ok-soft: #12302c;
+    --fail: #fb7192; --fail-soft: #3a1621;
+    --gaveup: #a7b2c3; --gaveup-soft: #242a33;
+    --on-res: #0c1311;
+    --finding: #e9eaec;
   }
 }
 
@@ -178,6 +188,7 @@ svg .appbadge text { fill: var(--ak); font-size: 10.5px; font-weight: 600; }
 .stat-removed { --sc: var(--broken); }
 .stat-conflict { --sc: var(--conflict); }
 .view-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
+.canvas-box { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
 .view { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: auto; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.4px); background-size: 22px 22px; }
 .view > svg { display: block; }
 
@@ -316,6 +327,75 @@ svg text { font-family: var(--font); }
 .arrow { fill: var(--line-strong); }
 .arrow-new { fill: var(--new); }
 
+/* Flow logic: decisions, outcomes, conditions, chips (outcome colours sit apart from change states) */
+.res-success { --rc: var(--ok); --rs: var(--ok-soft); }
+.res-failure { --rc: var(--fail); --rs: var(--fail-soft); }
+.res-abandoned, .res-end { --rc: var(--gaveup); --rs: var(--gaveup-soft); }
+.res-badge circle { fill: var(--rc); }
+.res-badge path { fill: none; stroke: var(--on-res); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chip rect { fill: var(--surface-2); stroke: var(--line); }
+.chip text { font-size: 11px; font-weight: 500; fill: var(--ink-2); }
+.chip path { fill: none; stroke: var(--ink-2); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.chip-more rect { fill: transparent; stroke: transparent; }
+.chip-more text { fill: var(--muted); }
+.chip-trigger rect { fill: var(--accent-soft); stroke: transparent; }
+.chip-trigger text { fill: var(--accent-ink); font-weight: 600; }
+.chip-trigger path { stroke: var(--accent-ink); }
+.chip-continue { cursor: pointer; }
+.chip-continue rect { fill: var(--surface); stroke: var(--accent); }
+.chip-continue text { fill: var(--accent-ink); font-weight: 600; }
+.chip-continue path { stroke: var(--accent-ink); }
+.chip-continue:hover rect { fill: var(--accent-soft); }
+.chip-result rect { fill: var(--rs); stroke: transparent; }
+.chip-result text { fill: var(--rc); font-weight: 650; }
+.chip-result path { stroke: var(--rc); stroke-width: 1.7; }
+.cond rect { fill: var(--surface); stroke: var(--line-strong); }
+.cond text { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
+.lchip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; }
+.lchip.kind-decision { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.lchip.kind-trigger { color: var(--accent-ink); background: var(--accent-soft); }
+.lchip[class*="res-"] { color: var(--rc); background: var(--rs); }
+.card-logic { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.ico { width: 12px; height: 12px; flex: none; }
+.ico path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Findings: neutral ink badges (filled = high, outlined = medium, faint = low) and the side list */
+.fbadge rect { fill: var(--finding); }
+.fbadge path { fill: none; stroke: var(--surface); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.fbadge text { fill: var(--surface); font-size: 11px; font-weight: 700; }
+.fbadge.sev-medium rect { fill: var(--surface); stroke: var(--finding); stroke-width: 1.5; }
+.fbadge.sev-medium path { stroke: var(--finding); }
+.fbadge.sev-medium text { fill: var(--finding); }
+.fbadge.sev-low rect { fill: var(--surface); stroke: var(--line-strong); stroke-dasharray: 2 2; }
+.fbadge.sev-low path { stroke: var(--muted); }
+.fbadge.sev-low text { fill: var(--muted); }
+.fpill { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; font-size: 11px; font-weight: 700; border-radius: 4px; white-space: nowrap; }
+.fpill.sev-high { color: var(--surface); background: var(--finding); }
+.fpill.sev-medium { color: var(--finding); background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--finding); }
+.fpill.sev-low { color: var(--muted); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.tile-fbadge { position: absolute; top: -10px; right: 12px; }
+.ftoggle { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.ftoggle[hidden] { display: none; }
+.ftoggle[aria-pressed="true"] { color: var(--surface); background: var(--finding); border-color: var(--finding); }
+.ftoggle:disabled { cursor: default; opacity: .6; }
+.fpanel { flex: none; width: 340px; overflow: auto; background: var(--surface); border-left: 1px solid var(--line); }
+.fpanel[hidden] { display: none; }
+.fpanel-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.fpanel-head h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.fpanel-close { width: 32px; height: 32px; font-size: 18px; color: var(--ink-2); background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
+.fpanel-close:hover { background: var(--surface-2); }
+.fpanel-list { padding-bottom: 16px; }
+.fgroup { margin: 14px 16px 6px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.flist { display: grid; gap: 8px; margin: 0; padding: 0 10px; list-style: none; }
+.card-findings { padding: 0; }
+.fitem { padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.fitem-top { display: flex; align-items: center; gap: 8px; }
+.fcheck { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.fmsg { margin: 6px 0; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.flink { max-width: 100%; padding: 5px 10px; font-size: 12.5px; font-weight: 600; text-align: left; color: var(--accent-ink); background: var(--accent-soft); border: 0; border-radius: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.fevidence { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.fempty { padding: 16px; }
+
 /* Grid of tiles (levels with more than 24 items) */
 .grid-wrap { padding: 20px 22px 48px; }
 .grid-head { margin: 6px 2px 10px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -425,7 +505,8 @@ svg text { font-family: var(--font); }
 @media (max-width: 640px) {
   body { height: auto; min-height: 100dvh; }
   .stage { flex: none; }
-  .view-wrap { flex: none; height: 68vh; min-height: 400px; }
+  .view-wrap { flex: none; flex-direction: column; height: 68vh; min-height: 400px; }
+  .fpanel { width: auto; max-height: 45%; border-left: 0; border-top: 1px solid var(--line); }
   .top, .banners, .crumbs { padding-left: 14px; padding-right: 14px; }
   .stage { margin: 10px 10px 0; border-radius: 14px; }
   .hint { padding: 8px 14px 12px; }
@@ -451,6 +532,7 @@ svg text { font-family: var(--font); }
     <span id="jm-mode" class="mode mode-canonical">Saved map</span>
   </div>
   <div id="jm-apps" class="appfilter" role="group" aria-label="Show journeys in" hidden></div>
+  <button id="jm-findings-toggle" class="ftoggle" type="button" aria-pressed="false" aria-controls="jm-findings" hidden></button>
   <div id="jm-chips" class="chips"></div>
 </header>
 <section id="jm-banners" class="banners" aria-label="Notices"></section>
@@ -465,6 +547,7 @@ svg text { font-family: var(--font); }
     </div>
   </div>
   <div class="view-wrap">
+   <div class="canvas-box">
     <div id="jm-view" class="view" role="region" aria-label="Map" aria-description="Drag or scroll to move around. Hold Command or Control and scroll, or pinch, to zoom; the plus and minus keys zoom too, and 0 fits the map to the screen. Double-click or press Enter to open something, Escape to go up. Keep zooming in on something to open it, or keep zooming out to go up a level."></div>
     <div id="jm-zoomhint" class="zoomhint" aria-live="polite" hidden>
       <span id="jm-zoomhint-text" class="zoomhint-text"></span>
@@ -476,6 +559,11 @@ svg text { font-family: var(--font); }
       <button id="jm-zoom-in" type="button" aria-label="Zoom in" title="Zoom in (+)">+</button>
       <button id="jm-zoom-fit" class="fit" type="button" aria-label="Fit to screen" title="Fit to screen (0)">Fit</button>
     </div>
+   </div>
+    <aside id="jm-findings" class="fpanel" aria-label="Findings" hidden>
+      <div class="fpanel-head"><h2>Findings</h2><button id="jm-findings-close" class="fpanel-close" type="button" aria-label="Hide findings">&#215;</button></div>
+      <div id="jm-findings-list" class="fpanel-list"></div>
+    </aside>
   </div>
   <aside id="jm-legend" class="legend" aria-label="Key" hidden>
     <span class="legend-title" aria-hidden="true">Key</span>
@@ -503,7 +591,8 @@ svg text { font-family: var(--font); }
     meta: '400 11.5px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono'),
     hub: '600 15px ' + FAMILY,
     tag: '600 11px ' + FAMILY,
-    badge: '600 10.5px ' + FAMILY
+    badge: '600 10.5px ' + FAMILY,
+    chip: '500 11px ' + FAMILY
   };
   var KIND_LABEL = { app: 'Your app', area: 'Area', journey: 'Journey', step: 'Step' };
   var APP_ICONS = {
@@ -547,6 +636,9 @@ svg text { font-family: var(--font); }
   var appsById = new Map(vm && Array.isArray(vm.apps) ? vm.apps.map(function (app) { return [app.id, app]; }) : []);
   var appFilter = '';
   var visible = new Map();
+  var findings = vm && Array.isArray(vm.findings) ? vm.findings : null;
+  var findingsOn = false;
+  var stepIndexCache = null;
   var current = null;
   var lastIds = null;
   var pendingOrigin = null;
@@ -764,6 +856,11 @@ svg text { font-family: var(--font); }
 
   function extraCues(node) {
     var cues = [];
+    if (node.stepKind === 'decision') cues.push('decision');
+    if (node.stepKind === 'outcome') cues.push('ends: ' + (RESULT_TEXT[node.result] || 'here').toLowerCase());
+    if (node.trigger) cues.push('starts: ' + node.trigger);
+    if (node.continues && hasOwn(vm.journeys, node.continues)) cues.push('continues in ' + vm.journeys[node.continues].title);
+    if (findingsOn && node.findingCount) cues.push(plural(node.findingCount, 'finding', 'findings') + ', highest ' + node.findingSeverity);
     if (node.latest) cues.push('changed in the latest reply');
     if (!node.planned && node.anchor === 'unverified') cues.push('not checked against the code yet');
     return cues;
@@ -861,7 +958,52 @@ svg text { font-family: var(--font); }
   function hashOf(trail) { return hashWith(appFilter, trail); }
 
   function hashWith(app, trail) {
-    return '#' + (app ? 'app=' + encodeURIComponent(app) : '') + '/' + trail.slice(1).map(function (t) { return t.seg.t + ':' + encodeURIComponent(t.seg.id); }).join('/');
+    return segsHash(app, trail.slice(1).map(function (t) { return t.seg; }));
+  }
+
+  function segsHash(app, segs) {
+    return '#' + (app ? 'app=' + encodeURIComponent(app) : '') + '/' + segs.map(function (seg) { return seg.t + ':' + encodeURIComponent(seg.id); }).join('/');
+  }
+
+  /**
+   * Hash segments that reach a journey from the top, ignoring the app filter. A sub-flow-only
+   * journey is reached through the step that opens it.
+   */
+  function journeySegs(id, seen) {
+    seen = seen || new Set();
+    if (seen.has(id)) return null;
+    seen.add(id);
+    var found = null;
+    (function walk(node, segs) {
+      (Array.isArray(node.children) ? node.children : []).forEach(function (child) {
+        if (found) return;
+        if (child.kind === 'area') walk(child, segs.concat([{ t: 'a', id: child.id }]));
+        else if (child.kind === 'journey' && child.id === id) found = segs.concat([{ t: 'j', id: id }]);
+      });
+    })(vm.root, []);
+    if (found) return found;
+    var keys = Object.keys(vm.journeys);
+    for (var i = 0; i < keys.length; i++) {
+      var parent = vm.journeys[keys[i]];
+      var opener = (Array.isArray(parent.children) ? parent.children : []).find(function (st) { return st.subflow === id; });
+      if (!opener || parent.id === id) continue;
+      var base = journeySegs(parent.id, seen);
+      if (base) return base.concat([{ t: 's', id: opener.id.slice(parent.id.length + 1) }, { t: 'j', id: id }]);
+    }
+    return null;
+  }
+
+  /** Opens a path; the app filter is kept unless it would hide the journey. */
+  function goToSegs(segs) {
+    var first = segs.find(function (seg) { return seg.t === 'j'; });
+    var node = first && hasOwn(vm.journeys, first.id) ? vm.journeys[first.id] : null;
+    var app = appFilter && node && (node.apps || []).indexOf(appFilter) < 0 ? '' : appFilter;
+    location.hash = segsHash(app, segs);
+  }
+
+  function goToJourney(id) {
+    var segs = journeySegs(id);
+    if (segs) goToSegs(segs);
   }
 
   function originOf(el) {
@@ -1501,6 +1643,7 @@ svg text { font-family: var(--font); }
     }
     if (node.kind === 'journey') drawAppBadges(g, node, y + 3);
     drawTags(g, tagsOf(node), 0, -L.r - 13, 'middle');
+    drawFindingBadge(g, node, L.r * 0.8, -L.r * 0.8, 'middle');
     var open = function (el) { openChild(trail, node, el || g); };
     var corner = L.r * (node.kind === 'area' ? 0.84 : 0.7071);
     g.appendChild(openButton(corner, corner, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
@@ -1550,6 +1693,9 @@ svg text { font-family: var(--font); }
     openEl.addEventListener('click', function (event) { event.stopPropagation(); open(tile); });
     openEl.addEventListener('dblclick', function (event) { event.stopPropagation(); });
     addKids(tile, [h('span', { 'class': 'mark', 'aria-hidden': 'true' }, txt(count)), body, openEl]);
+    if (findingsOn && node.findingCount) {
+      tile.appendChild(h('span', { 'class': 'fpill tile-fbadge sev-' + sevClass(node.findingSeverity), 'aria-hidden': 'true' }, svgIcon('flag'), txt(node.findingCount)));
+    }
     bindNode(tile, open, node);
     return tile;
   }
@@ -1592,33 +1738,156 @@ svg text { font-family: var(--font); }
       s('path', { 'class': cls, d: 'M0 0 L10 5 L0 10 z' }));
   }
 
+  var RESULT_TEXT = { success: 'Success', failure: 'Failure', abandoned: 'Gave up' };
+  var ICON = {
+    success: 'M3 6.2l2 2l4-4.4',
+    failure: 'M3.6 3.6l4.8 4.8M8.4 3.6l-4.8 4.8',
+    abandoned: 'M3 6h6',
+    end: 'M3.8 3.8h4.4v4.4h-4.4z',
+    clock: 'M6 1.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9zM6 3.6V6l1.7 1.1',
+    flag: 'M2.5 10.5V1.5M2.5 2h6l-1.3 2.2l1.3 2.2h-6',
+    arrow: 'M2 6h7.5M6.5 3l3 3l-3 3'
+  };
+
+  function svgIcon(name) {
+    return s('svg', { 'class': 'ico', viewBox: '0 0 12 12', 'aria-hidden': 'true' }, s('path', { d: ICON[name] }));
+  }
+
+  /** Left and right text insets of a step box: decisions are pointed hexagons, outcomes carry an end marker. */
+  function insetOf(step) {
+    if (step.stepKind === 'decision') return { left: 24, right: 24 };
+    if (step.stepKind === 'outcome') return { left: 42, right: 18 };
+    return { left: 14, right: 18 };
+  }
+
   /** Narrowest step-box width (from a small set) at which every label fits in two lines of whole words. */
   function stepBoxWidth(steps) {
     var widths = [208, 224, 240, 256, 272, 288, 304];
     for (var i = 0; i < widths.length; i++) {
-      var inner = widths[i] - 30;
-      if (steps.every(function (step) { return fitsWhole(step.title, inner, 2, FONTS.title); })) return widths[i];
+      var width = widths[i];
+      if (steps.every(function (step) { var ins = insetOf(step); return fitsWhole(step.title, width - ins.left - ins.right, 2, FONTS.title); })) return width;
     }
     return widths[widths.length - 1];
   }
 
+  /** Extra rows a step box shows under its label, in order. */
+  function stepRows(step) {
+    var rows = [];
+    if (step.stepKind === 'outcome') rows.push('result');
+    if (step.trigger) rows.push('trigger');
+    if (step.ruleChips && step.ruleChips.length) rows.push('rules');
+    if (step.continues && hasOwn(vm.journeys, step.continues)) rows.push('continues');
+    return rows;
+  }
+
+  function stepShape(step, cls, BW, BH, grow) {
+    var x = -grow, y = -grow, w = BW + grow * 2, hh = BH + grow * 2;
+    if (step.stepKind === 'decision') {
+      var p = 16;
+      return s('path', { 'class': cls, d: pathData(['M', x + p, y, 'H', x + w - p, 'L', x + w, y + hh / 2, 'L', x + w - p, y + hh, 'H', x + p, 'L', x, y + hh / 2, 'Z']) });
+    }
+    return s('rect', { 'class': cls, x: x, y: y, width: w, height: hh, rx: (step.stepKind === 'outcome' ? 26 : 12) + grow });
+  }
+
+  /** Lays chips left to right on one row, shortening each to the room that is left. */
+  function drawChipRow(g, chips, x, y, maxW) {
+    var cursor = x;
+    chips.forEach(function (chip) {
+      var room = Math.min(x + maxW - cursor, chip.maxW || Infinity);
+      if (room < 40) return;
+      var iconW = chip.icon ? 15 : 0;
+      var label = wrapText(chip.text, room - 14 - iconW, 1, FONTS.chip)[0] || '';
+      var w = Math.min(room, Math.ceil(measure(label, FONTS.chip)) + 14 + iconW);
+      var el = s('g', { 'class': 'chip ' + chip.cls, transform: 'translate(' + round(cursor) + ' ' + round(y) + ')' });
+      if (chip.title) el.appendChild(s('title', {}, txt(chip.title)));
+      el.appendChild(s('rect', { width: round(w), height: 20, rx: 6 }));
+      if (chip.icon) el.appendChild(s('path', { d: ICON[chip.icon], transform: 'translate(6 4)' }));
+      el.appendChild(s('text', { x: 7 + iconW, y: 14 }, txt(label)));
+      if (chip.onOpen) {
+        el.addEventListener('click', function (event) { event.stopPropagation(); chip.onOpen(); });
+        el.addEventListener('dblclick', function (event) { event.stopPropagation(); });
+      }
+      g.appendChild(el);
+      cursor += w + 5;
+    });
+  }
+
+  /**
+   * Rule chips that fit one row: each chip leaves room for a "+N rules" chip counting every rule
+   * not shown, so the count never disappears in a narrow box.
+   */
+  function ruleChips(step, roomW) {
+    var rules = (step.detail && step.detail.rules) || [];
+    var total = step.ruleChips.length + (step.moreRules || 0);
+    var more = function (n) { return { text: '+' + plural(n, 'rule', 'rules'), cls: 'chip-more', title: 'Open the step to see every rule' }; };
+    var moreW = function (n) { return n > 0 ? Math.ceil(measure(more(n).text, FONTS.chip)) + 19 : 0; };
+    var chips = [];
+    var left = roomW;
+    step.ruleChips.forEach(function (chip, i) {
+      if (chips.length < i) return;
+      var room = left - moreW(total - i - 1);
+      if (room < 64) return;
+      var w = Math.min(room, Math.ceil(measure(chip, FONTS.chip)) + 14);
+      chips.push({ text: chip, cls: 'chip-rule', title: rules[i] || chip, maxW: room });
+      left -= w + 5;
+    });
+    if (total > chips.length) chips.push(more(total - chips.length));
+    return chips;
+  }
+
+  function sevClass(severity) { return severity === 'high' || severity === 'medium' ? severity : 'low'; }
+
+  /** Findings badge (flag + count), shown only while the findings layer is on. */
+  function drawFindingBadge(g, node, x, y, align) {
+    if (!findingsOn || !node.findingCount) return;
+    var label = String(node.findingCount);
+    var w = Math.ceil(measure(label, FONTS.badge)) + 25;
+    var left = align === 'end' ? x - w : align === 'middle' ? x - w / 2 : x;
+    g.appendChild(s('g', { 'class': 'fbadge sev-' + sevClass(node.findingSeverity), transform: 'translate(' + round(left) + ' ' + round(y - 9) + ')', 'aria-hidden': 'true' },
+      s('rect', { width: w, height: 18, rx: 4 }),
+      s('path', { d: ICON.flag, transform: 'translate(5 3)' }),
+      s('text', { x: 18, y: 13 }, txt(label))));
+  }
+
   function drawStepBox(trail, step, p, BW, BH) {
     var g = s('g', {
-      'class': nodeClass(step), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
+      'class': nodeClass(step) + (step.stepKind ? ' sk-' + step.stepKind : ''), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
       tabindex: '0', role: 'button', 'aria-label': ariaOf(step), 'data-id': step.id
     });
     g.appendChild(s('title', {}, txt(tooltipOf(step))));
-    g.appendChild(s('rect', { 'class': 'focus-ring', x: -9, y: -9, width: BW + 18, height: BH + 18, rx: 19 }));
-    g.appendChild(s('rect', { 'class': 'halo', x: -5, y: -5, width: BW + 10, height: BH + 10, rx: 16 }));
-    g.appendChild(s('rect', { 'class': 'shape', width: BW, height: BH, rx: 12 }));
-    drawLines(g, wrapText(step.title, BW - 30, 2, FONTS.title), {
-      x: 14, y: 28, lineHeight: 18, cls: 'title on-shape', anchor: 'start', font: FONTS.title, struck: step.state === 'removed'
+    g.appendChild(stepShape(step, 'focus-ring', BW, BH, 9));
+    g.appendChild(stepShape(step, 'halo', BW, BH, 5));
+    g.appendChild(stepShape(step, 'shape', BW, BH, 0));
+    var ins = insetOf(step);
+    var roomW = BW - ins.left - ins.right;
+    if (step.stepKind === 'outcome') {
+      var res = hasOwn(RESULT_TEXT, step.result) ? step.result : 'end';
+      g.appendChild(s('g', { 'class': 'res-badge res-' + res, transform: 'translate(10 13)', 'aria-hidden': 'true' },
+        s('circle', { cx: 11, cy: 11, r: 11 }), s('path', { d: ICON[res], transform: 'translate(5 5)' })));
+    }
+    drawLines(g, wrapText(step.title, roomW, 2, FONTS.title), {
+      x: ins.left, y: 28, lineHeight: 18, cls: 'title on-shape', anchor: 'start', font: FONTS.title, struck: step.state === 'removed'
     });
-    var metaWidth = BW - 28 - (step.subflow ? 78 : 0);
+    stepRows(step).forEach(function (row, i) {
+      var y = 56 + i * 24;
+      if (row === 'result') {
+        var res = hasOwn(RESULT_TEXT, step.result) ? step.result : 'end';
+        drawChipRow(g, [{ text: RESULT_TEXT[step.result] || 'Ends here', cls: 'chip-result res-' + res, icon: res }], ins.left, y, roomW);
+      } else if (row === 'trigger') {
+        drawChipRow(g, [{ text: step.trigger, cls: 'chip-trigger', icon: 'clock', title: 'Starts: ' + step.trigger }], ins.left, y, roomW);
+      } else if (row === 'rules') {
+        drawChipRow(g, ruleChips(step, roomW), ins.left, y, roomW);
+      } else if (row === 'continues') {
+        var target = vm.journeys[step.continues];
+        drawChipRow(g, [{ text: 'Continues in ' + target.title, cls: 'chip-continue', icon: 'arrow', title: 'Continues in ' + target.title, onOpen: function () { goToJourney(step.continues); } }], ins.left, y, roomW);
+      }
+    });
+    var metaWidth = BW - ins.left - ins.right - (step.subflow ? 78 : 0);
     var meta = step.screen ? wrapText(step.screen, metaWidth, 1, FONTS.meta)[0] : 'No screen';
-    g.appendChild(s('text', { 'class': step.screen ? 'meta' : 'meta none', x: 14, y: BH - 13 }, txt(meta)));
+    g.appendChild(s('text', { 'class': step.screen ? 'meta' : 'meta none', x: ins.left, y: BH - 13 }, txt(meta)));
     if (step.subflow) g.appendChild(s('text', { 'class': 'subflow-ind', x: BW - 16, y: BH - 13, 'text-anchor': 'end' }, txt('⤷ Sub-flow')));
-    drawTags(g, tagsOf(step), 12, 0, 'start');
+    drawTags(g, tagsOf(step), ins.left - 2, 0, 'start');
+    drawFindingBadge(g, step, BW - 10, 0, 'end');
     var open = function (el) { openChild(trail, step, el || g); };
     g.appendChild(openButton(BW, BH / 2, function () { open(g); }));
     bindNode(g, open, step);
@@ -1629,9 +1898,15 @@ svg text { font-family: var(--font); }
     return parts.map(function (part) { return typeof part === 'number' ? round(part) : part; }).join(' ');
   }
 
+  /** Middle (t = 0.5) of a cubic Bézier, where an edge's condition pill sits. */
+  function bezierMid(p) {
+    return { x: (p[0] + 3 * p[2] + 3 * p[4] + p[6]) / 8, y: (p[1] + 3 * p[3] + 3 * p[5] + p[7]) / 8 };
+  }
+
   /**
-   * Path for one edge. Neighbouring columns get an S-curve. Edges that skip columns or loop
-   * back go round every box in the columns they span: above or below, whichever side both ends are free on.
+   * Path for one edge, plus the point for its condition pill. Neighbouring columns get an S-curve.
+   * Edges that skip columns or loop back go round every box in the columns they span: above or
+   * below, whichever side both ends are free on.
    */
   function edgePath(a, b, geo) {
     var BW = geo.BW, BH = geo.BH;
@@ -1642,25 +1917,45 @@ svg text { font-family: var(--font); }
     var isBottom = function (p) { return p.y + BH >= geo.colBottom[p.col] - 0.5; };
     var bothTop = isTop(a) && isTop(b);
     var bothBottom = isBottom(a) && isBottom(b);
+    var c;
     if (b.col === a.col + 1) {
       var x1 = a.x + BW + 11, y1 = a.y + BH / 2, x2 = b.x - 3, y2 = b.y + BH / 2, mx = (x1 + x2) / 2;
-      return pathData(['M', x1, y1, 'C', mx, y1, mx, y2, x2, y2]);
+      c = [x1, y1, mx, y1, mx, y2, x2, y2];
+      return { d: pathData(['M', c[0], c[1], 'C', c[2], c[3], c[4], c[5], c[6], c[7]]), mid: bezierMid(c) };
     }
     if (b.col > a.col) {
       var sx = a.x + BW - 46, ex = b.x - 3;
       if (bothTop || !bothBottom) {
         var upY = b.y + 22, upC = top - geo.ARC;
-        return pathData(['M', sx, a.y, 'C', sx, upC, ex - 64, upC, ex - 64, upY - 30, 'S', ex - 24, upY, ex, upY]);
+        c = [sx, a.y, sx, upC, ex - 64, upC, ex - 64, upY - 30];
+        return { d: pathData(['M', c[0], c[1], 'C', c[2], c[3], c[4], c[5], c[6], c[7], 'S', ex - 24, upY, ex, upY]), mid: bezierMid(c) };
       }
       var downY = b.y + BH - 22, downC = bottom + geo.ARC;
-      return pathData(['M', sx, a.y + BH, 'C', sx, downC, ex - 64, downC, ex - 64, downY + 30, 'S', ex - 24, downY, ex, downY]);
+      c = [sx, a.y + BH, sx, downC, ex - 64, downC, ex - 64, downY + 30];
+      return { d: pathData(['M', c[0], c[1], 'C', c[2], c[3], c[4], c[5], c[6], c[7], 'S', ex - 24, downY, ex, downY]), mid: bezierMid(c) };
     }
     if (bothBottom || !bothTop) {
       var dip = bottom + geo.LOOP;
-      return pathData(['M', a.x + BW * 0.62, a.y + BH, 'C', a.x + BW * 0.62, dip, b.x + BW * 0.38, dip, b.x + BW * 0.38, b.y + BH + 3]);
+      c = [a.x + BW * 0.62, a.y + BH, a.x + BW * 0.62, dip, b.x + BW * 0.38, dip, b.x + BW * 0.38, b.y + BH + 3];
+    } else {
+      var peak = top - geo.LOOP;
+      c = [a.x + BW - 64, a.y, a.x + BW - 64, peak, b.x + BW - 40, peak, b.x + BW - 40, b.y - 3];
     }
-    var peak = top - geo.LOOP;
-    return pathData(['M', a.x + BW - 64, a.y, 'C', a.x + BW - 64, peak, b.x + BW - 40, peak, b.x + BW - 40, b.y - 3]);
+    return { d: pathData(['M', c[0], c[1], 'C', c[2], c[3], c[4], c[5], c[6], c[7]]), mid: bezierMid(c) };
+  }
+
+  /** Condition pills: centred on their edge, nudged up or down until they no longer overlap one another. */
+  function drawConditions(layer, placed, edge, mid, maxW) {
+    var label = wrapText(edge[2], maxW - 16, 1, FONTS.chip)[0] || '';
+    var w = Math.ceil(measure(label, FONTS.chip)) + 16;
+    var box = { x: mid.x - w / 2, y: mid.y - 9, w: w, h: 18 };
+    var hits = function (r) { return r.x < box.x + box.w + 4 && box.x < r.x + r.w + 4 && r.y < box.y + box.h + 3 && box.y < r.y + r.h + 3; };
+    for (var tries = 1; tries < 9 && placed.some(hits); tries++) box.y = mid.y - 9 + (tries % 2 ? 1 : -1) * 22 * Math.ceil(tries / 2);
+    placed.push(box);
+    layer.appendChild(s('g', { 'class': 'cond', transform: 'translate(' + round(box.x) + ' ' + round(box.y) + ')' },
+      s('title', {}, txt('If ' + edge[2])),
+      s('rect', { width: w, height: 18, rx: 9 }),
+      s('text', { x: w / 2, y: 12.5, 'text-anchor': 'middle' }, txt(label))));
   }
 
   function drawFlow(trail) {
@@ -1670,7 +1965,10 @@ svg text { font-family: var(--font); }
       view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt('This journey has no steps yet.'))));
       return;
     }
-    var BW = stepBoxWidth(steps), BH = 80, CG = 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
+    var edgeList = Array.isArray(journey.edges) ? journey.edges : [];
+    var pillW = edgeList.reduce(function (m, e) { return e[2] ? Math.max(m, Math.ceil(measure(e[2], FONTS.chip)) + 16) : m; }, 0);
+    var extraRows = Math.max.apply(null, steps.map(function (step) { return stepRows(step).length; }));
+    var BW = stepBoxWidth(steps), BH = 80 + 24 * extraRows, CG = pillW ? clamp(pillW + 30, 76, 200) : 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
     var byDepth = [];
     steps.forEach(function (step) {
       var d = Number.isInteger(step.depth) && step.depth >= 0 ? step.depth : 0;
@@ -1680,14 +1978,12 @@ svg text { font-family: var(--font); }
     var rows = Math.max.apply(null, cols.map(function (col) { return col.length; }));
     var W = PAD * 2 + cols.length * BW + (cols.length - 1) * CG;
     var H = PAD * 2 + rows * BH + (rows - 1) * RG + LOOP;
-    var ox = PAD;
-    var oy = PAD;
     var pos = new Map();
     var byId = new Map();
     cols.forEach(function (col, c) {
-      var top = oy + ((rows - col.length) * (BH + RG)) / 2;
+      var top = PAD + ((rows - col.length) * (BH + RG)) / 2;
       col.forEach(function (step, r) {
-        pos.set(step.id, { x: ox + c * (BW + CG), y: top + r * (BH + RG), col: c });
+        pos.set(step.id, { x: PAD + c * (BW + CG), y: top + r * (BH + RG), col: c });
         byId.set(step.id, step);
       });
     });
@@ -1701,7 +1997,9 @@ svg text { font-family: var(--font); }
       colBottom: cols.map(function (col) { return pos.get(last(col).id).y + BH; })
     };
     var edges = s('g', { 'class': 'edges', 'aria-hidden': 'true' });
-    (Array.isArray(journey.edges) ? journey.edges : []).forEach(function (edge) {
+    var conds = s('g', { 'class': 'conds', 'aria-hidden': 'true' });
+    var placed = [];
+    edgeList.forEach(function (edge) {
       var a = pos.get(edge[0]);
       var b = pos.get(edge[1]);
       if (!a || !b) return;
@@ -1712,13 +2010,15 @@ svg text { font-family: var(--font); }
       if (b.col <= a.col) cls += ' edge-back';
       if (isNew) cls += ' edge-new';
       if (source.state === 'removed' || target.state === 'removed') cls += ' edge-removed';
-      edges.appendChild(s('path', { 'class': cls, d: edgePath(a, b, geo), 'marker-end': isNew ? 'url(#jm-arrow-new)' : 'url(#jm-arrow)' }));
+      var route = edgePath(a, b, geo);
+      edges.appendChild(s('path', { 'class': cls, d: route.d, 'marker-end': isNew ? 'url(#jm-arrow-new)' : 'url(#jm-arrow)' }));
+      if (edge[2]) drawConditions(conds, placed, edge, route.mid, b.col === a.col + 1 ? CG - 10 : 220);
     });
     var nodes = s('g', { 'class': 'nodes' });
     cols.forEach(function (col) {
       col.forEach(function (step) { nodes.appendChild(drawStepBox(trail, step, pos.get(step.id), BW, BH)); });
     });
-    addKids(world, [edges, nodes]);
+    addKids(world, [edges, nodes, conds]);
     svg.appendChild(world);
     view.appendChild(svg);
     mountCanvas(world, W, H, 'flow');
@@ -1734,10 +2034,12 @@ svg text { font-family: var(--font); }
     return h.apply(null, ['ul', { 'class': cls }].concat(items.map(function (item) { return h('li', {}, txt(item)); })));
   }
 
-  function neighbourButtons(trail, steps) {
+  function neighbourButtons(trail, links) {
     var parentTrail = trail.slice(0, -1);
-    return steps.map(function (step) {
-      var btn = h('button', { 'class': 'nb', type: 'button', title: step.title }, txt(step.title));
+    return links.map(function (link) {
+      var step = link.step;
+      var label = link.when ? link.when + ' → ' + step.title : step.title;
+      var btn = h('button', { 'class': 'nb', type: 'button', title: label }, txt(label));
       btn.addEventListener('click', function () { openChild(parentTrail, step, btn); });
       return btn;
     });
@@ -1752,6 +2054,14 @@ svg text { font-family: var(--font); }
     var title = h('h2', { id: 'jm-card-title', 'class': 'card-title', tabindex: '-1' }, txt(step.title));
     card.appendChild(title);
     if (step.say && step.say !== step.title) card.appendChild(h('p', { 'class': 'card-say' }, txt(step.say)));
+    var logic = [];
+    if (step.stepKind === 'decision') logic.push(h('span', { 'class': 'lchip kind-decision' }, txt('Decision')));
+    if (step.stepKind === 'outcome') {
+      var res = hasOwn(RESULT_TEXT, step.result) ? step.result : 'end';
+      logic.push(h('span', { 'class': 'lchip res-' + res }, svgIcon(res), txt('Ends: ' + (RESULT_TEXT[step.result] || 'here'))));
+    }
+    if (step.trigger) logic.push(h('span', { 'class': 'lchip kind-trigger' }, svgIcon('clock'), txt('Starts: ' + step.trigger)));
+    if (logic.length) card.appendChild(addKids(h('div', { 'class': 'card-logic' }), logic));
     card.appendChild(h('p', { 'class': 'card-sub' }, txt('A step in '), h('strong', {}, txt(journey.title)), appBadges(journey)));
 
     var facts = h('dl', { 'class': 'facts' },
@@ -1778,8 +2088,9 @@ svg text { font-family: var(--font); }
 
     var edges = Array.isArray(journey.edges) ? journey.edges : [];
     var stepById = function (id) { return kidsOf(journey).find(function (c) { return c.id === id; }); };
-    var before = edges.filter(function (e) { return e[1] === step.id && e[0] !== step.id; }).map(function (e) { return stepById(e[0]); }).filter(Boolean);
-    var after = edges.filter(function (e) { return e[0] === step.id && e[1] !== step.id; }).map(function (e) { return stepById(e[1]); }).filter(Boolean);
+    var linkTo = function (id, when) { var other = stepById(id); return other ? { step: other, when: when || '' } : null; };
+    var before = edges.filter(function (e) { return e[1] === step.id && e[0] !== step.id; }).map(function (e) { return linkTo(e[0]); }).filter(Boolean);
+    var after = edges.filter(function (e) { return e[0] === step.id && e[1] !== step.id; }).map(function (e) { return linkTo(e[1], e[2]); }).filter(Boolean);
     if (before.length || after.length) {
       var row = h('div', { 'class': 'neighbours' });
       if (before.length) row.appendChild(addKids(h('div', { 'class': 'nb-group' }, h('span', { 'class': 'nb-label' }, txt('Before this'))), neighbourButtons(trail, before)));
@@ -1798,6 +2109,16 @@ svg text { font-family: var(--font); }
         card.appendChild(h('div', { 'class': 'subflow' }, h('p', {}, txt('This step points to a sub-flow that isn’t on the map yet.'))));
       }
     }
+
+    if (step.continues && hasOwn(vm.journeys, step.continues)) {
+      var next = vm.journeys[step.continues];
+      var go = h('button', { 'class': 'primary', type: 'button' }, txt('Continue ›'));
+      go.addEventListener('click', function () { goToJourney(step.continues); });
+      card.appendChild(h('div', { 'class': 'subflow' }, h('p', {}, txt('This step continues in '), h('strong', {}, txt(next.title))), go));
+    }
+
+    var own = findingsOn && findings ? findings.filter(function (f) { return f.target === 's:' + step.id; }) : [];
+    if (own.length) card.appendChild(section('Findings', addKids(h('ul', { 'class': 'flist card-findings' }), own.map(findingItem))));
 
     view.appendChild(h('div', { 'class': 'card-wrap' }, card));
     return title;
@@ -1825,6 +2146,7 @@ svg text { font-family: var(--font); }
     (vm.banners || []).forEach(function (text) { banners.appendChild(h('div', { 'class': 'banner', role: 'status' }, txt(text))); });
     if (session) drawLegend();
     if (appsById.size) drawAppFilter();
+    if (findings) drawFindingsToggle();
   }
 
   /** "All · <apps>" toggle buttons; the choice lives in the URL hash. */
@@ -1839,6 +2161,98 @@ svg text { font-family: var(--font); }
       box.appendChild(btn);
     });
     box.hidden = false;
+  }
+
+  var SEV_TEXT = { high: 'High', medium: 'Medium', low: 'Low' };
+  var CHECK_TEXT = {
+    'dead-end': 'Dead end', 'no-recovery': 'No way to recover', 'no-success': 'No successful ending',
+    unreachable: 'Can’t be reached', 'rules-disagree': 'Rules disagree', 'orphan-page': 'Page not on the map',
+    'orphan-feature': 'Feature not on the map', 'complex-journey': 'Complex journey', 'shared-hotspot': 'Shared hotspot',
+    'logic-heavy': 'Lots of logic in one step'
+  };
+
+  function checkText(check) {
+    if (hasOwn(CHECK_TEXT, check)) return CHECK_TEXT[check];
+    var plain = String(check || 'Finding').replace(/-/g, ' ');
+    return plain.charAt(0).toUpperCase() + plain.slice(1);
+  }
+
+  function stepIndex() {
+    if (!stepIndexCache) {
+      stepIndexCache = new Map();
+      Object.keys(vm.journeys).forEach(function (id) {
+        var journey = vm.journeys[id];
+        (Array.isArray(journey.children) ? journey.children : []).forEach(function (step) { stepIndexCache.set(step.id, { journey: journey, step: step }); });
+      });
+    }
+    return stepIndexCache;
+  }
+
+  /** Where a finding points: a title and the path to it, or just the raw target (pages, features, files). */
+  function findingTarget(target) {
+    if (target.indexOf('j:') === 0 && hasOwn(vm.journeys, target.slice(2))) {
+      var journey = vm.journeys[target.slice(2)];
+      return { label: journey.title, segs: journeySegs(journey.id) };
+    }
+    if (target.indexOf('s:') === 0 && stepIndex().has(target.slice(2))) {
+      var hit = stepIndex().get(target.slice(2));
+      var base = journeySegs(hit.journey.id);
+      return { label: hit.step.title + ' (' + hit.journey.title + ')', segs: base && base.concat([{ t: 's', id: hit.step.id.slice(hit.journey.id.length + 1) }]) };
+    }
+    return { label: target, segs: null };
+  }
+
+  function findingItem(finding) {
+    var sev = sevClass(finding.severity);
+    var where = findingTarget(finding.target);
+    var li = h('li', { 'class': 'fitem' },
+      h('div', { 'class': 'fitem-top' }, h('span', { 'class': 'fpill sev-' + sev }, svgIcon('flag'), txt(SEV_TEXT[sev])), h('span', { 'class': 'fcheck' }, txt(checkText(finding.check)))),
+      h('p', { 'class': 'fmsg' }, txt(finding.message)));
+    if (where.segs) {
+      var link = h('button', { 'class': 'flink', type: 'button' }, txt('Go to ' + where.label + ' ›'));
+      link.addEventListener('click', function () { goToSegs(where.segs); });
+      li.appendChild(h('div', { 'class': 'ftarget' }, link));
+    } else {
+      li.appendChild(h('div', { 'class': 'ftarget' }, h('code', {}, txt(where.label))));
+    }
+    var evidence = Array.isArray(finding.evidence) ? finding.evidence : [];
+    if (evidence.length) {
+      var shown = evidence.slice(0, 4).map(function (item) { return h('li', {}, txt(item)); });
+      if (evidence.length > 4) shown.push(h('li', { 'class': 'muted' }, txt('+' + (evidence.length - 4) + ' more')));
+      li.appendChild(addKids(h('ul', { 'class': 'fevidence' }), shown));
+    }
+    return li;
+  }
+
+  /** "Findings (n)" toggle: badges on the map plus a side list grouped by severity. On by default when there are any, except on small screens. */
+  function drawFindingsToggle() {
+    var btn = document.getElementById('jm-findings-toggle');
+    btn.replaceChildren(svgIcon('flag'), txt('Findings (' + findings.length + ')'));
+    btn.disabled = !findings.length;
+    btn.hidden = false;
+    btn.addEventListener('click', function () { setFindings(!findingsOn); });
+    document.getElementById('jm-findings-close').addEventListener('click', function () { setFindings(false); });
+    var list = document.getElementById('jm-findings-list');
+    if (!findings.length) list.appendChild(h('p', { 'class': 'muted fempty' }, txt('No findings. The map looks healthy.')));
+    ['high', 'medium', 'low'].forEach(function (sev) {
+      var items = findings.filter(function (f) { return sevClass(f.severity) === sev; });
+      if (!items.length) return;
+      list.appendChild(h('h3', { 'class': 'fgroup' }, txt(SEV_TEXT[sev] + ' · ' + items.length)));
+      list.appendChild(addKids(h('ul', { 'class': 'flist' }), items.map(findingItem)));
+    });
+    findingsOn = findings.length > 0 && window.innerWidth >= 720;
+    syncFindings();
+  }
+
+  function setFindings(on) {
+    findingsOn = on;
+    syncFindings();
+    if (current) render();
+  }
+
+  function syncFindings() {
+    document.getElementById('jm-findings-toggle').setAttribute('aria-pressed', String(findingsOn));
+    document.getElementById('jm-findings').hidden = !findingsOn;
   }
 
   function syncAppFilter() {

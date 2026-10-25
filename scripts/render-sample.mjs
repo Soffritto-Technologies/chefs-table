@@ -76,7 +76,7 @@ const WALLET_STEP = {
   label: 'Pay with a phone wallet',
   screen: '/checkout/pay',
   anchor: { type: 'file', value: 'src/components/WalletButton.tsx' },
-  next: ['result'],
+  next: ['bank-check'],
   detail: { does: 'Taps the wallet button and confirms on their phone.', files: ['src/components/WalletButton.tsx'] },
 };
 
@@ -118,6 +118,29 @@ function anchorsFor(doc, overrides) {
   for (const journey of doc.journeys) for (const step of journey.steps) anchors[`s:${journey.id}/${step.id}`] = 'ok';
   return { ...anchors, ...overrides };
 }
+
+const FINDINGS = [
+  {
+    id: 'no-recovery:s:sign-up/expired', check: 'no-recovery', severity: 'high', target: 's:sign-up/expired',
+    message: 'When the link has expired there is no way to ask for a new one.', evidence: ['src/app/sign-up/expired/page.tsx'],
+  },
+  {
+    id: 'rules-disagree:s:checkout/delivery', check: 'rules-disagree', severity: 'high', target: 's:checkout/delivery',
+    message: 'The rule says Sundays are closed, but the delivery calendar code offers Sunday slots.', evidence: ['src/lib/delivery-slots.ts'],
+  },
+  {
+    id: 'dead-end:s:track-order/reorder', check: 'dead-end', severity: 'medium', target: 's:track-order/reorder',
+    message: 'Reordering puts a bouquet in the basket, but no step leads on to checkout.', evidence: ['src/lib/basket.ts'],
+  },
+  {
+    id: 'orphan-page:page:/studio/reports', check: 'orphan-page', severity: 'medium', target: 'page:/studio/reports',
+    message: 'The reports page exists in the code but no journey reaches it.', evidence: ['src/app/studio/reports/page.tsx'],
+  },
+  {
+    id: 'complex-journey:j:checkout', check: 'complex-journey', severity: 'low', target: 'j:checkout',
+    message: 'Checkout has six steps and a branch; gift options could be their own journey.',
+  },
+];
 
 const base = JSON.parse(readFileSync(FIXTURE, 'utf8'));
 const doc = sessionDoc(base);
@@ -165,6 +188,7 @@ const vm = buildViewModel({
   chips: ['Share link out of date'],
   planSummary: 'Add monthly flower subscriptions that people can buy as a gift',
   approval: 'pending',
+  findings: FINDINGS,
 });
 
 mkdirSync(dirname(OUTPUT), { recursive: true });
