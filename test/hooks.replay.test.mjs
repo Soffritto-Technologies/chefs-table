@@ -1759,3 +1759,59 @@ describe('multi-app repos', () => {
     assert.deepEqual(Object.keys(after.files), Object.keys(before.files));
   });
 });
+
+describe('health', () => {
+  const lonely = (count) => docOf(Array.from({ length: count }, (_, i) => journey(`j${i}`, `Journey j${i}`, [step('a', `/p${i}`, { anchor: fileAnchor('app/page.tsx') })])));
+
+  it('health prints the counts and the top ten, and stores every finding as sorted JSON', () => {
+    const project = makeProject({ doc: lonely(12) });
+    const out = run(project, 'health');
+    assert.match(out, /^FINDINGS high=12 medium=0 low=13$/m);
+    const lines = out.split('\n');
+    assert.equal(lines.filter((line) => line.startsWith('- [')).length, 10);
+    assert.match(lines[1], /^- \[high\] "Step a" in "Journey j0" has nowhere to go next and doesn't say how the path ends\. \(s:j0\/a\)$/);
+    assert.match(out, /^… 15 more in \.journeys\/findings\.json$/m);
+    const stored = project.json('.journeys/findings.json');
+    assert.equal(stored.length, 25);
+    assert.equal(stored[0].check, 'dead-end');
+    const bytes = project.read('.journeys/findings.json');
+    run(project, 'health');
+    assert.equal(project.read('.journeys/findings.json'), bytes, 'the same map gives the same file');
+  });
+
+  it('health finds nothing to complain about in a well-formed journey, and says so with zero counts', () => {
+    const good = docOf([journey('ok', 'All good', [step('a', null, { kind: 'decision', next: [{ to: 'b', when: 'Fine' }, { to: 'c', when: 'Not fine' }] }), step('b', null, { kind: 'outcome', result: 'success' }), step('c', null, { kind: 'outcome', result: 'failure', next: ['a'] })])]);
+    const out = run(makeProject({ doc: good }), 'health');
+    assert.match(out, /^FINDINGS high=0 medium=0 low=0$/m);
+  });
+
+  it('health needs a valid map', () => {
+    const project = makeProject({ doc: '{"version":1' });
+    const result = runCli(project, ['health']);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /not valid JSON/);
+  });
+
+  it('check --coverage stores findings, including pages nobody mapped', () => {
+    const project = makeProject();
+    run(project, 'chop');
+    finishWave(project, run(project, 'stir', 'next'));
+    run(project, 'check', '--coverage');
+    const targets = project.json('.journeys/findings.json').map((f) => f.target);
+    assert.ok(targets.includes('page:/legacy'), targets.join(', '));
+  });
+
+  it('the stored findings reach the drawn maps (render --canonical, build --render and the session map)', () => {
+    const project = makeProject({ doc: lonely(2) });
+    run(project, 'health');
+    assert.match(run(project, 'render', '--canonical'), /^WROTE /);
+    const canonical = extractViewModel(project.read('journeys.html'));
+    assert.ok(canonical.findings.some((f) => f.check === 'dead-end' && f.target === 's:j0/a'));
+    run(project, 'build', '--render');
+    const session = extractViewModel(project.read(`.journeys/.session/${DEFAULT_SID}/view.html`));
+    assert.equal(session.findings.length, canonical.findings.length);
+    project.remove('.journeys/findings.json');
+    run(project, 'render', '--canonical');
+    assert.deepEqual(extractViewModel(project.read('journeys.html')).findings, [], 'no stored findings, no layer');
+  });
+});

@@ -3,7 +3,7 @@ description: Draw (or resume) a live, zoomable map of this whole app's user jour
 argument-hint: "[budget, e.g. 10% of 5-hour usage, or 2M tokens]"
 ---
 
-Map this entire app for a non-technical builder in six stages, **chop → stir → check → organise → polish → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
+Map this entire app for a non-technical builder in seven stages, **chop → stir → check → organise → polish → health → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
@@ -79,20 +79,25 @@ Helpers worked on separate parts of the app, so one goal can appear as several j
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the submit command it gives, and reply with UNIT_OK or the errors.
 3. Run `journeys check --coverage`. It prints `POLISHED merged=<n> labels=<n>` and `MAP_DONE`; coverage doesn't drop, because polish keeps every code anchor.
 
-## 7. Plate
+## 7. Health (no AI, free)
+
+Run `journeys health`. It checks the finished map for dead ends, journeys that never say how they end, failures with no way back, steps nothing leads to, screens whose rules disagree, pages and features nobody mapped, and journeys or files that are doing too much. It prints `FINDINGS high=<n> medium=<n> low=<n>` and the ten most serious, and stores all of them in `.journeys/findings.json` (the map shows them as a layer). It changes nothing and uses no budget, so run it even when the budget stopped the run.
+
+## 8. Plate
 
 Run `journeys render --canonical`, then `journeys build --render`.
 - If `MAP_CHANGED <path>` is printed and the Artifact tool is available, publish that file and give the builder the link.
 - Otherwise give them the local path.
 - `journeys.html` at the project root is the clean map, meant to be committed.
 
-## 8. Report
+## 9. Report
 
 Tell the builder, in plain words:
 - coverage (the `COVERAGE` %), and the important pages and features still missing
 - which apps are on the map (each journey is tagged with the app or apps it happens in)
 - how the map was grouped (the `ORGANISED` line: areas, and how many journeys moved)
 - what polish did (the `POLISHED` line: journeys merged, step labels written)
+- what health found (the `FINDINGS` counts, and the most serious few in plain words)
 - usage spent (`journeys budget`)
 - anything unverified
 

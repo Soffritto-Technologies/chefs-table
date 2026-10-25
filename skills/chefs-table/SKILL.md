@@ -33,6 +33,12 @@ The session-start note gives you this chat's **session folder** and the exact **
 - **A journey** is one goal of one kind of person ("Customer books a call"). **Steps** are what that person does or sees, in order, linked by `next`.
   - One journey per goal. Different routes to the same goal (a popup vs a redirect vs a small window, mobile vs desktop, different entry points) are **branches inside one journey**: give the step several `next` ids.
   - Technical hops (callback pages, popups that close, redirects) are steps inside the journey that triggers them, never journeys of their own.
+- **Logic.** Show the decisions, not just the happy path.
+  - Mark a decision step `"kind": "decision"` and put the condition on each outgoing arrow: `"next": [{ "to": "paid", "when": "Card accepted" }, { "to": "declined", "when": "Card declined" }]` (conditions in plain words, at most 40 characters). A step with one way on keeps a plain id list.
+  - End every path with an outcome step: `"kind": "outcome"` and `"result": "success"`, `"failure"` or `"abandoned"`. A failure should lead somewhere (a retry or another route).
+  - When the flow carries on in another journey, put `"continues": "<journey id>"` on the last step.
+  - A background step (`"kind": "background"`) says what starts it in `"trigger"` (at most 60 characters, like "Every hour").
+  - Keep the rules a step follows in `detail.rules`: short, one fact each.
 - **Apps.** When the map lists several apps (`apps` in `journeys.json`), tag each journey with the app or apps it happens in: `"apps": ["desktop"]`.
   - One goal that spans apps (connecting Gmail on the web and iMessage on the Mac) is one journey tagged with both, in one section.
   - For code with no web address (background jobs, emails, desktop windows), anchor steps to files and describe what the person turns on, sees or is told, and what happens in the background.
@@ -59,6 +65,7 @@ The session-start note gives you this chat's **session folder** and the exact **
 - **The stop hook blocks with a reason:** do what it lists, in order: fix the JSON, map the unmapped change, run `journeys build --render --session <id>`, then publish. It blocks at most once per turn.
 - **The session-start note says "code changed since the last full map"** (teammates or a `git pull`): suggest `/chefs-table:sync`, which refreshes only the stale journeys inside a usage budget.
 - **It says an unfinished map job exists:** suggest `/chefs-table:map-app` to resume it.
+- **The builder asks whether the map has gaps or contradictions:** run `journeys health` (free, no AI). It lists dead ends, journeys with no success ending, failures with no way back, unreachable steps and unmapped pages, most serious first.
 
 ## Never
 

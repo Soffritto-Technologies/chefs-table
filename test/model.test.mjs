@@ -8,9 +8,12 @@ import {
   ModelError,
   applyPlan,
   loadDoc,
+  nextEdges,
+  nextIds,
   sanitizeText,
   savePlanApplied,
   screensOf,
+  shortenText,
   stableStringify,
   validateDoc,
 } from '../lib/model.mjs';
@@ -196,6 +199,88 @@ describe('validateDoc', () => {
       assert.deepEqual(Object.keys(parsed), ['version', 'app', 'apps', 'journeys']);
       assert.deepEqual(Object.keys(parsed.apps[0]), ['id', 'title', 'kind', 'root']);
       assert.deepEqual(Object.keys(parsed.journeys[0]), ['id', 'title', 'who', 'apps', 'steps']);
+    });
+  });
+
+  describe('step logic: next shapes, kind, result, continues, trigger', () => {
+    const run = (stepExtras, extraJourneys = []) => validateDoc(doc([journey('j', [step('a', stepExtras), step('b'), step('c')]), ...extraJourneys]));
+    const firstStep = (result) => result.doc.journeys[0].steps[0];
+
+    it('accepts a mix of bare ids and { to, when } pairs, and keeps each as it was written', () => {
+      const result = run({ next: ['b', { to: 'c', when: 'Code accepted' }] });
+      assert.equal(result.ok, true);
+      assert.deepEqual(firstStep(result).next, ['b', { to: 'c', when: 'Code accepted' }]);
+    });
+
+    it('keeps only "to" and "when" of a pair, drops an empty condition, and cuts a long one to 40 characters', () => {
+      const long = 'The person has used every free try and the card is declined';
+      const result = run({ next: [{ to: 'b', when: '  ', extra: 1 }, { to: 'c', when: long }] });
+      assert.deepEqual(firstStep(result).next[0], { to: 'b' });
+      const when = firstStep(result).next[1].when;
+      assert.ok(when.length <= 40 && when.endsWith('…') && long.startsWith(when.slice(0, -1)), when);
+    });
+
+    it('drops repeated targets whatever their shape, keeping the first', () => {
+      const result = run({ next: ['b', { to: 'b', when: 'Again' }, { to: 'c', when: 'x' }, 'c'] });
+      assert.deepEqual(firstStep(result).next, ['b', { to: 'c', when: 'x' }]);
+    });
+
+    it('checks targets in both shapes, and the shape itself', () => {
+      assertRejected(doc([journey('j', [step('a', { next: ['ghost'] })])]), /leads to step "ghost", which does not exist/);
+      assertRejected(doc([journey('j', [step('a', { next: [{ to: 'ghost', when: 'x' }] })])]), /leads to step "ghost", which does not exist/);
+      assertRejected(doc([journey('j', [step('a', { next: [{ when: 'x' }] })])]), /every entry in "next" must be a step id or a \{ "to"/);
+      assertRejected(doc([journey('j', [step('a', { next: [7] })])]), /every entry in "next" must be a step id/);
+      assertRejected(doc([journey('j', [step('a', { next: 'b' })])]), /"next" must be a list of step ids, or of \{ "to": step id/);
+      assertRejected(doc([journey('j', [step('a', { next: [{ to: 'b', when: 5 }] })])]), /arrow to "b": "when" must be text/);
+    });
+
+    it('accepts the four kinds and rejects others', () => {
+      for (const kind of ['action', 'decision', 'outcome', 'background']) assert.equal(run({ kind }).ok, true, kind);
+      assertRejected(doc([journey('j', [step('a', { kind: 'gate' })])]), /"kind" must be one of "action", "decision", "outcome", "background"/);
+    });
+
+    it('allows a result only on an outcome, and only success, failure or abandoned', () => {
+      for (const result of ['success', 'failure', 'abandoned']) assert.equal(run({ kind: 'outcome', result }).ok, true, result);
+      assert.equal(run({ kind: 'outcome' }).ok, true, 'an outcome may leave the result out');
+      assertRejected(doc([journey('j', [step('a', { kind: 'action', result: 'success' })])]), /only an outcome step \("kind": "outcome"\) can have a "result"/);
+      assertRejected(doc([journey('j', [step('a', { result: 'success' })])]), /only an outcome step/);
+      assertRejected(doc([journey('j', [step('a', { kind: 'outcome', result: 'meh' })])]), /"result" must be one of "success", "failure", "abandoned"/);
+    });
+
+    it('checks that continues names another existing journey', () => {
+      const other = journey('pay', [step('x')]);
+      assert.equal(run({ continues: 'pay' }, [other]).ok, true);
+      assertRejected(doc([journey('j', [step('a', { continues: 'pay' })])]), /continues in journey "pay", which does not exist/);
+      assertRejected(doc([journey('j', [step('a', { continues: 'j' })])]), /cannot continue into its own journey/);
+      assertRejected(doc([journey('j', [step('a', { continues: '' })])]), /"continues" must be the id of the journey/);
+    });
+
+    it('cleans a trigger: control characters out, blank dropped, 60 characters at most', () => {
+      assert.equal(firstStep(run({ kind: 'background', trigger: ' Every\u0007 hour ' })).trigger, 'Every hour');
+      assert.equal('trigger' in firstStep(run({ trigger: '  ' })), false);
+      const trigger = firstStep(run({ trigger: 'When a new message arrives from any of the connected chat accounts or from a person' })).trigger;
+      assert.ok(trigger.length <= 60 && trigger.endsWith('…'), trigger);
+      assertRejected(doc([journey('j', [step('a', { trigger: 3 })])]), /"trigger" must be text/);
+    });
+
+    it('writes the new fields in a fixed order', () => {
+      const text = stableStringify(doc([journey('j', [step('a', { subflow: 'z', continues: 'z', next: [{ when: 'x', to: 'a' }], result: 'success', kind: 'outcome', trigger: 't', label: 'L' })])]));
+      assert.deepEqual(Object.keys(JSON.parse(text).journeys[0].steps[0]), ['id', 'label', 'say', 'kind', 'result', 'trigger', 'screen', 'anchor', 'next', 'continues', 'subflow']);
+    });
+  });
+
+  describe('nextIds, nextEdges and shortenText', () => {
+    it('read any next shape the same way', () => {
+      const mixed = { next: ['a', { to: 'b', when: 'Yes' }, { to: 'c' }, { to: 'd', when: '' }, null, 5, {}] };
+      assert.deepEqual(nextIds(mixed), ['a', 'b', 'c', 'd']);
+      assert.deepEqual(nextEdges(mixed), [{ to: 'a' }, { to: 'b', when: 'Yes' }, { to: 'c' }, { to: 'd' }]);
+      for (const missing of [{}, { next: 'a' }, null, undefined]) assert.deepEqual(nextIds(missing), []);
+    });
+
+    it('shortenText keeps short text, and cuts long text at a word with an ellipsis within the limit', () => {
+      assert.equal(shortenText('Allow access', 20), 'Allow access');
+      assert.equal(shortenText('Allow access to your mail', 20), 'Allow access to…');
+      assert.equal(shortenText('abcdefghijklmnopqrstuvwxyz', 10), 'abcdefghi…');
     });
   });
 

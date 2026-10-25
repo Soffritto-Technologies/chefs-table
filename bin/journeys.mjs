@@ -10,6 +10,7 @@
  *   journeys hook <Event>             Claude Code hook entry (payload on stdin)
  *
  * First-map pipeline (chop → stir → check → organise → polish → plate), resumable and budgeted:
+ *   journeys health                   check the map for dead ends, missing endings, contradictions (no AI); writes .journeys/findings.json
  *   journeys apps                     list the apps in a multi-app repo with their size
  *   journeys rebase --prefix <dir>    move an existing single-app map under the folder its app lives in
  *   journeys chop [--apps a,b|all] [--max-unit-tokens N] [--budget-percent P] [--budget-tokens T] [--start-percent S] [--restart]
@@ -33,6 +34,7 @@ import { checkAnchors, filesForStep, listRouteFiles, normalizeRoute } from '../l
 import { buildViewModel, renderHtml } from '../lib/render.mjs';
 import * as S from '../lib/session.mjs';
 import * as M from '../lib/mapjob.mjs';
+import * as H from '../lib/health.mjs';
 import { findApps } from '../lib/apps.mjs';
 import {
   buildInventory, coverage, diffInventory, planUnits, readGitHead,
@@ -133,10 +135,10 @@ function describeConflicts(conflicts, doc) {
 /**
  * Builds and writes this chat's session map (colours since chat start, ghost overlay, badges).
  *
- * @param {object} ctx - { p, config, doc, status, chips, banners }.
+ * @param {object} ctx - { p, config, doc, status, chips, banners, findings } (findings default to the stored ones).
  * @returns {{ path: string, hash: string, changed: boolean, sinceLast: object, anchorCache: object }} Render result.
  */
-function renderSession({ p, config, doc, status, chips = [], banners = [] }) {
+function renderSession({ p, config, doc, status, chips = [], banners = [], findings = H.loadFindings(p.projectDir) }) {
   const viewDoc = status ? applyPlan(doc, status.plan) : doc;
   const start = S.readJson(p.start, null) || doc;
   const last = S.readJson(p.last, null) || doc;
@@ -156,6 +158,7 @@ function renderSession({ p, config, doc, status, chips = [], banners = [] }) {
 
   const vm = buildViewModel({
     mode: 'session',
+    findings,
     doc: viewDoc,
     sinceStart,
     sinceLast,
@@ -285,8 +288,8 @@ function findDrift({ p, doc, sinceLast, routesNow, anchorCache }) {
  * @param {object} doc - Journeys document.
  * @returns {boolean} True when the file was written.
  */
-function renderCanonical(p, doc) {
-  const html = renderHtml(buildViewModel({ mode: 'canonical', doc }), { templatePath: TEMPLATE });
+function renderCanonical(p, doc, findings = H.loadFindings(p.projectDir)) {
+  const html = renderHtml(buildViewModel({ mode: 'canonical', doc, findings }), { templatePath: TEMPLATE });
   if (S.readText(p.canonical) === html) return false;
   S.writeTextAtomic(p.canonical, html);
   return true;
@@ -1005,6 +1008,33 @@ function printMissing(label, group) {
   console.log(`Missing ${label} (${group.covered} of ${group.total} covered):\n${group.missing.slice(0, 20).map((m) => `- ${m}`).join('\n')}`);
 }
 
+/**
+ * Runs the health checks and stores the findings.
+ *
+ * @param {string} projectDir - Absolute project directory.
+ * @param {object} doc - The map.
+ * @param {object|null} [known] - Coverage already worked out for this map, if any.
+ * @returns {import('../lib/types.mjs').Finding[]} The findings.
+ */
+function refreshFindings(projectDir, doc, known = null) {
+  const inventory = S.readJson(S.paths(projectDir).inventory, null);
+  const findings = H.healthChecks(doc, inventory, known ?? (inventory ? coverage(doc, inventory) : null));
+  H.saveFindings(projectDir, findings);
+  return findings;
+}
+
+/** CLI: health — check the map for dead ends, missing endings, contradictions and the like (no AI). */
+function cmdHealth() {
+  const projectDir = requireProject();
+  const { doc, error } = tryLoadDoc(S.paths(projectDir));
+  if (!doc) throw new Error(error);
+  const findings = refreshFindings(projectDir, doc);
+  const counts = H.countFindings(findings);
+  console.log(`FINDINGS high=${counts.high} medium=${counts.medium} low=${counts.low}`);
+  for (const found of findings.slice(0, 10)) console.log(`- [${found.severity}] ${found.message} (${found.target})`);
+  if (findings.length > 10) console.log(`… ${findings.length - 10} more in .journeys/findings.json`);
+}
+
 /** CLI: check --coverage — merge the units into journeys.json, measure coverage, then add gap units or finish. */
 function cmdCheckCoverage() {
   const projectDir = requireProject();
@@ -1024,6 +1054,7 @@ function cmdCheckCoverage() {
   if (merged.collisions.length) console.log(`Two work units wrote the same journey; the later one was kept: ${merged.collisions.join(', ')}`);
   const cov = coverage(merged.doc, inventory);
   S.writeJson(p.coverage, cov);
+  refreshFindings(projectDir, merged.doc, cov);
   console.log(`COVERAGE ${cov.percent}`);
   if (job.kind === 'polish') {
     const total = (key) => job.units.reduce((sum, unit) => sum + (unit[key] || 0), 0);
@@ -1126,10 +1157,11 @@ function main(argv) {
     organise: cmdOrganise,
     polish: cmdPolish,
     apps: cmdApps,
+    health: cmdHealth,
     rebase: cmdRebase,
   };
   if (!commands[cmd]) {
-    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|apps|chop|stir|budget|organise|polish|rebase|sync|hook <Event>> [--session id]');
+    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|apps|chop|stir|budget|organise|polish|rebase|health|sync|hook <Event>> [--session id]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }

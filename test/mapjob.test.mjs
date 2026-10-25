@@ -1063,3 +1063,49 @@ describe('rebaseMap', () => {
     assert.deepEqual(moved.journeys.map((j) => j.apps), [['frontend'], ['frontend']]);
   });
 });
+
+describe('briefs: decisions, outcomes and background steps', () => {
+  const RULES = [
+    'Mark decision steps ("kind": "decision") and put the condition on each outgoing arrow: "next": [{ "to": "step-id", "when": "Code accepted" }',
+    'Conditions are plain words, at most 40 characters.',
+    'End every path with an outcome step ("kind": "outcome") whose "result" is "success", "failure" or "abandoned".',
+    'When the flow carries on in another journey, give the last step "continues": "<that journey\'s id>".',
+    'A background step ("kind": "background") says what starts it in "trigger" (at most 60 characters, like "Every hour" or "When a message arrives").',
+    'Keep the rules a step follows in "detail.rules": short, one fact each.',
+  ];
+
+  it('unit and feature briefs teach the logic rules, and the example shows a decision with two outcomes', () => {
+    const { dir } = jobProject();
+    const unit = readBrief(M.writeBrief(dir, sampleUnits()[0], sampleInventory(), baseDoc(), CLI_PATH));
+    const feature = { id: 'feature-x', kind: 'feature', app: 'desktop', area: 'x', title: 'Mac app · Sync', routes: [], files: ['packages/desktop/a.ts'], estTokens: 1 };
+    const featureText = readBrief(M.writeBrief(dir, feature, sampleInventory(), baseDoc(), CLI_PATH));
+    for (const text of [unit, featureText]) {
+      for (const rule of RULES) assert.ok(text.includes(rule), rule);
+      assert.ok(text.includes('"kind":"decision"'));
+      assert.ok(text.includes('"next":[{"to":"finish","when":"It worked"},{"to":"failed","when":"It did not work"}]'));
+      assert.ok(text.includes('"kind":"outcome","result":"success"') && text.includes('"kind":"outcome","result":"failure"'));
+    }
+  });
+
+  it('the polish brief asks to upgrade logic without dropping anchors', () => {
+    const { dir, units } = polishProject();
+    const text = readBrief(M.writePolishBrief(dir, units.find((u) => u.area === 'signing-in'), polishDoc(), CLI_PATH));
+    assert.ok(text.includes('Upgrade the logic of every journey in this area, without dropping any code anchor or changing what the code does:'));
+    for (const rule of RULES) assert.ok(text.includes(rule), rule);
+    assert.ok(text.includes('  - End every path with an outcome step'), 'the logic rules sit under the upgrade line');
+    assert.ok(text.indexOf('Upgrade the logic') < text.indexOf('Keep every code anchor'));
+  });
+
+  it('polish accepts output that upgrades logic with { to, when } arrows, outcomes and continues', () => {
+    const { project, dir } = polishProject();
+    const out = mergedSignUp();
+    const steps = out.journeys[0].steps;
+    steps[0] = { ...steps[0], kind: 'decision', next: [{ to: 'popup', when: 'Popups allowed' }, { to: 'redirect', when: 'Popups blocked' }] };
+    steps[3] = { ...steps[3], kind: 'outcome', result: 'success', continues: 'connect-gmail' };
+    writeOut(project, 'polish-signing-in', out);
+    assert.deepEqual(M.submitUnit(dir, 'polish-signing-in'), { ok: true });
+    const saved = JSON.parse(project.read('.journeys/journeys.json')).journeys[0].steps;
+    assert.deepEqual(saved[0].next, [{ to: 'popup', when: 'Popups allowed' }, { to: 'redirect', when: 'Popups blocked' }]);
+    assert.deepEqual([saved[3].kind, saved[3].result, saved[3].continues], ['outcome', 'success', 'connect-gmail']);
+  });
+});

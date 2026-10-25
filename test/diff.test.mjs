@@ -237,3 +237,19 @@ describe('strongestRollup', () => {
     assert.equal(strongestRollup(['broken', 'changed', 'conflict', 'new']), 'conflict');
   });
 });
+
+describe('diffDocs with { to, when } arrows', () => {
+  const withNext = (next) => doc([journey('pay', [step('cart', '/cart', { next }), step('checkout', '/checkout'), step('done', '/done')])]);
+
+  it('does not call a step changed when only the way its arrows are written differs', () => {
+    assert.deepEqual(diffDocs(withNext(['checkout']), withNext([{ to: 'checkout' }])).states, {});
+    assert.deepEqual(diffDocs(withNext([{ to: 'checkout', when: '' }]), withNext(['checkout'])).states, {});
+  });
+
+  it('calls a step changed when an arrow gains, loses or changes its condition or target', () => {
+    const changed = { 'j:pay': 'changed', 's:pay/cart': 'changed' };
+    assert.deepEqual(diffDocs(withNext(['checkout']), withNext([{ to: 'checkout', when: 'Cart not empty' }])).states, changed);
+    assert.deepEqual(diffDocs(withNext([{ to: 'checkout', when: 'A' }]), withNext([{ to: 'checkout', when: 'B' }])).states, changed);
+    assert.deepEqual(diffDocs(withNext([{ to: 'checkout', when: 'A' }]), withNext([{ to: 'done', when: 'A' }])).states, changed);
+  });
+});
