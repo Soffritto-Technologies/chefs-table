@@ -154,7 +154,7 @@ describe('buildViewModel: tree structure', () => {
   });
 });
 
-describe('buildViewModel: nested areas and layout', () => {
+describe('buildViewModel: nested areas and flows', () => {
   /**
    * A doc with three levels of areas: contacts → follow-ups → overdue, plus a sibling section.
    *
@@ -248,35 +248,54 @@ describe('buildViewModel: nested areas and layout', () => {
     return { version: 1, app: 'Big', areas: [{ id: 'big', title: 'Big' }], journeys };
   }
 
-  it('uses a ring up to 24 children and a grid from 25', () => {
-    const ring = buildViewModel({ mode: 'canonical', doc: crowdedDoc(24) });
-    assert.equal(ring.root.layout, 'ring');
-    assert.equal(ring.root.children[0].layout, 'ring');
-    assert.deepEqual(ring.root.children[0].children.map((j) => j.id), crowdedDoc(24).journeys.map((j) => j.id));
-    const grid = buildViewModel({ mode: 'canonical', doc: crowdedDoc(25) });
-    assert.equal(grid.root.layout, 'ring');
-    assert.equal(grid.root.children[0].layout, 'grid');
-    assert.equal(grid.root.children[0].children.length, 25);
-    assert.equal('layout' in grid.journeys.j000, false);
+  it('keeps children in map order and gives every container a flow instead of a layout', () => {
+    const vm = buildViewModel({ mode: 'canonical', doc: crowdedDoc(30) });
+    const big = vm.root.children[0];
+    assert.deepEqual(big.children.map((j) => j.id), crowdedDoc(30).journeys.map((j) => j.id));
+    for (const node of [vm.root, big]) {
+      assert.equal('layout' in node, false);
+      assert.ok(Array.isArray(node.edges));
+      assert.equal(typeof node.depths, 'object');
+    }
+    assert.equal('depths' in vm.journeys.j000, false);
   });
 
-  it('orders a grid sections first, then by rollup strength, then by title', () => {
-    const doc = crowdedDoc(30);
-    doc.areas.push({ id: 'sub-b', title: 'b section', parent: 'big' }, { id: 'sub-a', title: 'A section', parent: 'big' });
-    doc.journeys.push(journey('in-b', 'sub-b', [step('s')]), journey('in-a', 'sub-a', [step('s')]));
-    const vm = buildViewModel({
-      mode: 'session',
-      doc,
-      sinceStart: { states: { 'j:j010': 'new', 'j:j020': 'changed', 'j:in-b': 'changed' }, removedJourneys: [], removedSteps: [] },
-      conflicts: [{ screen: '/s', planJourney: 'j005', otherJourneys: [], kind: 'touches' }],
-    });
-    const big = vm.root.children[0];
-    assert.equal(big.layout, 'grid');
-    const kids = big.children;
-    assert.deepEqual(kids.slice(0, 2).map((c) => c.id), ['sub-b', 'sub-a']);
-    assert.deepEqual(kids.slice(2, 5).map((c) => [c.id, c.rollup]), [['j005', 'conflict'], ['j020', 'changed'], ['j010', 'new']]);
-    const stableTitles = kids.slice(5).map((c) => c.title.toLowerCase());
-    assert.deepEqual(stableTitles, [...stableTitles].sort());
+  it('lifts journey links onto the areas that hold them, with their conditions', () => {
+    const doc = {
+      version: 1, app: 'Flow',
+      areas: [{ id: 'start', title: 'Getting in' }, { id: 'daily', title: 'Every day' }, { id: 'deep', title: 'Deep', parent: 'daily' }],
+      journeys: [
+        { ...journey('join', 'start', [step('a')]), next: [{ to: 'brief', when: 'account made' }] },
+        journey('brief', 'deep', [step('b', [], { continues: 'reply' })]),
+        journey('reply', 'daily', [step('c')]),
+      ],
+    };
+    const vm = buildViewModel({ mode: 'canonical', doc });
+    assert.deepEqual(vm.root.edges, [['a:start', 'a:daily', 'account made']]);
+    assert.deepEqual(vm.root.depths, { 'a:start': 0, 'a:daily': 1 });
+    const daily = vm.root.children.find((a) => a.id === 'daily');
+    assert.deepEqual(daily.edges, [['a:deep', 'j:reply']]);
+    assert.deepEqual(daily.depths, { 'a:deep': 0, 'j:reply': 1 });
+  });
+
+  it('sets "any time" parts apart and guesses an order from names when nothing links', () => {
+    const doc = {
+      version: 1, app: 'Guess', areas: [{ id: 'all', title: 'All' }],
+      journeys: [
+        { ...journey('browse', 'all', [step('a')]), title: 'Browse flowers' },
+        { ...journey('signup', 'all', [step('b')]), title: 'Sign up' },
+        { ...journey('prefs', 'all', [step('c')]), title: 'Notification settings' },
+        { ...journey('help', 'all', [step('d')]), title: 'Get help', anytime: true },
+      ],
+    };
+    const all = buildViewModel({ mode: 'canonical', doc }).root.children[0];
+    assert.deepEqual(all.edges, [['j:signup', 'j:browse', '', 'guess']]);
+    assert.deepEqual(all.anytime, ['j:prefs', 'j:help']);
+    assert.deepEqual(Object.keys(all.depths), ['j:browse', 'j:signup']);
+    doc.journeys[1].next = ['browse'];
+    const known = buildViewModel({ mode: 'canonical', doc }).root.children[0];
+    assert.deepEqual(known.edges, [['j:signup', 'j:browse']]);
+    assert.deepEqual(known.anytime, ['j:help']);
   });
 
   it('builds identical output for the same nested input', () => {
@@ -384,17 +403,6 @@ describe('buildViewModel: apps', () => {
     assert.deepEqual(vm.journeys.loose.apps, []);
     assert.equal('apps' in stepNode(vm, 'checkout/cart'), false);
     assert.equal(vm.root.rollup, 'stable');
-  });
-
-  it('gives the app and every area its layout per app', () => {
-    const vm = buildViewModel({ mode: 'canonical', doc: appsDoc() });
-    assert.deepEqual(vm.root.layouts, { web: 'ring', mac: 'ring' });
-    for (const area of vm.root.children) assert.deepEqual(Object.keys(area.layouts), ['web', 'mac']);
-    const doc = appsDoc();
-    for (let i = 0; i < 30; i++) doc.journeys.push({ ...journey(`big${i}`, 'buy', [step('s')]), apps: i < 26 ? ['web'] : ['mac'] });
-    const buy = buildViewModel({ mode: 'canonical', doc }).root.children.find((a) => a.id === 'buy');
-    assert.equal(buy.layout, 'grid');
-    assert.deepEqual(buy.layouts, { web: 'grid', mac: 'ring' });
   });
 
   it('shows no apps, tags or per-app layouts on a single-app map', () => {
@@ -904,11 +912,13 @@ describe('templates/journeys.html', () => {
     assert.ok(template.includes("JSON.parse(document.getElementById('jm-data').textContent)"));
   });
 
-  it('draws grid levels from the view model flag and routes areas at any depth', () => {
-    assert.ok(script.includes("layoutOf(node) === 'grid'"));
-    assert.ok(script.includes('node.layouts[appFilter]'));
+  it('draws every level as a flow and routes areas at any depth', () => {
+    assert.ok(script.includes("} else if (node.kind !== 'step') {\n      drawFlow(trail);"));
     assert.ok(script.includes("seg.t === 'a' && (node.kind === 'app' || node.kind === 'area')"));
-    assert.ok(script.includes("'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button'"));
+    assert.ok(script.includes("boxShell(node, p, BW, BH, nodeClass(node) + ' part'"));
+    assert.ok(script.includes("'class': 'anytime-region'"));
+    assert.ok(script.includes("if (edge[3] === 'guess')"));
+    for (const gone of ['drawRing', 'drawGrid', 'layoutOf', 'ringLayout']) assert.equal(script.includes(gone), false, gone);
   });
 
   it('has a labelled zoom bar, a described canvas and the gesture hint in the footer', () => {
@@ -936,7 +946,7 @@ describe('templates/journeys.html', () => {
 
   it('shows step labels on boxes and the full sentence on hover and in the card', () => {
     assert.ok(script.includes("node.kind === 'step' ? [node.say || node.title] : [node.title]"));
-    assert.ok(script.includes('var BW = stepBoxWidth(steps)'));
+    assert.ok(script.includes('var BW = stepBoxWidth(all)'));
     assert.ok(script.includes("h('p', { 'class': 'card-say' }, txt(step.say))"));
     assert.ok(script.includes("(node.derivedLabel ? ' derived' : '')"));
   });

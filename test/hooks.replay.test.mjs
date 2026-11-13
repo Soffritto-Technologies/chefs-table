@@ -1775,13 +1775,13 @@ describe('health', () => {
   it('health prints the counts and the top ten, and stores every finding as sorted JSON', () => {
     const project = makeProject({ doc: lonely(12) });
     const out = run(project, 'health');
-    assert.match(out, /^FINDINGS high=12 medium=0 low=13$/m);
+    assert.match(out, /^FINDINGS high=12 medium=0 low=14$/m);
     const lines = out.split('\n');
     assert.equal(lines.filter((line) => line.startsWith('- [')).length, 10);
     assert.match(lines[1], /^- \[high\] "Step a" in "Journey j0" has nowhere to go next and doesn't say how the path ends\. \(s:j0\/a\)$/);
-    assert.match(out, /^… 15 more in \.journeys\/findings\.json$/m);
+    assert.match(out, /^… 16 more in \.journeys\/findings\.json$/m);
     const stored = project.json('.journeys/findings.json');
-    assert.equal(stored.length, 25);
+    assert.equal(stored.length, 26);
     assert.equal(stored[0].check, 'dead-end');
     const bytes = project.read('.journeys/findings.json');
     run(project, 'health');

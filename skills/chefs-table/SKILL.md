@@ -5,7 +5,7 @@ description: Keep the app's live journey map in sync while building. Use wheneve
 
 # Chef's Table
 
-The builder you work with may not read code. The **map is how they see what you build**: their whole app as a ring of areas, zooming into journeys, steps and step detail. Keep it true and current, and let them see a change *before* you build it.
+The builder you work with may not read code. The **map is how they see what you build**: their whole app as a flow of areas, zooming into the flow of each area, then each journey's steps, then step detail. Keep it true and current, and let them see a change *before* you build it.
 
 The session-start note gives you this chat's **session folder** and the exact **CLI command** (written below as `journeys`). Use those exact paths.
 
@@ -30,6 +30,7 @@ The session-start note gives you this chat's **session folder** and the exact **
 ## Writing journeys well
 
 - **Areas** group the app into 3–8 parts a business owner would recognise (Buying, Booking, Accounts, Admin).
+- **Order at every level.** Areas and journeys carry `next` (ids of what usually follows, or `{ "to", "when" }` with a label of at most 4 words like "not now") and `anytime: true` for things reachable from anywhere (settings, help), so every level reads as a flow.
 - **A journey** is one goal of one kind of person ("Customer books a call"). **Steps** are what that person does or sees, in order, linked by `next`.
   - One journey per goal. Different routes to the same goal (a popup vs a redirect vs a small window, mobile vs desktop, different entry points) are **branches inside one journey**: give the step several `next` ids.
   - Technical hops (callback pages, popups that close, redirects) are steps inside the journey that triggers them, never journeys of their own.

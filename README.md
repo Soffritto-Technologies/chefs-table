@@ -6,7 +6,7 @@
 
 Chef's Table gives your app a living map: every user journey, from the whole product down to a single step, kept up to date by your coding agent as it works. You don't need to read code to know what exists, what's about to change, and what just broke.
 
-![The journey map: an area's journeys in a ring, with a planned journey and a conflict flagged before anything is built](docs/screenshot-area.png)
+![The journey map: an area's journeys as a flow, with a planned journey and a conflict flagged before anything is built](docs/screenshot-area.png)
 
 ## What people use it for
 
@@ -28,6 +28,7 @@ If a change would rewire a screen another journey depends on, for example a new 
 
 **See your whole product at a glance, then zoom all the way in.**
 - **Zoom levels:** your app → its areas → each journey → each step → any step's own sub-flow.
+- **A flow at every level, never a mind map:** the whole app reads in the order a person meets it, each area as the order of its journeys, each journey as its steps. Double-click any box to open its own flow.
 - **Who it's for:** founders, PMs, designers and new teammates, without opening a code editor.
 
 **Catch drift and dead ends.**
@@ -43,7 +44,7 @@ Plans are framed as user goals ("Customer books a call"), not files. That keeps 
 
 <table>
 <tr>
-<td><img src="docs/screenshot-app.png" alt="The whole app as a ring of areas"></td>
+<td><img src="docs/screenshot-app.png" alt="The whole app as a flow of areas"></td>
 <td><img src="docs/screenshot-flow.png" alt="One journey as a step-by-step flow, with new, changed and conflicting steps"></td>
 </tr>
 <tr>
@@ -77,6 +78,8 @@ Then start a new Claude Code chat in your project and run:
 ```
 
 Claude surveys your app, draws the first map and asks you to correct anything that's wrong. From then on the map keeps itself up to date while you build.
+
+Already have a map from an earlier version? `/chefs-table:order` adds the order between areas and journeys with one small, cheap helper. It reads titles only, not your code.
 
 **Needs:** Claude Code and Node.js 20+ ([nodejs.org](https://nodejs.org)).
 

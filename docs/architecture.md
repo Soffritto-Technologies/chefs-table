@@ -42,10 +42,12 @@ Chef's Table is a Claude Code plugin made of four parts:
 ## Zoom levels
 
 ```
-App ─ ring of areas ─► Area ─ ring of journeys ─► Journey ─ step flow ─► Step ─ detail card
-                                                        ▲                       │ subflow
-                                                        └──── same flow view ◄──┘  (any depth)
+App ─ flow of areas ─► Area ─ flow of sections and journeys ─► Journey ─ flow of steps ─► Step ─ detail card
+                                                                    ▲                          │ subflow
+                                                                    └────── same flow view ◄───┘  (any depth)
 ```
+
+Every level is a flow, never a mind map: boxes in columns, left to right, with labelled arrows. Steps follow `Step.next`. Areas and journeys follow `Area.next`, `Journey.next` and steps' `continues`, lifted onto whichever box holds them (`lib/order.mjs`). Parts marked `anytime` (settings, help) sit in their own "Any time" column. A level with no known order gets a guess from names, drawn with dotted arrows and labelled as a guess until the order pass (`/chefs-table:order`) fills it in.
 
 `lib/render.mjs` turns the document into one view-model tree. `templates/journeys.html` only draws it, one level at a time. Each node's colour is the strongest state of everything inside it, so a change deep in the app lights up its path from the top.
 

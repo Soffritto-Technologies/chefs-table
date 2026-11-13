@@ -10,8 +10,14 @@
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --bg: #f3f2ee;
-  --canvas: #f8f7f4;
-  --dot: #e2dfd8;
+  --canvas: #f7f6f2;
+  --dot: #dedad0;
+  --box: #efede7;
+  --box-line: #d3cfc4;
+  --arrow: #8b867b;
+  --decide: #fceedb;
+  --decide-line: #e3b06f;
+  --decide-ink: #8e520e;
   --surface: #ffffff;
   --surface-2: #f6f5f2;
   --ink: #1c1f24;
@@ -54,8 +60,14 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #101215;
-    --canvas: #15181c;
-    --dot: #252a31;
+    --canvas: #1c1b19;
+    --dot: #34322d;
+    --box: #282723;
+    --box-line: #403d37;
+    --arrow: #8a857a;
+    --decide: #33260f;
+    --decide-line: #7c5622;
+    --decide-ink: #f1bc74;
     --surface: #1b1e23;
     --surface-2: #171a1e;
     --ink: #e9eaec;
@@ -140,7 +152,6 @@ h1 { margin: 0; font-size: 17px; line-height: 1.25; font-weight: 650; white-spac
 svg .appbadge { color: var(--ak); }
 svg .appbadge rect { fill: var(--ak-soft); }
 svg .appbadge text { fill: var(--ak); font-size: 10.5px; font-weight: 600; }
-.tile .appbadges { display: flex; margin-top: 6px; }
 .stage-sub .appbadges, .card-sub .appbadges { margin-left: 6px; }
 .appfilter { display: inline-flex; gap: 2px; max-width: 100%; padding: 3px; overflow-x: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; }
 .appfilter[hidden] { display: none; }
@@ -194,14 +205,12 @@ svg .appbadge text { fill: var(--ak); font-size: 10.5px; font-weight: 600; }
 
 /* Free canvas: one transformed world per level */
 .view.is-canvas { overflow: hidden; overflow: clip; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
-.view.is-canvas.panning, .view.panning .n, .view.panning .tile-open { cursor: grabbing; }
+.view.is-canvas.panning, .view.panning .n { cursor: grabbing; }
 .layer { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: hidden; overflow: clip; }
 .world { transform-origin: 0 0; }
-.grid-world { position: absolute; left: 0; top: 0; }
 .world.moving { will-change: transform; }
 .world.easing { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
 .n.zt-target .focus-ring { opacity: 1; stroke-dasharray: 5 4; }
-.tile.zt-target { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent); }
 .zoombar { position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
 .zoombar[hidden] { display: none; }
 .zoombar button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; color: var(--ink-2); background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
@@ -228,25 +237,16 @@ svg .appbadge text { fill: var(--ak); font-size: 10.5px; font-weight: 600; }
 
 /* SVG map */
 svg text { font-family: var(--font); }
-.spoke { stroke: var(--line-strong); stroke-width: 1; }
-.spoke.sp-new, .spoke.sp-in-new { stroke: var(--new); stroke-width: 1.75; }
-.spoke.sp-changed { stroke: var(--changed); stroke-width: 1.75; }
-.spoke.sp-conflict { stroke: var(--conflict); stroke-width: 2; }
-.spoke.sp-broken { stroke: var(--broken); stroke-width: 1.5; }
-.spoke.sp-removed { stroke-dasharray: 4 4; opacity: .7; }
-.dense .spoke.sp-stable { opacity: .45; }
-.hub .shape { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
-.hub-ring { fill: none; stroke: transparent; stroke-width: 2; stroke-dasharray: 3 5; stroke-linecap: round; }
-.hr-new, .hr-in-new { stroke: var(--new); }
-.hr-changed { stroke: var(--changed); }
-.hr-conflict { stroke: var(--conflict); }
-.hr-broken { stroke: var(--broken); }
-.hub-title { font-size: 15px; font-weight: 650; fill: var(--accent-ink); }
-.hub-sub { font-size: 11.5px; fill: var(--accent-ink); opacity: .78; }
 
 .n { cursor: pointer; --lc: var(--ink-2); }
 .n:focus { outline: none; }
-.n .shape { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.25; }
+.n .shape { fill: var(--box); stroke: var(--box-line); stroke-width: 1.25; }
+.sk-decision .shape { fill: var(--decide); stroke: var(--decide-line); }
+.sk-decision .on-shape { fill: var(--decide-ink); }
+.n .part-say { fill: var(--ink-2); font-size: 12px; }
+.n .part-meta { fill: var(--muted); font-size: 11.5px; }
+.anytime-region { fill: none; stroke: var(--line-strong); stroke-width: 1.2; stroke-dasharray: 6 5; }
+.frame-title { font-size: 12.5px; font-weight: 600; fill: var(--muted); }
 .n .on-shape { fill: var(--ink); }
 .n .meta { fill: var(--muted); font: 11.5px var(--mono); }
 .n .meta.none { font-family: var(--font); font-style: italic; }
@@ -320,11 +320,12 @@ svg text { font-family: var(--font); }
 .open-btn:hover path { stroke: var(--on-accent); }
 .n.sel .open-btn circle.face, .n:focus-visible .open-btn circle.face { stroke: var(--accent); }
 
-.edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.edge { fill: none; stroke: var(--arrow); stroke-width: 1.4; }
+.edge-guess { stroke-dasharray: 1.5 4.5; stroke-linecap: round; }
 .edge-new { stroke: var(--new); }
 .edge-back { stroke-dasharray: 5 4; }
 .edge-removed { opacity: .45; stroke-dasharray: 3 4; }
-.arrow { fill: var(--line-strong); }
+.arrow { fill: var(--arrow); }
 .arrow-new { fill: var(--new); }
 
 /* Flow logic: decisions, outcomes, conditions, chips (outcome colours sit apart from change states) */
@@ -373,7 +374,6 @@ svg text { font-family: var(--font); }
 .fpill.sev-high { color: var(--surface); background: var(--finding); }
 .fpill.sev-medium { color: var(--finding); background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--finding); }
 .fpill.sev-low { color: var(--muted); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.tile-fbadge { position: absolute; top: -10px; right: 12px; }
 .ftoggle { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .ftoggle[hidden] { display: none; }
 .ftoggle[aria-pressed="true"] { color: var(--surface); background: var(--finding); border-color: var(--finding); }
@@ -396,36 +396,6 @@ svg text { font-family: var(--font); }
 .fevidence { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .fempty { padding: 16px; }
 
-/* Grid of tiles (levels with more than 24 items) */
-.grid-wrap { padding: 20px 22px 48px; }
-.grid-head { margin: 6px 2px 10px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; margin-bottom: 22px; }
-.tile { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 12px; min-height: 74px; padding: 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; }
-.tile:hover { box-shadow: 0 2px 10px rgba(20, 22, 28, .1); }
-.tile:focus-visible, .tile.sel { outline: none; box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent); }
-.tile.latest { outline: 3px solid var(--lc); outline-offset: 3px; }
-.mark { display: grid; place-items: center; width: 38px; height: 38px; font-size: 13px; font-weight: 650; color: var(--ink); background: var(--surface); border: 1.25px solid var(--line-strong); border-radius: 50%; }
-.k-area .mark { border-radius: 11px; }
-.tile-body { min-width: 0; }
-.tile-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-.tile-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile .pills { margin-top: 7px; }
-.tile-open { align-self: center; display: grid; place-items: center; width: 22px; height: 22px; font-size: 15px; line-height: 1; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; }
-.tile-open:hover { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
-.tile.look-new, .tile.look-in-new { border-color: var(--new); }
-.tile.look-new .mark { color: var(--on-new); background: var(--new); border-color: var(--new); }
-.tile.look-new.planned .mark { color: var(--new-ink); background: var(--new-soft); }
-.tile.look-in-new .mark { background: var(--new-soft); border-color: var(--new); }
-.tile.look-changed { background: var(--changed-soft); border-color: var(--changed); }
-.tile.look-changed .mark { border: 2px solid var(--changed); }
-.tile.look-conflict { background: var(--conflict-soft); border: 2px solid var(--conflict); }
-.tile.look-conflict .mark { border: 2.5px solid var(--conflict); }
-.tile.look-broken { background: var(--broken-soft); border-color: var(--broken); }
-.tile.look-broken .mark { border-color: var(--broken); }
-.tile.look-removed { opacity: .5; }
-.tile.look-removed .tile-title { text-decoration: line-through; }
-.tile.planned, .tile.planned .mark { border-style: dashed; border-width: 2px; }
-.tile.unverified, .tile.unverified .mark { border-style: dotted; border-width: 2px; }
 
 @media (prefers-reduced-motion: no-preference) {
   .n .shape, .n .focus-ring, .open-btn circle.face, .open-btn path { transition: filter .15s ease, opacity .15s ease, fill .15s ease, stroke .15s ease; }
@@ -575,7 +545,7 @@ svg text { font-family: var(--font); }
   <span><kbd>Esc</kbd> or Back to go up</span>
 </footer>
 <div id="jm-announce" class="sr-only" aria-live="polite"></div>
-<script type="application/json" id="jm-data">{"mode":"session","app":"Petal \u0026 Stem","apps":[{"id":"web","title":"Web app","kind":"web"},{"id":"mac","title":"Mac app","kind":"desktop"}],"root":{"kind":"app","id":"app","title":"Petal \u0026 Stem","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","layout":"ring","children":[{"kind":"area","id":"shop","title":"Shopping","say":"Finding flowers and paying for them","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","layout":"ring","children":[{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"See this week's bouquets","say":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/","ruleChips":["Sold-out bouquets are hidden","Prices include delivery…"]},{"kind":"step","id":"browse/occasion","title":"Filter by occasion","say":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Pick a size and add to basket","say":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]","continues":"checkout","ruleChips":["Grand needs two days' notice","The basket badge updates…"]}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","apps":["web"],"state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Review the basket","say":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["An empty basket shows a link…"]},{"kind":"step","id":"checkout/delivery","title":"Choose delivery day and address","say":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery","ruleChips":["Sundays are closed","Orders after 2pm can't go out…"],"findingCount":1,"findingSeverity":"high"},{"kind":"step","id":"checkout/gift-note","title":"Add a gift message","say":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pay for the order","say":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment","ruleChips":["Nothing is charged until the…"]},{"kind":"step","id":"checkout/confirmation","title":"See the order confirmation","say":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Get the email receipt","say":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note","It's a gift"],["checkout/delivery","checkout/pay","Not a gift"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]],"findingCount":2,"findingSeverity":"high"},{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","apps":["web"],"state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Pick a plan length","say":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Add the recipient","say":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Review the subscription","say":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["A subscription and a one-off…"]},{"kind":"step","id":"gift-subscription/pay","title":"Pay up front","say":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","apps":["web"],"state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Save a bouquet","say":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"See saved bouquets","say":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}],"layouts":{"web":"ring","mac":"ring"},"findingCount":2,"findingSeverity":"high"},{"kind":"area","id":"account","title":"Your account","say":"Signing up, signing in and tracking orders","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","layout":"ring","children":[{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fill in the sign-up form","say":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up","ruleChips":["Passwords need at least 10…","One account per email address"]},{"kind":"step","id":"sign-up/verify-email","title":"Is the link still valid?","say":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null,"stepKind":"decision","ruleChips":["The link stops working after…"]},{"kind":"step","id":"sign-up/welcome","title":"Land on the account page","say":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-up/expired","title":"Link has expired","say":"The link is more than a day old, so the account is not confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"screen":"/sign-up/expired","stepKind":"outcome","result":"failure","findingCount":1,"findingSeverity":"high"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome","Within 24 hours"],["sign-up/verify-email","sign-up/expired","Link expired"]],"findingCount":1,"findingSeverity":"high"},{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enter email and password","say":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in","ruleChips":["Five wrong tries locks…"]},{"kind":"step","id":"sign-in/forgot","title":"Reset a forgotten password","say":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"See the account","say":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Tick Remember me","say":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","apps":["web","mac"],"state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Open past orders","say":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"See where the order is","say":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]","ruleChips":["The courier's live map shows…"]},{"kind":"step","id":"track-order/reorder","title":"Order the same bouquet again","say":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart","findingCount":1,"findingSeverity":"medium"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]],"findingCount":1,"findingSeverity":"medium"}],"layouts":{"web":"ring","mac":"ring"},"findingCount":2,"findingSeverity":"high"},{"kind":"area","id":"studio","title":"Running the shop","say":"What the florist does behind the scenes","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"changed","layout":"ring","children":[{"kind":"area","id":"studio-orders","title":"Orders","say":"Getting today's bouquets made and out","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","layout":"ring","children":[{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"See today's orders","say":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders","ruleChips":["Only staff accounts can open…"]},{"kind":"step","id":"fulfil-orders/mark-made","title":"Mark a bouquet as made","say":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier","derivedLabel":true,"say":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]","ruleChips":["The customer gets a text with…"]}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]}],"layouts":{"web":"ring","mac":"ring"}},{"kind":"area","id":"studio-catalogue","title":"Catalogue","say":"What the shop sells","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"changed","layout":"ring","children":[{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","apps":["mac"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enter name, price and sizes","say":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Upload photos","say":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos","ruleChips":["Photos are cropped square","Images over 10 MB are refused"]},{"kind":"step","id":"add-bouquet/publish","title":"Publish to the shop","say":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]},{"kind":"journey","id":"sold-out","title":"Mark a bouquet sold out","say":"Florist","apps":["mac"],"state":"new","latest":false,"planned":false,"flags":[],"rollup":"new","children":[{"kind":"step","id":"sold-out/find","title":"Find the bouquet","say":"Finds the bouquet in the catalogue","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"sees":"Every bouquet with its photo and stock status.","files":["src/app/studio/bouquets/page.tsx"]},"screen":"/studio/bouquets"},{"kind":"step","id":"sold-out/toggle","title":"Mark as sold out","say":"Switches it to sold out until a chosen date","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":1,"detail":{"does":"Flips the Sold out switch and picks a return date.","rules":["Sold-out bouquets disappear from the shop straight away","They come back on the return date"],"saves":["Bouquet stock"],"files":["src/app/studio/bouquets/[id]/page.tsx"]},"screen":"/studio/bouquets/[id]","ruleChips":["Sold-out bouquets disappear…","They come back on the return…"]}],"edges":[["sold-out/find","sold-out/toggle"]]}],"layouts":{"web":"ring","mac":"ring"}},{"kind":"journey","id":"weekly-sales","title":"See this week's sales","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"weekly-sales/report","title":"Open the weekly sales","say":"Opens the weekly sales summary","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Bouquets sold, revenue and the busiest delivery days.","files":["src/app/studio/sales/page.tsx"]},"screen":"/studio/sales"}],"edges":[]}],"layouts":{"web":"ring","mac":"ring"}},{"kind":"area","id":"other","title":"Other","say":"Journeys that are not in an area yet","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","layout":"ring","children":[{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leave an email address","say":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirm by email","say":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null,"ruleChips":["No emails are sent until they…"]},{"kind":"step","id":"newsletter/weekly-send","title":"Send the weekly newsletter","say":"The newsletter goes out to everyone who confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"rules":["Skips anyone who unsubscribed"],"files":["src/jobs/newsletter.ts"]},"screen":null,"stepKind":"background","trigger":"Every Friday at 9:00","ruleChips":["Skips anyone who unsubscribed"]}],"edges":[["newsletter/signup-box","newsletter/confirm"],["newsletter/confirm","newsletter/weekly-send"]]}],"layouts":{"web":"ring","mac":"ring"}}],"layouts":{"web":"ring","mac":"ring"},"findingCount":4,"findingSeverity":"high"},"journeys":{"browse":{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"See this week's bouquets","say":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/","ruleChips":["Sold-out bouquets are hidden","Prices include delivery…"]},{"kind":"step","id":"browse/occasion","title":"Filter by occasion","say":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Pick a size and add to basket","say":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]","continues":"checkout","ruleChips":["Grand needs two days' notice","The basket badge updates…"]}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},"checkout":{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","apps":["web"],"state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Review the basket","say":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["An empty basket shows a link…"]},{"kind":"step","id":"checkout/delivery","title":"Choose delivery day and address","say":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery","ruleChips":["Sundays are closed","Orders after 2pm can't go out…"],"findingCount":1,"findingSeverity":"high"},{"kind":"step","id":"checkout/gift-note","title":"Add a gift message","say":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pay for the order","say":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment","ruleChips":["Nothing is charged until the…"]},{"kind":"step","id":"checkout/confirmation","title":"See the order confirmation","say":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Get the email receipt","say":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note","It's a gift"],["checkout/delivery","checkout/pay","Not a gift"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]],"findingCount":2,"findingSeverity":"high"},"gift-subscription":{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","apps":["web"],"state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Pick a plan length","say":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Add the recipient","say":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Review the subscription","say":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["A subscription and a one-off…"]},{"kind":"step","id":"gift-subscription/pay","title":"Pay up front","say":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},"card-payment":{"kind":"journey","id":"card-payment","title":"Card payment","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"card-payment/card-details","title":"Enter card details","say":"Enters card details","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Boxes for the card number, expiry date and security code.","does":"Types the card details and taps Pay.","rules":["Card numbers never touch our servers"],"files":["src/components/CardForm.tsx"]},"screen":"/checkout/pay","ruleChips":["Card numbers never touch our…"]},{"kind":"step","id":"card-payment/wallet","title":"Pay with a phone wallet","say":"Or pays with Apple Pay or Google Pay","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"does":"Taps the wallet button and confirms on their phone.","files":["src/components/WalletButton.tsx"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/bank-check","title":"Did the bank approve?","say":"Their bank checks the payment, usually with a code by text message","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Types the code from the bank.","rules":["Declined: the error stays on the page","Three wrong codes cancel the payment","Approved: on to the confirmation"],"files":["src/app/checkout/pay/verify/page.tsx","src/lib/payments.ts"]},"screen":"/checkout/pay/verify","stepKind":"decision","ruleChips":["Declined: the error stays on…","Three wrong codes cancel the…"],"moreRules":1},{"kind":"step","id":"card-payment/declined","title":"See why it was declined","say":"Sees that the card was declined and why","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A short message from the bank, such as 'Insufficient funds'.","files":["src/lib/payments.ts"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/paid","title":"Payment approved","say":"The payment goes through and they move on to the confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"saves":["Payment"]},"screen":"/checkout/done","stepKind":"outcome","result":"success"},{"kind":"step","id":"card-payment/gave-up","title":"Leaves without paying","say":"Closes the page without paying; the basket is kept for a week","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":3,"screen":null,"stepKind":"outcome","result":"abandoned"}],"edges":[["card-payment/card-details","card-payment/bank-check"],["card-payment/wallet","card-payment/bank-check"],["card-payment/bank-check","card-payment/paid","Approved"],["card-payment/bank-check","card-payment/declined","Declined"],["card-payment/bank-check","card-payment/gave-up","Closed the bank window"],["card-payment/declined","card-payment/card-details","Try another card"],["card-payment/declined","card-payment/gave-up","Leaves checkout"]]},"sign-up":{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fill in the sign-up form","say":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up","ruleChips":["Passwords need at least 10…","One account per email address"]},{"kind":"step","id":"sign-up/verify-email","title":"Is the link still valid?","say":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null,"stepKind":"decision","ruleChips":["The link stops working after…"]},{"kind":"step","id":"sign-up/welcome","title":"Land on the account page","say":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-up/expired","title":"Link has expired","say":"The link is more than a day old, so the account is not confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"screen":"/sign-up/expired","stepKind":"outcome","result":"failure","findingCount":1,"findingSeverity":"high"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome","Within 24 hours"],["sign-up/verify-email","sign-up/expired","Link expired"]],"findingCount":1,"findingSeverity":"high"},"sign-in":{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enter email and password","say":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in","ruleChips":["Five wrong tries locks…"]},{"kind":"step","id":"sign-in/forgot","title":"Reset a forgotten password","say":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"See the account","say":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Tick Remember me","say":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},"track-order":{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","apps":["web","mac"],"state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Open past orders","say":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"See where the order is","say":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]","ruleChips":["The courier's live map shows…"]},{"kind":"step","id":"track-order/reorder","title":"Order the same bouquet again","say":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart","findingCount":1,"findingSeverity":"medium"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]],"findingCount":1,"findingSeverity":"medium"},"fulfil-orders":{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"See today's orders","say":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders","ruleChips":["Only staff accounts can open…"]},{"kind":"step","id":"fulfil-orders/mark-made","title":"Mark a bouquet as made","say":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier","derivedLabel":true,"say":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]","ruleChips":["The customer gets a text with…"]}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]},"add-bouquet":{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","apps":["mac"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enter name, price and sizes","say":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Upload photos","say":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos","ruleChips":["Photos are cropped square","Images over 10 MB are refused"]},{"kind":"step","id":"add-bouquet/publish","title":"Publish to the shop","say":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]},"sold-out":{"kind":"journey","id":"sold-out","title":"Mark a bouquet sold out","say":"Florist","apps":["mac"],"state":"new","latest":false,"planned":false,"flags":[],"rollup":"new","children":[{"kind":"step","id":"sold-out/find","title":"Find the bouquet","say":"Finds the bouquet in the catalogue","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"sees":"Every bouquet with its photo and stock status.","files":["src/app/studio/bouquets/page.tsx"]},"screen":"/studio/bouquets"},{"kind":"step","id":"sold-out/toggle","title":"Mark as sold out","say":"Switches it to sold out until a chosen date","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":1,"detail":{"does":"Flips the Sold out switch and picks a return date.","rules":["Sold-out bouquets disappear from the shop straight away","They come back on the return date"],"saves":["Bouquet stock"],"files":["src/app/studio/bouquets/[id]/page.tsx"]},"screen":"/studio/bouquets/[id]","ruleChips":["Sold-out bouquets disappear…","They come back on the return…"]}],"edges":[["sold-out/find","sold-out/toggle"]]},"weekly-sales":{"kind":"journey","id":"weekly-sales","title":"See this week's sales","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"weekly-sales/report","title":"Open the weekly sales","say":"Opens the weekly sales summary","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Bouquets sold, revenue and the busiest delivery days.","files":["src/app/studio/sales/page.tsx"]},"screen":"/studio/sales"}],"edges":[]},"newsletter":{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leave an email address","say":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirm by email","say":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null,"ruleChips":["No emails are sent until they…"]},{"kind":"step","id":"newsletter/weekly-send","title":"Send the weekly newsletter","say":"The newsletter goes out to everyone who confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"rules":["Skips anyone who unsubscribed"],"files":["src/jobs/newsletter.ts"]},"screen":null,"stepKind":"background","trigger":"Every Friday at 9:00","ruleChips":["Skips anyone who unsubscribed"]}],"edges":[["newsletter/signup-box","newsletter/confirm"],["newsletter/confirm","newsletter/weekly-send"]]},"wishlist":{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","apps":["web"],"state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Save a bouquet","say":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"See saved bouquets","say":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}},"banners":[],"chips":["Share link out of date"],"planSummary":"Add monthly flower subscriptions that people can buy as a gift","approval":"pending","findings":[{"id":"rules-disagree:s:checkout/delivery","check":"rules-disagree","severity":"high","target":"s:checkout/delivery","message":"The rule says Sundays are closed, but the delivery calendar code offers Sunday slots.","evidence":["src/lib/delivery-slots.ts"]},{"id":"no-recovery:s:sign-up/expired","check":"no-recovery","severity":"high","target":"s:sign-up/expired","message":"When the link has expired there is no way to ask for a new one.","evidence":["src/app/sign-up/expired/page.tsx"]},{"id":"orphan-page:page:/studio/reports","check":"orphan-page","severity":"medium","target":"page:/studio/reports","message":"The reports page exists in the code but no journey reaches it.","evidence":["src/app/studio/reports/page.tsx"]},{"id":"dead-end:s:track-order/reorder","check":"dead-end","severity":"medium","target":"s:track-order/reorder","message":"Reordering puts a bouquet in the basket, but no step leads on to checkout.","evidence":["src/lib/basket.ts"]},{"id":"complex-journey:j:checkout","check":"complex-journey","severity":"low","target":"j:checkout","message":"Checkout has six steps and a branch; gift options could be their own journey."}]}</script>
+<script type="application/json" id="jm-data">{"mode":"session","app":"Petal \u0026 Stem","apps":[{"id":"web","title":"Web app","kind":"web"},{"id":"mac","title":"Mac app","kind":"desktop"}],"root":{"kind":"app","id":"app","title":"Petal \u0026 Stem","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","edges":[["a:shop","a:account","paid"],["a:account","a:shop","account made"],["a:shop","a:studio","order placed"]],"depths":{"a:shop":1,"a:account":0,"a:studio":2,"a:other":0},"children":[{"kind":"area","id":"shop","title":"Shopping","say":"Finding flowers and paying for them","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","edges":[["j:browse","j:checkout"]],"depths":{"j:browse":0,"j:checkout":1,"j:gift-subscription":0,"j:wishlist":0},"children":[{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"See this week's bouquets","say":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/","ruleChips":["Sold-out bouquets are hidden","Prices include delivery…"]},{"kind":"step","id":"browse/occasion","title":"Filter by occasion","say":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Pick a size and add to basket","say":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]","continues":"checkout","ruleChips":["Grand needs two days' notice","The basket badge updates…"]}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","apps":["web"],"state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Review the basket","say":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["An empty basket shows a link…"]},{"kind":"step","id":"checkout/delivery","title":"Choose delivery day and address","say":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery","ruleChips":["Sundays are closed","Orders after 2pm can't go out…"],"findingCount":1,"findingSeverity":"high"},{"kind":"step","id":"checkout/gift-note","title":"Add a gift message","say":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pay for the order","say":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment","ruleChips":["Nothing is charged until the…"]},{"kind":"step","id":"checkout/confirmation","title":"See the order confirmation","say":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Get the email receipt","say":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note","It's a gift"],["checkout/delivery","checkout/pay","Not a gift"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]],"findingCount":2,"findingSeverity":"high"},{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","apps":["web"],"state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Pick a plan length","say":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Add the recipient","say":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Review the subscription","say":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["A subscription and a one-off…"]},{"kind":"step","id":"gift-subscription/pay","title":"Pay up front","say":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","apps":["web"],"state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Save a bouquet","say":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"See saved bouquets","say":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}],"findingCount":2,"findingSeverity":"high"},{"kind":"area","id":"account","title":"Your account","say":"Signing up, signing in and tracking orders","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"conflict","edges":[["j:sign-in","j:track-order","has an order"]],"depths":{"j:sign-up":0,"j:sign-in":0,"j:track-order":1},"children":[{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fill in the sign-up form","say":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up","ruleChips":["Passwords need at least 10…","One account per email address"]},{"kind":"step","id":"sign-up/verify-email","title":"Is the link still valid?","say":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null,"stepKind":"decision","ruleChips":["The link stops working after…"]},{"kind":"step","id":"sign-up/welcome","title":"Land on the account page","say":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-up/expired","title":"Link has expired","say":"The link is more than a day old, so the account is not confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"screen":"/sign-up/expired","stepKind":"outcome","result":"failure","findingCount":1,"findingSeverity":"high"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome","Within 24 hours"],["sign-up/verify-email","sign-up/expired","Link expired"]],"findingCount":1,"findingSeverity":"high"},{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enter email and password","say":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in","ruleChips":["Five wrong tries locks…"]},{"kind":"step","id":"sign-in/forgot","title":"Reset a forgotten password","say":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"See the account","say":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Tick Remember me","say":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","apps":["web","mac"],"state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Open past orders","say":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"See where the order is","say":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]","ruleChips":["The courier's live map shows…"]},{"kind":"step","id":"track-order/reorder","title":"Order the same bouquet again","say":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart","findingCount":1,"findingSeverity":"medium"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]],"findingCount":1,"findingSeverity":"medium"}],"findingCount":2,"findingSeverity":"high"},{"kind":"area","id":"studio","title":"Running the shop","say":"What the florist does behind the scenes","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"changed","edges":[["a:studio-catalogue","a:studio-orders","orders come in"]],"depths":{"a:studio-orders":1,"a:studio-catalogue":0},"anytime":["j:weekly-sales"],"children":[{"kind":"area","id":"studio-orders","title":"Orders","say":"Getting today's bouquets made and out","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","edges":[],"depths":{"j:fulfil-orders":0},"children":[{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"See today's orders","say":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders","ruleChips":["Only staff accounts can open…"]},{"kind":"step","id":"fulfil-orders/mark-made","title":"Mark a bouquet as made","say":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier","derivedLabel":true,"say":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]","ruleChips":["The customer gets a text with…"]}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]}]},{"kind":"area","id":"studio-catalogue","title":"Catalogue","say":"What the shop sells","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"changed","edges":[["j:add-bouquet","j:sold-out","runs out"]],"depths":{"j:add-bouquet":0,"j:sold-out":1},"children":[{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","apps":["mac"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enter name, price and sizes","say":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Upload photos","say":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos","ruleChips":["Photos are cropped square","Images over 10 MB are refused"]},{"kind":"step","id":"add-bouquet/publish","title":"Publish to the shop","say":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]},{"kind":"journey","id":"sold-out","title":"Mark a bouquet sold out","say":"Florist","apps":["mac"],"state":"new","latest":false,"planned":false,"flags":[],"rollup":"new","children":[{"kind":"step","id":"sold-out/find","title":"Find the bouquet","say":"Finds the bouquet in the catalogue","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"sees":"Every bouquet with its photo and stock status.","files":["src/app/studio/bouquets/page.tsx"]},"screen":"/studio/bouquets"},{"kind":"step","id":"sold-out/toggle","title":"Mark as sold out","say":"Switches it to sold out until a chosen date","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":1,"detail":{"does":"Flips the Sold out switch and picks a return date.","rules":["Sold-out bouquets disappear from the shop straight away","They come back on the return date"],"saves":["Bouquet stock"],"files":["src/app/studio/bouquets/[id]/page.tsx"]},"screen":"/studio/bouquets/[id]","ruleChips":["Sold-out bouquets disappear…","They come back on the return…"]}],"edges":[["sold-out/find","sold-out/toggle"]]}]},{"kind":"journey","id":"weekly-sales","title":"See this week's sales","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"weekly-sales/report","title":"Open the weekly sales","say":"Opens the weekly sales summary","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Bouquets sold, revenue and the busiest delivery days.","files":["src/app/studio/sales/page.tsx"]},"screen":"/studio/sales"}],"edges":[]}]},{"kind":"area","id":"other","title":"Other","say":"Journeys that are not in an area yet","state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","edges":[],"depths":{"j:newsletter":0},"children":[{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leave an email address","say":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirm by email","say":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null,"ruleChips":["No emails are sent until they…"]},{"kind":"step","id":"newsletter/weekly-send","title":"Send the weekly newsletter","say":"The newsletter goes out to everyone who confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"rules":["Skips anyone who unsubscribed"],"files":["src/jobs/newsletter.ts"]},"screen":null,"stepKind":"background","trigger":"Every Friday at 9:00","ruleChips":["Skips anyone who unsubscribed"]}],"edges":[["newsletter/signup-box","newsletter/confirm"],["newsletter/confirm","newsletter/weekly-send"]]}]}],"findingCount":4,"findingSeverity":"high"},"journeys":{"browse":{"kind":"journey","id":"browse","title":"Browse and pick a bouquet","say":"Customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"browse/home","title":"See this week's bouquets","say":"Lands on the home page and sees this week's bouquets","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A big photo of the bouquet of the week, then a grid of six bouquets with prices.","does":"Scrolls, or taps an occasion such as Birthday or Sympathy.","rules":["Sold-out bouquets are hidden","Prices include delivery inside the city"],"files":["src/app/page.tsx","src/components/BouquetGrid.tsx"]},"screen":"/","ruleChips":["Sold-out bouquets are hidden","Prices include delivery…"]},{"kind":"step","id":"browse/occasion","title":"Filter by occasion","say":"Filters bouquets by occasion","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"Only the bouquets for the chosen occasion, cheapest first.","does":"Picks one to look at more closely.","files":["src/app/shop/[occasion]/page.tsx"]},"screen":"/shop/[occasion]"},{"kind":"step","id":"browse/bouquet","title":"Pick a size and add to basket","say":"Opens a bouquet, picks a size and adds it to the basket","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"Photos, the flowers inside, and three sizes: Classic, Deluxe and Grand.","does":"Chooses a size and taps Add to basket.","rules":["Grand needs two days' notice","The basket badge updates straight away"],"saves":["Basket item"],"files":["src/app/bouquets/[slug]/page.tsx","src/lib/basket.ts"]},"screen":"/bouquets/[slug]","continues":"checkout","ruleChips":["Grand needs two days' notice","The basket badge updates…"]}],"edges":[["browse/home","browse/occasion"],["browse/home","browse/bouquet"],["browse/occasion","browse/bouquet"]]},"checkout":{"kind":"journey","id":"checkout","title":"Checkout","say":"Customer","apps":["web"],"state":"changed","latest":true,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"checkout/cart","title":"Review the basket","say":"Reviews the basket","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":0,"detail":{"sees":"Each bouquet with its size and price, and the total.","does":"Changes a quantity or taps Checkout.","rules":["An empty basket shows a link back to the shop"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["An empty basket shows a link…"]},{"kind":"step","id":"checkout/delivery","title":"Choose delivery day and address","say":"Chooses a delivery date and address","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":1,"detail":{"sees":"A calendar of available days and an address form.","does":"Picks a day, enters the address, and says whether it's a gift.","rules":["Sundays are closed","Orders after 2pm can't go out the same day"],"saves":["Delivery address","Delivery date"],"files":["src/app/checkout/delivery/page.tsx","src/lib/delivery-slots.ts"]},"screen":"/checkout/delivery","ruleChips":["Sundays are closed","Orders after 2pm can't go out…"],"findingCount":1,"findingSeverity":"high"},{"kind":"step","id":"checkout/gift-note","title":"Add a gift message","say":"Adds a gift message for the card","state":"new","latest":true,"planned":false,"flags":["unconfirmed"],"anchor":"ok","rollup":"new","children":[],"depth":2,"detail":{"sees":"A card preview and a message box.","does":"Writes a short message, up to 200 letters.","saves":["Gift message"],"files":["src/app/checkout/gift-note/page.tsx"]},"screen":"/checkout/gift-note"},{"kind":"step","id":"checkout/pay","title":"Pay for the order","say":"Pays for the order","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"changed","children":[],"depth":3,"detail":{"sees":"The order total and the payment options.","does":"Pays by card or with a phone wallet.","rules":["Nothing is charged until the bank says yes"],"files":["src/app/checkout/pay/page.tsx"]},"screen":"/checkout/pay","subflow":"card-payment","ruleChips":["Nothing is charged until the…"]},{"kind":"step","id":"checkout/confirmation","title":"See the order confirmation","say":"Sees the order confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":4,"detail":{"sees":"A thank-you message, the order number and the delivery day.","saves":["Order"],"files":["src/app/checkout/done/page.tsx"]},"screen":"/checkout/done"},{"kind":"step","id":"checkout/receipt","title":"Get the email receipt","say":"Gets a receipt by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":5,"detail":{"sees":"An email with the order, the delivery day and a link to track it.","files":["src/emails/receipt.tsx"]},"screen":null}],"edges":[["checkout/cart","checkout/delivery"],["checkout/delivery","checkout/gift-note","It's a gift"],["checkout/delivery","checkout/pay","Not a gift"],["checkout/gift-note","checkout/pay"],["checkout/pay","checkout/confirmation"],["checkout/confirmation","checkout/receipt"]],"findingCount":2,"findingSeverity":"high"},"gift-subscription":{"kind":"journey","id":"gift-subscription","title":"Gift a flower subscription","say":"Customer","apps":["web"],"state":"new","latest":true,"planned":true,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"gift-subscription/choose-plan","title":"Pick a plan length","say":"Picks 3, 6 or 12 months of flowers","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":0,"detail":{"sees":"Three plans with a monthly price.","does":"Chooses how many months to give.","saves":["Subscription draft"]},"screen":"/gifts/subscribe"},{"kind":"step","id":"gift-subscription/recipient","title":"Add the recipient","say":"Adds who the flowers are for","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"new","children":[],"depth":1,"detail":{"does":"Enters the name, address and a first-month message.","saves":["Recipient"]},"screen":"/gifts/subscribe/recipient"},{"kind":"step","id":"gift-subscription/cart","title":"Review the subscription","say":"Reviews the subscription in the basket","state":"new","latest":true,"planned":true,"flags":["conflict"],"anchor":"unverified","rollup":"conflict","children":[],"depth":2,"detail":{"rules":["A subscription and a one-off bouquet can share one basket"],"files":["src/app/cart/page.tsx"]},"screen":"/cart","ruleChips":["A subscription and a one-off…"]},{"kind":"step","id":"gift-subscription/pay","title":"Pay up front","say":"Pays for the whole subscription up front","state":"new","latest":true,"planned":true,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":3,"screen":"/checkout/pay","subflow":"card-payment"}],"edges":[["gift-subscription/choose-plan","gift-subscription/recipient"],["gift-subscription/recipient","gift-subscription/cart"],["gift-subscription/cart","gift-subscription/pay"]]},"card-payment":{"kind":"journey","id":"card-payment","title":"Card payment","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"card-payment/card-details","title":"Enter card details","say":"Enters card details","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Boxes for the card number, expiry date and security code.","does":"Types the card details and taps Pay.","rules":["Card numbers never touch our servers"],"files":["src/components/CardForm.tsx"]},"screen":"/checkout/pay","ruleChips":["Card numbers never touch our…"]},{"kind":"step","id":"card-payment/wallet","title":"Pay with a phone wallet","say":"Or pays with Apple Pay or Google Pay","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"does":"Taps the wallet button and confirms on their phone.","files":["src/components/WalletButton.tsx"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/bank-check","title":"Did the bank approve?","say":"Their bank checks the payment, usually with a code by text message","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Types the code from the bank.","rules":["Declined: the error stays on the page","Three wrong codes cancel the payment","Approved: on to the confirmation"],"files":["src/app/checkout/pay/verify/page.tsx","src/lib/payments.ts"]},"screen":"/checkout/pay/verify","stepKind":"decision","ruleChips":["Declined: the error stays on…","Three wrong codes cancel the…"],"moreRules":1},{"kind":"step","id":"card-payment/declined","title":"See why it was declined","say":"Sees that the card was declined and why","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A short message from the bank, such as 'Insufficient funds'.","files":["src/lib/payments.ts"]},"screen":"/checkout/pay"},{"kind":"step","id":"card-payment/paid","title":"Payment approved","say":"The payment goes through and they move on to the confirmation","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"saves":["Payment"]},"screen":"/checkout/done","stepKind":"outcome","result":"success"},{"kind":"step","id":"card-payment/gave-up","title":"Leaves without paying","say":"Closes the page without paying; the basket is kept for a week","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":3,"screen":null,"stepKind":"outcome","result":"abandoned"}],"edges":[["card-payment/card-details","card-payment/bank-check"],["card-payment/wallet","card-payment/bank-check"],["card-payment/bank-check","card-payment/paid","Approved"],["card-payment/bank-check","card-payment/declined","Declined"],["card-payment/bank-check","card-payment/gave-up","Closed the bank window"],["card-payment/declined","card-payment/card-details","Try another card"],["card-payment/declined","card-payment/gave-up","Leaves checkout"]]},"sign-up":{"kind":"journey","id":"sign-up","title":"Create an account","say":"New customer","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"broken","children":[{"kind":"step","id":"sign-up/form","title":"Fill in the sign-up form","say":"Fills in name, email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A short form with three boxes.","does":"Fills it in and taps Create account.","rules":["Passwords need at least 10 characters","One account per email address"],"saves":["Customer"],"files":["src/app/sign-up/page.tsx","src/lib/auth.ts"]},"screen":"/sign-up","ruleChips":["Passwords need at least 10…","One account per email address"]},{"kind":"step","id":"sign-up/verify-email","title":"Is the link still valid?","say":"Clicks the link in the welcome email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"broken","rollup":"broken","children":[],"depth":1,"detail":{"sees":"A welcome email with a Confirm button.","does":"Taps the button.","rules":["The link stops working after 24 hours"],"files":["src/emails/verify.tsx"]},"screen":null,"stepKind":"decision","ruleChips":["The link stops working after…"]},{"kind":"step","id":"sign-up/welcome","title":"Land on the account page","say":"Lands on their new account page","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"sees":"A hello message and their saved addresses.","files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-up/expired","title":"Link has expired","say":"The link is more than a day old, so the account is not confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"screen":"/sign-up/expired","stepKind":"outcome","result":"failure","findingCount":1,"findingSeverity":"high"}],"edges":[["sign-up/form","sign-up/verify-email"],["sign-up/verify-email","sign-up/welcome","Within 24 hours"],["sign-up/verify-email","sign-up/expired","Link expired"]],"findingCount":1,"findingSeverity":"high"},"sign-in":{"kind":"journey","id":"sign-in","title":"Sign in","say":"Customer","apps":["web"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"sign-in/sign-in","title":"Enter email and password","say":"Enters email and password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types their email and password and taps Sign in.","rules":["Five wrong tries locks sign-in for 15 minutes"],"files":["src/app/sign-in/page.tsx","src/lib/auth.ts"]},"screen":"/sign-in","ruleChips":["Five wrong tries locks…"]},{"kind":"step","id":"sign-in/forgot","title":"Reset a forgotten password","say":"Resets a forgotten password","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Asks for a reset link and chooses a new password.","files":["src/app/forgot-password/page.tsx"]},"screen":"/forgot-password"},{"kind":"step","id":"sign-in/account","title":"See the account","say":"Sees their account","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"files":["src/app/account/page.tsx"]},"screen":"/account"},{"kind":"step","id":"sign-in/remember-me","title":"Tick Remember me","say":"Ticks \"Remember me\"","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/sign-in"}],"edges":[["sign-in/sign-in","sign-in/account"],["sign-in/sign-in","sign-in/forgot"],["sign-in/forgot","sign-in/sign-in"],["sign-in/remember-me","sign-in/account"]]},"track-order":{"kind":"journey","id":"track-order","title":"Track an order","say":"Customer","apps":["web","mac"],"state":"stable","latest":false,"planned":false,"flags":["conflict"],"rollup":"conflict","children":[{"kind":"step","id":"track-order/orders","title":"Open past orders","say":"Opens the list of past orders","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Orders newest first, each with its status.","files":["src/app/account/orders/page.tsx"]},"screen":"/account/orders"},{"kind":"step","id":"track-order/order","title":"See where the order is","say":"Sees where the order is","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"sees":"A timeline: Made, Out for delivery, Delivered.","rules":["The courier's live map shows only on the delivery day"],"files":["src/app/account/orders/[id]/page.tsx"]},"screen":"/account/orders/[id]","ruleChips":["The courier's live map shows…"]},{"kind":"step","id":"track-order/reorder","title":"Order the same bouquet again","say":"Orders the same bouquet again","state":"stable","latest":false,"planned":false,"flags":["conflict"],"anchor":"ok","rollup":"conflict","children":[],"depth":2,"detail":{"does":"Taps Order again; the bouquet lands in the basket.","saves":["Basket item"],"files":["src/lib/basket.ts"]},"screen":"/cart","findingCount":1,"findingSeverity":"medium"}],"edges":[["track-order/orders","track-order/order"],["track-order/order","track-order/reorder"]],"findingCount":1,"findingSeverity":"medium"},"fulfil-orders":{"kind":"journey","id":"fulfil-orders","title":"Fulfil today's orders","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":["two-chats"],"rollup":"stable","children":[{"kind":"step","id":"fulfil-orders/queue","title":"See today's orders","say":"Sees today's orders by delivery time","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"A list of today's orders, earliest delivery first, with gift messages.","rules":["Only staff accounts can open the studio"],"files":["src/app/studio/orders/page.tsx"]},"screen":"/studio/orders","ruleChips":["Only staff accounts can open…"]},{"kind":"step","id":"fulfil-orders/mark-made","title":"Mark a bouquet as made","say":"Marks a bouquet as made","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"does":"Taps Made once the bouquet is wrapped.","saves":["Order status"],"files":["src/app/studio/orders/[id]/page.tsx"]},"screen":"/studio/orders/[id]"},{"kind":"step","id":"fulfil-orders/hand-over","title":"Hands it to the courier","derivedLabel":true,"say":"Hands it to the courier, and the customer is told","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Out for delivery.","rules":["The customer gets a text with the courier's arrival window"],"saves":["Order status"],"files":["src/lib/notify.ts"]},"screen":"/studio/orders/[id]","ruleChips":["The customer gets a text with…"]}],"edges":[["fulfil-orders/queue","fulfil-orders/mark-made"],["fulfil-orders/mark-made","fulfil-orders/hand-over"]]},"add-bouquet":{"kind":"journey","id":"add-bouquet","title":"Add a new bouquet","say":"Florist","apps":["mac"],"state":"changed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"add-bouquet/details","title":"Enter name, price and sizes","say":"Enters the name, price and sizes","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Fills in the form; Deluxe and Grand prices are suggested.","saves":["Bouquet draft"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"},{"kind":"step","id":"add-bouquet/photos","title":"Upload photos","say":"Uploads photos","state":"changed","latest":false,"planned":false,"flags":[],"anchor":"unverified","rollup":"changed","children":[],"depth":1,"detail":{"does":"Drags in up to six photos.","rules":["Photos are cropped square","Images over 10 MB are refused"],"saves":["Photos"],"files":["src/app/studio/bouquets/new/photos/page.tsx","src/lib/uploads.ts"]},"screen":"/studio/bouquets/new/photos","ruleChips":["Photos are cropped square","Images over 10 MB are refused"]},{"kind":"step","id":"add-bouquet/publish","title":"Publish to the shop","say":"Publishes it to the shop","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"does":"Taps Publish; the bouquet appears on the home page.","saves":["Bouquet"],"files":["src/app/studio/bouquets/new/page.tsx"]},"screen":"/studio/bouquets/new"}],"edges":[["add-bouquet/details","add-bouquet/photos"],["add-bouquet/photos","add-bouquet/publish"]]},"sold-out":{"kind":"journey","id":"sold-out","title":"Mark a bouquet sold out","say":"Florist","apps":["mac"],"state":"new","latest":false,"planned":false,"flags":[],"rollup":"new","children":[{"kind":"step","id":"sold-out/find","title":"Find the bouquet","say":"Finds the bouquet in the catalogue","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":0,"detail":{"sees":"Every bouquet with its photo and stock status.","files":["src/app/studio/bouquets/page.tsx"]},"screen":"/studio/bouquets"},{"kind":"step","id":"sold-out/toggle","title":"Mark as sold out","say":"Switches it to sold out until a chosen date","state":"new","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"new","children":[],"depth":1,"detail":{"does":"Flips the Sold out switch and picks a return date.","rules":["Sold-out bouquets disappear from the shop straight away","They come back on the return date"],"saves":["Bouquet stock"],"files":["src/app/studio/bouquets/[id]/page.tsx"]},"screen":"/studio/bouquets/[id]","ruleChips":["Sold-out bouquets disappear…","They come back on the return…"]}],"edges":[["sold-out/find","sold-out/toggle"]]},"weekly-sales":{"kind":"journey","id":"weekly-sales","title":"See this week's sales","say":"Florist","apps":["mac"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"weekly-sales/report","title":"Open the weekly sales","say":"Opens the weekly sales summary","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"sees":"Bouquets sold, revenue and the busiest delivery days.","files":["src/app/studio/sales/page.tsx"]},"screen":"/studio/sales"}],"edges":[]},"newsletter":{"kind":"journey","id":"newsletter","title":"Join the newsletter","say":"Visitor","apps":["web"],"state":"stable","latest":false,"planned":false,"flags":[],"rollup":"stable","children":[{"kind":"step","id":"newsletter/signup-box","title":"Leave an email address","say":"Leaves an email in the footer box","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":0,"detail":{"does":"Types an email and taps Join.","saves":["Subscriber"],"files":["src/components/Footer.tsx"]},"screen":"/"},{"kind":"step","id":"newsletter/confirm","title":"Confirm by email","say":"Confirms by email","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":1,"detail":{"rules":["No emails are sent until they confirm"],"files":["src/emails/newsletter-confirm.tsx"]},"screen":null,"ruleChips":["No emails are sent until they…"]},{"kind":"step","id":"newsletter/weekly-send","title":"Send the weekly newsletter","say":"The newsletter goes out to everyone who confirmed","state":"stable","latest":false,"planned":false,"flags":[],"anchor":"ok","rollup":"stable","children":[],"depth":2,"detail":{"rules":["Skips anyone who unsubscribed"],"files":["src/jobs/newsletter.ts"]},"screen":null,"stepKind":"background","trigger":"Every Friday at 9:00","ruleChips":["Skips anyone who unsubscribed"]}],"edges":[["newsletter/signup-box","newsletter/confirm"],["newsletter/confirm","newsletter/weekly-send"]]},"wishlist":{"kind":"journey","id":"wishlist","title":"Save bouquets for later","say":"Customer","apps":["web"],"state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[{"kind":"step","id":"wishlist/heart","title":"Save a bouquet","say":"Taps the heart on a bouquet","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":0,"screen":"/bouquets/[slug]"},{"kind":"step","id":"wishlist/list","title":"See saved bouquets","say":"Sees their saved bouquets","state":"removed","latest":false,"planned":false,"flags":[],"rollup":"changed","children":[],"depth":1,"screen":"/account/wishlist"}],"edges":[["wishlist/heart","wishlist/list"]]}},"banners":[],"chips":["Share link out of date"],"planSummary":"Add monthly flower subscriptions that people can buy as a gift","approval":"pending","findings":[{"id":"rules-disagree:s:checkout/delivery","check":"rules-disagree","severity":"high","target":"s:checkout/delivery","message":"The rule says Sundays are closed, but the delivery calendar code offers Sunday slots.","evidence":["src/lib/delivery-slots.ts"]},{"id":"no-recovery:s:sign-up/expired","check":"no-recovery","severity":"high","target":"s:sign-up/expired","message":"When the link has expired there is no way to ask for a new one.","evidence":["src/app/sign-up/expired/page.tsx"]},{"id":"orphan-page:page:/studio/reports","check":"orphan-page","severity":"medium","target":"page:/studio/reports","message":"The reports page exists in the code but no journey reaches it.","evidence":["src/app/studio/reports/page.tsx"]},{"id":"dead-end:s:track-order/reorder","check":"dead-end","severity":"medium","target":"s:track-order/reorder","message":"Reordering puts a bouquet in the basket, but no step leads on to checkout.","evidence":["src/lib/basket.ts"]},{"id":"complex-journey:j:checkout","check":"complex-journey","severity":"low","target":"j:checkout","message":"Checkout has six steps and a branch; gift options could be their own journey."}]}</script>
 <script>
 (function () {
   'use strict';
@@ -709,10 +679,6 @@ svg text { font-family: var(--font); }
     visible = new Map();
   }
 
-  function layoutOf(node) {
-    return appFilter && node.layouts && hasOwn(node.layouts, appFilter) ? node.layouts[appFilter] : node.layout;
-  }
-
   function appsOf(node) {
     return (Array.isArray(node.apps) ? node.apps : []).map(function (id) { return appsById.get(id); }).filter(Boolean);
   }
@@ -732,14 +698,15 @@ svg text { font-family: var(--font); }
     }));
   }
 
-  /** The same tags drawn in SVG, centred under a ring node. */
-  function drawAppBadges(g, node, y) {
+  /** The same tags drawn in SVG, in a row from x on the line at y; any that would pass x + maxW are left out. */
+  function drawAppBadges(g, node, x, y, maxW) {
     var apps = appsOf(node);
     if (!apps.length) return;
     var widths = apps.map(function (app) { return Math.ceil(measure(app.title, FONTS.badge)) + 26; });
-    var cursor = -(widths.reduce(function (a, b) { return a + b; }, 0) + (apps.length - 1) * 4) / 2;
+    var cursor = x;
     var row = s('g', { 'class': 'appbadges-svg', 'aria-hidden': 'true' });
     apps.forEach(function (app, i) {
+      if (cursor + widths[i] > x + maxW) return;
       row.appendChild(s('g', { 'class': 'appbadge ak-' + kindOf(app), transform: 'translate(' + round(cursor) + ' ' + round(y - 9) + ')' },
         s('rect', { width: widths[i], height: 17, rx: 5 }),
         s('path', { d: APP_ICONS[kindOf(app)], transform: 'translate(5 2.5)' }),
@@ -1074,13 +1041,7 @@ svg text { font-family: var(--font); }
     if (!delta) return;
     event.preventDefault();
     var all = Array.prototype.slice.call(view.querySelectorAll('.n[tabindex="0"]'));
-    var at = all.indexOf(el);
-    if (el.classList.contains('tile')) {
-      var vertical = event.key === 'ArrowUp' || event.key === 'ArrowDown';
-      select(all[clamp(at + delta * (vertical ? gridColumns(el) : 1), 0, all.length - 1)]);
-    } else {
-      select(all[(at + delta + all.length) % all.length]);
-    }
+    select(all[(all.indexOf(el) + delta + all.length) % all.length]);
   });
 
   // ---- Free canvas: pan and zoom ----
@@ -1091,8 +1052,8 @@ svg text { font-family: var(--font); }
     UP_AT: 0.6, UP_KEEP: 1.15, UP_PUSH: Math.log(1.5),
     IDLE_MS: 1400, COOLDOWN_MS: 700
   };
-  var GRID_MIN_W = 300;
   var FLOW_MIN_FIT = 0.7;
+  var PART_H = 96;
   var zoomBar = document.getElementById('jm-zoombar');
   var zoomLevel = document.getElementById('jm-zoom-level');
   var zoomHint = document.getElementById('jm-zoomhint');
@@ -1148,39 +1109,23 @@ svg text { font-family: var(--font); }
   }
 
   /**
-   * Fit scale, never enlarged. A ring fits whole. A flow fits whole unless that would shrink its
-   * text below FLOW_MIN_FIT, in which case Fit shows its first steps at that readable size. A grid
-   * fits its width at 100%. overviewK is where everything would be visible (a grid once reflowed);
-   * zooming out past a share of it goes up a level.
+   * Fit scale, never enlarged. A flow fits whole unless that would shrink its text below
+   * FLOW_MIN_FIT, in which case Fit shows its first boxes at that readable size. overviewK is where
+   * everything would be visible; zooming out past a share of it goes up a level.
    */
   function measureFit() {
     var c = canvas;
-    var vw = view.clientWidth;
-    var vh = view.clientHeight;
-    if (c.kind === 'grid') {
-      c.fitK = 1;
-      c.overviewK = clamp(Math.sqrt((vw * vh) / Math.max(1, c.W * c.H)), ZOOM.MIN, 1);
-      return;
-    }
-    c.overviewK = clamp(Math.min(1, vw / c.W, vh / c.H), ZOOM.MIN, 1);
-    c.fitK = c.kind === 'flow' ? Math.max(c.overviewK, Math.min(1, FLOW_MIN_FIT)) : c.overviewK;
+    c.overviewK = clamp(Math.min(1, view.clientWidth / c.W, view.clientHeight / c.H), ZOOM.MIN, 1);
+    c.fitK = Math.max(c.overviewK, Math.min(1, FLOW_MIN_FIT));
   }
 
   function fitCamera() {
     var c = canvas;
     var vw = view.clientWidth;
-    if (c.kind === 'grid' && Math.abs(c.W - vw) > 1) layoutGrid(vw);
     c.k = c.fitK;
     c.x = c.W * c.k > vw ? 0 : (vw - c.W * c.k) / 2;
-    c.y = c.kind === 'grid' ? 0 : (view.clientHeight - c.H * c.k) / 2;
+    c.y = (view.clientHeight - c.H * c.k) / 2;
     c.atFit = true;
-  }
-
-  function layoutGrid(width) {
-    canvas.W = Math.round(width);
-    canvas.world.style.width = canvas.W + 'px';
-    canvas.H = canvas.world.offsetHeight;
-    measureFit();
   }
 
   /** Keeps at least a margin of the world on screen so it can never be lost. */
@@ -1211,7 +1156,7 @@ svg text { font-family: var(--font); }
     if (!frameId) frameId = requestAnimationFrame(applyCamera);
   }
 
-  /** While a gesture runs the world is a GPU layer; once it settles it re-renders crisply (and a grid reflows). */
+  /** While a gesture runs the world is a GPU layer; once it settles it re-renders crisply. */
   function markMoving() {
     var c = canvas;
     c.world.classList.add('moving');
@@ -1219,7 +1164,6 @@ svg text { font-family: var(--font); }
     settleTimer = setTimeout(function () {
       if (canvas !== c) return;
       c.world.classList.remove('moving');
-      if (c.kind === 'grid') reflowGrid();
     }, 200);
   }
 
@@ -1229,36 +1173,6 @@ svg text { font-family: var(--font); }
     world.classList.add('easing');
     clearTimeout(easeTimer);
     easeTimer = setTimeout(function () { world.classList.remove('easing'); }, 230);
-  }
-
-  /**
-   * After a grid zoom settles, re-flows the tiles so the grid fills the screen at the new scale
-   * (more columns when zoomed out, fewer when zoomed in), keeping the tile nearest the centre still.
-   */
-  function reflowGrid() {
-    var c = canvas;
-    var vw = view.clientWidth;
-    var width = Math.max(GRID_MIN_W, Math.round(vw / c.k));
-    if (Math.abs(width - c.W) < 2) return;
-    var anchor = nearestTile(vw / 2, view.clientHeight / 2);
-    var before = anchor ? anchor.getBoundingClientRect().top : 0;
-    layoutGrid(width);
-    if (anchor) c.y += before - anchor.getBoundingClientRect().top;
-    c.x = (vw - c.W * c.k) / 2;
-    c.atFit = false;
-    applyCamera();
-  }
-
-  function nearestTile(px, py) {
-    var v = view.getBoundingClientRect();
-    var best = null;
-    var bestD = Infinity;
-    Array.prototype.forEach.call(canvas.world.querySelectorAll('.tile'), function (tile) {
-      var r = tile.getBoundingClientRect();
-      var d = Math.hypot(r.left + r.width / 2 - v.left - px, r.top + r.height / 2 - v.top - py);
-      if (d < bestD) { bestD = d; best = tile; }
-    });
-    return best;
   }
 
   function panBy(dx, dy) {
@@ -1530,207 +1444,6 @@ svg text { font-family: var(--font); }
     })));
   }
 
-  // ---- Drawing: rings (app and area levels) ----
-
-  function ellipsePerimeter(rx, ry) {
-    return Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
-  }
-
-  /** Points spaced evenly by arc length around an ellipse, starting at `start` radians. */
-  function ellipsePoints(cx, cy, rx, ry, count, start, offset) {
-    var SAMPLES = 360;
-    var pts = [];
-    var cum = [0];
-    var total = 0;
-    for (var i = 0; i <= SAMPLES; i++) {
-      var t = start + (2 * Math.PI * i) / SAMPLES;
-      pts.push({ x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) });
-      if (i > 0) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); cum.push(total); }
-    }
-    var out = [];
-    var j = 0;
-    for (var k = 0; k < count; k++) {
-      var target = ((k + offset) / count) * total;
-      while (j < SAMPLES - 1 && cum[j + 1] < target) j++;
-      var f = (target - cum[j]) / ((cum[j + 1] - cum[j]) || 1);
-      out.push({ x: pts[j].x + (pts[j + 1].x - pts[j].x) * f, y: pts[j].y + (pts[j + 1].y - pts[j].y) * f });
-    }
-    return out;
-  }
-
-  /**
-   * Ring geometry for n items: one ring up to 12, two rings beyond. Node size follows the
-   * spacing; the ellipse then fits the stage, but never so tight that labels hit the hub,
-   * so on small screens the canvas grows and the view scrolls instead.
-   */
-  function ringLayout(n, W, H) {
-    var innerCount = n > 12 ? Math.round(n * 0.4) : 0;
-    var k = innerCount ? 0.58 : 1;
-    var rx = clamp(Math.min(W / 2 - 96, 190 + n * 26), 120, 640);
-    var ry = clamp(Math.min(H / 2 - 78, 150 + n * 20), 105, 420);
-    var ringsFor = function () {
-      return innerCount
-        ? [{ rx: rx * k, ry: ry * k, count: innerCount, offset: 0 }, { rx: rx, ry: ry, count: n - innerCount, offset: 0.5 }]
-        : [{ rx: rx, ry: ry, count: n, offset: 0 }];
-    };
-    var spacing = Math.min.apply(null, ringsFor().map(function (ring) { return ellipsePerimeter(ring.rx, ring.ry) / Math.max(1, ring.count); }));
-    var r = clamp(Math.min(spacing * 0.24, ry * k * 0.3, W * 0.09), 14, 42);
-    var labelW = clamp(Math.min(spacing * 0.92, (W / 2 - 124) * 2), 66, 176);
-    var labelLines = 2;
-    var side = Math.max(labelW / 2, r);
-    var above = r + 34;
-    var below = r + 34 + 17 * labelLines + (appsById.size ? 22 : 0);
-    rx = Math.min(rx, W / 2 - side - 14);
-    ry = Math.min(ry, (H - above - below) / 2);
-    var hubR = clamp(Math.min(rx, ry) * k * (innerCount ? 0.36 : 0.4), 46, 80);
-    rx = Math.max(rx, (hubR + 12 + side) / k);
-    ry = Math.max(ry, (hubR + r + 17 * labelLines + 48 + (appsById.size ? 22 : 0)) / k);
-    W = grow(W, 2 * (rx + side + 14));
-    H = grow(H, above + below + 2 * ry);
-    var cx = W / 2;
-    var cy = (H + above - below) / 2;
-    var start = n === 1 ? 0 : n === 2 ? Math.PI : -Math.PI / 2;
-    var points = [];
-    ringsFor().forEach(function (ring) {
-      points = points.concat(ellipsePoints(cx, cy, ring.rx, ring.ry, ring.count, start, ring.offset));
-    });
-    return { W: W, H: H, cx: cx, cy: cy, r: r, hubR: hubR, labelW: labelW, labelLines: labelLines, dense: innerCount > 0, points: points };
-  }
-
-  function drawHub(node, L) {
-    var g = s('g', { 'class': 'hub', transform: 'translate(' + round(L.cx) + ' ' + round(L.cy) + ')' });
-    g.appendChild(s('title', {}, txt(node.say ? node.title + '\n' + node.say : node.title)));
-    g.appendChild(s('circle', { 'class': 'hub-ring hr-' + lookOf(node), r: L.hubR + 7 }));
-    g.appendChild(s('circle', { 'class': 'shape', r: L.hubR }));
-    var lines = wrapText(node.title, L.hubR * 1.7, 3, FONTS.hub);
-    var sub = node.kind === 'app' ? plural(kidsOf(node).length, 'area', 'areas') : plural(journeyCount(node), 'journey', 'journeys');
-    var height = lines.length * 18 + 16;
-    var y = -height / 2 + 13;
-    lines.forEach(function (line) {
-      g.appendChild(s('text', { 'class': 'hub-title', y: round(y), 'text-anchor': 'middle' }, txt(line)));
-      y += 18;
-    });
-    g.appendChild(s('text', { 'class': 'hub-sub', y: round(y), 'text-anchor': 'middle' }, txt(sub)));
-    return g;
-  }
-
-  /** Areas and sections are rounded squares; journeys are circles. Offsets grow the focus ring and halo. */
-  function ringShape(node, cls, r, grow) {
-    if (node.kind !== 'area') return s('circle', { 'class': cls, r: round(r + grow) });
-    var half = r * 0.88 + grow;
-    return s('rect', { 'class': cls, x: round(-half), y: round(-half), width: round(half * 2), height: round(half * 2), rx: round(r * 0.3 + grow) });
-  }
-
-  function drawRingNode(trail, node, p, L) {
-    var g = s('g', {
-      'class': nodeClass(node), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
-      tabindex: '0', role: 'button', 'aria-label': ariaOf(node, last(trail).node), 'data-id': node.id
-    });
-    g.appendChild(s('title', {}, txt(tooltipOf(node))));
-    g.appendChild(ringShape(node, 'focus-ring', L.r, 9));
-    g.appendChild(ringShape(node, 'halo', L.r, 5));
-    g.appendChild(ringShape(node, 'shape', L.r, 0));
-    var count = countOf(node);
-    var big = L.r >= 28;
-    g.appendChild(s('text', { 'class': 'count on-shape', y: big ? -1 : 5, 'text-anchor': 'middle' }, txt(count)));
-    if (big) g.appendChild(s('text', { 'class': 'unit on-shape', y: 13, 'text-anchor': 'middle' }, txt(unitOf(node, count))));
-    var y = drawLines(g, wrapText(node.title, L.labelW, L.labelLines, FONTS.label), {
-      x: 0, y: L.r + 20, lineHeight: 17, cls: 'label', anchor: 'middle', font: FONTS.label, struck: node.state === 'removed'
-    });
-    if (node.kind === 'journey' && node.say && L.labelLines > 1 && !L.dense) {
-      g.appendChild(s('text', { 'class': 'sublabel', y: round(y - 1), 'text-anchor': 'middle' }, txt(wrapText(node.say, L.labelW, 1, FONTS.sub)[0])));
-      y += 16;
-    }
-    if (node.kind === 'journey') drawAppBadges(g, node, y + 3);
-    drawTags(g, tagsOf(node), 0, -L.r - 13, 'middle');
-    drawFindingBadge(g, node, L.r * 0.8, -L.r * 0.8, 'middle');
-    var open = function (el) { openChild(trail, node, el || g); };
-    var corner = L.r * (node.kind === 'area' ? 0.84 : 0.7071);
-    g.appendChild(openButton(corner, corner, function () { open(g); }, clamp(L.r * 0.36, 8, 10)));
-    bindNode(g, open, node);
-    return g;
-  }
-
-  function drawRing(trail) {
-    var hub = last(trail).node;
-    var items = kidsOf(hub);
-    var L = ringLayout(items.length, Math.max(300, view.clientWidth), Math.max(360, view.clientHeight));
-    var svg = s('svg', { 'class': L.dense ? 'layer dense' : 'layer', role: 'group', 'aria-label': hub.title });
-    var world = s('g', { 'class': 'world' });
-    var spokes = s('g', { 'class': 'spokes', 'aria-hidden': 'true' });
-    var nodes = s('g', { 'class': 'nodes' });
-    items.forEach(function (item, i) {
-      var p = L.points[i];
-      spokes.appendChild(s('line', { 'class': 'spoke sp-' + lookOf(item), x1: round(L.cx), y1: round(L.cy), x2: round(p.x), y2: round(p.y) }));
-      nodes.appendChild(drawRingNode(trail, item, p, L));
-    });
-    addKids(world, [spokes, drawHub(hub, L), nodes]);
-    svg.appendChild(world);
-    view.appendChild(svg);
-    mountCanvas(world, L.W, L.H, 'ring');
-  }
-
-  // ---- Drawing: grid (levels with more than 24 items) ----
-
-  function drawTile(trail, node) {
-    var parent = last(trail).node;
-    var count = countOf(node);
-    var sub = node.kind === 'area'
-      ? (sectionCount(node) ? plural(sectionCount(node), 'section', 'sections') + ' \u00B7 ' : '') + plural(count, 'journey', 'journeys')
-      : (node.say ? node.say + ' \u00B7 ' : '') + plural(count, 'step', 'steps');
-    var tile = h('div', {
-      'class': 'tile ' + nodeClass(node), tabindex: '0', role: 'button',
-      'aria-label': ariaOf(node, parent), 'data-id': node.id, title: tooltipOf(node)
-    });
-    var body = h('span', { 'class': 'tile-body' },
-      h('span', { 'class': 'tile-title' }, txt(node.title)),
-      h('span', { 'class': 'tile-sub' }, txt(sub)));
-    if (node.kind === 'journey') addKids(body, [appBadges(node)]);
-    var tags = tagsOf(node);
-    if (tags.length) body.appendChild(pillRow(tags));
-    var openEl = h('span', { 'class': 'tile-open', 'aria-hidden': 'true', title: 'Open' }, txt('\u203A'));
-    var open = function (el) { openChild(trail, node, el || tile); };
-    openEl.addEventListener('click', function (event) { event.stopPropagation(); open(tile); });
-    openEl.addEventListener('dblclick', function (event) { event.stopPropagation(); });
-    addKids(tile, [h('span', { 'class': 'mark', 'aria-hidden': 'true' }, txt(count)), body, openEl]);
-    if (findingsOn && node.findingCount) {
-      tile.appendChild(h('span', { 'class': 'fpill tile-fbadge sev-' + sevClass(node.findingSeverity), 'aria-hidden': 'true' }, svgIcon('flag'), txt(node.findingCount)));
-    }
-    bindNode(tile, open, node);
-    return tile;
-  }
-
-  /** A tidy grid of tiles, sections first; the view model already sorted them. */
-  function drawGrid(trail) {
-    var hub = last(trail).node;
-    var items = kidsOf(hub);
-    var sections = items.filter(function (item) { return item.kind === 'area'; });
-    var journeys = items.filter(function (item) { return item.kind !== 'area'; });
-    var groups = [];
-    if (sections.length) groups.push({ label: hub.kind === 'app' ? 'Areas' : 'Sections', items: sections });
-    if (journeys.length) groups.push({ label: 'Journeys', items: journeys });
-    var wrap = h('div', { 'class': 'grid-wrap' });
-    groups.forEach(function (group) {
-      if (groups.length > 1) wrap.appendChild(h('h3', { 'class': 'grid-head' }, txt(group.label + ' \u00B7 ' + group.items.length)));
-      wrap.appendChild(addKids(h('div', { 'class': 'grid', role: 'group', 'aria-label': group.label }), group.items.map(function (item) {
-        return drawTile(trail, item);
-      })));
-    });
-    var saved = pendingCamera && pendingCamera.kind === 'grid' && !pendingCamera.atFit ? pendingCamera : null;
-    var width = saved ? Math.max(GRID_MIN_W, Math.round(view.clientWidth / saved.k)) : view.clientWidth;
-    var world = h('div', { 'class': 'world grid-world' }, wrap);
-    world.style.width = width + 'px';
-    view.appendChild(h('div', { 'class': 'layer' }, world));
-    mountCanvas(world, width, world.offsetHeight, 'grid');
-  }
-
-  /** Columns in the CSS grid that holds a tile, for Up/Down arrow moves. */
-  function gridColumns(tile) {
-    var tiles = Array.prototype.slice.call(tile.parentNode.children);
-    var top = tiles[0].offsetTop;
-    return Math.max(1, tiles.filter(function (t) { return t.offsetTop === top; }).length);
-  }
-
   // ---- Drawing: journey flow ----
 
   function arrowMarker(id, cls) {
@@ -1849,15 +1562,31 @@ svg text { font-family: var(--font); }
       s('text', { x: 18, y: 13 }, txt(label))));
   }
 
-  function drawStepBox(trail, step, p, BW, BH) {
+  /** A box's group with its tooltip, focus ring, halo and shape; the caller draws what goes inside. */
+  function boxShell(node, p, BW, BH, cls, label) {
     var g = s('g', {
-      'class': nodeClass(step) + (step.stepKind ? ' sk-' + step.stepKind : ''), transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
-      tabindex: '0', role: 'button', 'aria-label': ariaOf(step), 'data-id': step.id
+      'class': cls, transform: 'translate(' + round(p.x) + ' ' + round(p.y) + ')',
+      tabindex: '0', role: 'button', 'aria-label': label, 'data-id': node.id
     });
-    g.appendChild(s('title', {}, txt(tooltipOf(step))));
-    g.appendChild(stepShape(step, 'focus-ring', BW, BH, 9));
-    g.appendChild(stepShape(step, 'halo', BW, BH, 5));
-    g.appendChild(stepShape(step, 'shape', BW, BH, 0));
+    g.appendChild(s('title', {}, txt(tooltipOf(node))));
+    g.appendChild(stepShape(node, 'focus-ring', BW, BH, 9));
+    g.appendChild(stepShape(node, 'halo', BW, BH, 5));
+    g.appendChild(stepShape(node, 'shape', BW, BH, 0));
+    return g;
+  }
+
+  /** What every box carries on its edge (tags, findings badge, the round open button), then click and double-click. */
+  function finishBox(g, trail, node, BW, BH, tagX) {
+    drawTags(g, tagsOf(node), tagX, 0, 'start');
+    drawFindingBadge(g, node, BW - 10, 0, 'end');
+    var open = function (el) { openChild(trail, node, el || g); };
+    g.appendChild(openButton(BW, BH / 2, function () { open(g); }));
+    bindNode(g, open, node);
+    return g;
+  }
+
+  function drawStepBox(trail, step, p, BW, BH) {
+    var g = boxShell(step, p, BW, BH, nodeClass(step) + (step.stepKind ? ' sk-' + step.stepKind : ''), ariaOf(step));
     var ins = insetOf(step);
     var roomW = BW - ins.left - ins.right;
     if (step.stepKind === 'outcome') {
@@ -1886,12 +1615,7 @@ svg text { font-family: var(--font); }
     var meta = step.screen ? wrapText(step.screen, metaWidth, 1, FONTS.meta)[0] : 'No screen';
     g.appendChild(s('text', { 'class': step.screen ? 'meta' : 'meta none', x: ins.left, y: BH - 13 }, txt(meta)));
     if (step.subflow) g.appendChild(s('text', { 'class': 'subflow-ind', x: BW - 16, y: BH - 13, 'text-anchor': 'end' }, txt('⤷ Sub-flow')));
-    drawTags(g, tagsOf(step), ins.left - 2, 0, 'start');
-    drawFindingBadge(g, step, BW - 10, 0, 'end');
-    var open = function (el) { openChild(trail, step, el || g); };
-    g.appendChild(openButton(BW, BH / 2, function () { open(g); }));
-    bindNode(g, open, step);
-    return g;
+    return finishBox(g, trail, step, BW, BH, ins.left - 2);
   }
 
   function pathData(parts) {
@@ -1958,70 +1682,135 @@ svg text { font-family: var(--font); }
       s('text', { x: w / 2, y: 12.5, 'text-anchor': 'middle' }, txt(label))));
   }
 
+  /** Key of an area or journey inside its parent's flow, as the view model's `edges` and `depths` use it. */
+  function partKey(node) { return (node.kind === 'area' ? 'a:' : 'j:') + node.id; }
+
+  /**
+   * What one level's flow is made of. A journey's boxes are its steps. The app's and an area's boxes
+   * are its areas, sections and journeys, placed by the view model's `depths` and `edges`, with
+   * "any time" parts set apart in a column of their own.
+   */
+  function flowOf(node) {
+    var items = kidsOf(node);
+    if (node.kind === 'journey') {
+      return { items: items, extra: [], keyOf: function (step) { return step.id; }, depthOf: function (step) { return step.depth; }, draw: drawStepBox, empty: 'This journey has no steps yet.' };
+    }
+    var anytime = new Set(Array.isArray(node.anytime) ? node.anytime : []);
+    var depths = node.depths || {};
+    return {
+      items: items.filter(function (item) { return !anytime.has(partKey(item)); }),
+      extra: items.filter(function (item) { return anytime.has(partKey(item)); }),
+      keyOf: partKey,
+      depthOf: function (item) { return depths[partKey(item)]; },
+      draw: drawPartBox,
+      empty: 'Nothing mapped here yet.'
+    };
+  }
+
+  /** Every level is a flow: boxes in columns by depth, left to right, with labelled arrows between them. */
   function drawFlow(trail) {
-    var journey = last(trail).node;
-    var steps = kidsOf(journey);
-    if (!steps.length) {
-      view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt('This journey has no steps yet.'))));
+    var node = last(trail).node;
+    var flow = flowOf(node);
+    var all = flow.items.concat(flow.extra);
+    if (!all.length) {
+      view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt(flow.empty))));
       return;
     }
-    var edgeList = Array.isArray(journey.edges) ? journey.edges : [];
+    var edgeList = Array.isArray(node.edges) ? node.edges : [];
     var pillW = edgeList.reduce(function (m, e) { return e[2] ? Math.max(m, Math.ceil(measure(e[2], FONTS.chip)) + 16) : m; }, 0);
-    var extraRows = Math.max.apply(null, steps.map(function (step) { return stepRows(step).length; }));
-    var BW = stepBoxWidth(steps), BH = 80 + 24 * extraRows, CG = pillW ? clamp(pillW + 30, 76, 200) : 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
+    var extraRows = node.kind === 'journey' ? Math.max.apply(null, all.map(function (step) { return stepRows(step).length; })) : 0;
+    var BW = stepBoxWidth(all), BH = node.kind === 'journey' ? 80 + 24 * extraRows : PART_H;
+    var CG = pillW ? clamp(pillW + 30, 76, 200) : 76, RG = 48, PAD = 64, LOOP = 44, ARC = 58;
     var byDepth = [];
-    steps.forEach(function (step) {
-      var d = Number.isInteger(step.depth) && step.depth >= 0 ? step.depth : 0;
-      (byDepth[d] = byDepth[d] || []).push(step);
+    flow.items.forEach(function (item) {
+      var d = flow.depthOf(item);
+      d = Number.isInteger(d) && d >= 0 ? d : 0;
+      (byDepth[d] = byDepth[d] || []).push(item);
     });
     var cols = byDepth.filter(Boolean);
+    if (flow.extra.length) cols.push(flow.extra);
+    var anyCol = flow.extra.length ? cols.length - 1 : -1;
     var rows = Math.max.apply(null, cols.map(function (col) { return col.length; }));
     var W = PAD * 2 + cols.length * BW + (cols.length - 1) * CG;
     var H = PAD * 2 + rows * BH + (rows - 1) * RG + LOOP;
     var pos = new Map();
-    var byId = new Map();
+    var byKey = new Map();
     cols.forEach(function (col, c) {
       var top = PAD + ((rows - col.length) * (BH + RG)) / 2;
-      col.forEach(function (step, r) {
-        pos.set(step.id, { x: PAD + c * (BW + CG), y: top + r * (BH + RG), col: c });
-        byId.set(step.id, step);
+      col.forEach(function (item, r) {
+        pos.set(flow.keyOf(item), { x: PAD + c * (BW + CG), y: top + r * (BH + RG), col: c });
+        byKey.set(flow.keyOf(item), item);
       });
     });
 
-    var svg = s('svg', { 'class': 'layer', role: 'group', 'aria-label': journey.title });
+    var svg = s('svg', { 'class': 'layer', role: 'group', 'aria-label': node.kind === 'app' ? (vm.app || 'Your app') : node.title });
     svg.appendChild(s('defs', {}, arrowMarker('jm-arrow', 'arrow'), arrowMarker('jm-arrow-new', 'arrow-new')));
     var world = s('g', { 'class': 'world' });
+    var frame = s('g', { 'class': 'frame', 'aria-hidden': 'true' });
+    if (anyCol >= 0) {
+      var first = pos.get(flow.keyOf(flow.extra[0]));
+      var colH = flow.extra.length * BH + (flow.extra.length - 1) * RG;
+      frame.appendChild(s('rect', { 'class': 'anytime-region', x: round(first.x - 18), y: round(first.y - 40), width: round(BW + 36), height: round(colH + 58), rx: 18 }));
+      frame.appendChild(s('text', { 'class': 'frame-title', x: round(first.x + BW + 4), y: round(first.y - 18), 'text-anchor': 'end' }, txt('Any time')));
+    }
     var geo = {
       BW: BW, BH: BH, ARC: ARC, LOOP: LOOP,
-      colTop: cols.map(function (col) { return pos.get(col[0].id).y; }),
-      colBottom: cols.map(function (col) { return pos.get(last(col).id).y + BH; })
+      colTop: cols.map(function (col) { return pos.get(flow.keyOf(col[0])).y; }),
+      colBottom: cols.map(function (col) { return pos.get(flow.keyOf(last(col))).y + BH; })
     };
     var edges = s('g', { 'class': 'edges', 'aria-hidden': 'true' });
     var conds = s('g', { 'class': 'conds', 'aria-hidden': 'true' });
     var placed = [];
+    var guessed = false;
     edgeList.forEach(function (edge) {
       var a = pos.get(edge[0]);
       var b = pos.get(edge[1]);
       if (!a || !b) return;
-      var source = byId.get(edge[0]);
-      var target = byId.get(edge[1]);
+      var source = byKey.get(edge[0]);
+      var target = byKey.get(edge[1]);
       var isNew = target.state === 'new';
       var cls = 'edge';
       if (b.col <= a.col) cls += ' edge-back';
       if (isNew) cls += ' edge-new';
       if (source.state === 'removed' || target.state === 'removed') cls += ' edge-removed';
+      if (edge[3] === 'guess') { cls += ' edge-guess'; guessed = true; }
       var route = edgePath(a, b, geo);
       edges.appendChild(s('path', { 'class': cls, d: route.d, 'marker-end': isNew ? 'url(#jm-arrow-new)' : 'url(#jm-arrow)' }));
       if (edge[2]) drawConditions(conds, placed, edge, route.mid, b.col === a.col + 1 ? CG - 10 : 220);
     });
+    if (guessed) frame.appendChild(s('text', { 'class': 'frame-title', x: PAD, y: PAD - 30 }, txt('Order guessed from names · run /chefs-table:order for the real one')));
     var nodes = s('g', { 'class': 'nodes' });
     cols.forEach(function (col) {
-      col.forEach(function (step) { nodes.appendChild(drawStepBox(trail, step, pos.get(step.id), BW, BH)); });
+      col.forEach(function (item) { nodes.appendChild(flow.draw(trail, item, pos.get(flow.keyOf(item)), BW, BH)); });
     });
-    addKids(world, [edges, nodes, conds]);
+    addKids(world, [frame, edges, nodes, conds]);
     svg.appendChild(world);
     view.appendChild(svg);
     mountCanvas(world, W, H, 'flow');
+  }
+
+  /** Short line at the foot of an area or journey box: how much is inside. */
+  function partMeta(node) {
+    if (node.kind === 'area') {
+      var sections = sectionCount(node);
+      return (sections ? plural(sections, 'section', 'sections') + ' · ' : '') + plural(journeyCount(node), 'journey', 'journeys');
+    }
+    return plural(kidsOf(node).length, 'step', 'steps');
+  }
+
+  /** An area, section or journey as a box in its parent's flow; double-click (or the round button) opens its own flow. */
+  function drawPartBox(trail, node, p, BW, BH) {
+    var g = boxShell(node, p, BW, BH, nodeClass(node) + ' part', ariaOf(node, last(trail).node));
+    var roomW = BW - 32;
+    var y = drawLines(g, wrapText(node.title, roomW, 2, FONTS.title), {
+      x: 14, y: 28, lineHeight: 18, cls: 'title on-shape', anchor: 'start', font: FONTS.title, struck: node.state === 'removed'
+    });
+    if (node.say) drawLines(g, wrapText(node.say, roomW, y > 46 ? 1 : 2, FONTS.sub), { x: 14, y: y + 2, lineHeight: 16, cls: 'part-say', anchor: 'start', font: FONTS.sub });
+    var meta = wrapText(partMeta(node), roomW, 1, FONTS.sub)[0] || '';
+    g.appendChild(s('text', { 'class': 'part-meta', x: 14, y: BH - 13 }, txt(meta)));
+    var badgeX = 14 + Math.ceil(measure(meta, FONTS.sub)) + 8;
+    if (node.kind === 'journey') drawAppBadges(g, node, badgeX, BH - 13, BW - 14 - badgeX);
+    return finishBox(g, trail, node, BW, BH, 12);
   }
 
   // ---- Drawing: step card ----
@@ -2410,11 +2199,9 @@ svg text { font-family: var(--font); }
     var cardTitle = null;
     if ((node.kind === 'app' || node.kind === 'area') && !kidsOf(node).length) {
       view.appendChild(h('div', { 'class': 'empty' }, h('p', {}, txt('No journeys in ' + appsById.get(appFilter).title + ' yet.'))));
-    } else if (node.kind === 'app' || node.kind === 'area') {
-      if (layoutOf(node) === 'grid') drawGrid(trail);
-      else drawRing(trail);
+    } else if (node.kind !== 'step') {
+      drawFlow(trail);
     }
-    else if (node.kind === 'journey') drawFlow(trail);
     else cardTitle = drawCard(trail);
     animate(dir, sameView);
 

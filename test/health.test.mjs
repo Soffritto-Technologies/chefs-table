@@ -200,7 +200,7 @@ describe('the list as a whole', () => {
     for (let i = 1; i < found.length; i += 1) assert.ok(rank[found[i - 1].severity] <= rank[found[i].severity], `${found[i - 1].id} before ${found[i].id}`);
     assert.equal(new Set(found.map((f) => f.id)).size, found.length);
     assert.ok(found.every((f) => f.id === `${f.check}:${f.target}` && f.message.length <= 160 && !/[{}]/.test(f.message)));
-    assert.deepEqual(found.map((f) => f.check).filter((c, i, all) => all.indexOf(c) === i), ['dead-end', 'no-success', 'no-recovery', 'orphan-page', 'unreachable']);
+    assert.deepEqual(found.map((f) => f.check).filter((c, i, all) => all.indexOf(c) === i), ['dead-end', 'no-success', 'no-recovery', 'one-way-decision', 'orphan-page', 'unreachable', 'order-unknown']);
   });
 
   it('cuts a very long title so the message still fits', () => {
@@ -213,7 +213,7 @@ describe('the list as a whole', () => {
   });
 
   it('counts by severity', () => {
-    assert.deepEqual(countFindings(healthChecks(messy())), { high: 3, medium: 2, low: 1 });
+    assert.deepEqual(countFindings(healthChecks(messy())), { high: 3, medium: 3, low: 2 });
   });
 });
 
@@ -226,5 +226,38 @@ describe('storing findings', () => {
     saveFindings(dir, found);
     assert.deepEqual(loadFindings(dir), found);
     assert.ok(findingsPath(dir).endsWith(join('.journeys', 'findings.json')));
+  });
+});
+
+describe('order checks', () => {
+  const area = (id, extra = {}) => ({ id, title: `Area ${id}`, ...extra });
+  const withAreas = (areas, ...journeys) => ({ version: 1, app: 'Demo', areas, journeys });
+  const one = (id, extra = {}) => journey(id, [outcome('o', 'success')], extra);
+
+  it('flags a one-way decision but leaves a decision with no way on to dead-end', () => {
+    const found = healthChecks(doc(journey('j', [step('d', { kind: 'decision', next: ['o'] }), outcome('o', 'success'), step('e', { kind: 'decision' })])));
+    assert.deepEqual(targets(found, 'one-way-decision'), ['s:j/d']);
+    assert.equal(found.find((f) => f.check === 'one-way-decision').severity, 'medium');
+    assert.ok(targets(found, 'dead-end').includes('s:j/e'));
+  });
+
+  it('flags a loose journey when its neighbours are in order, but not an anytime one', () => {
+    const found = healthChecks(withAreas([area('x')], one('a', { area: 'x', next: ['b'] }), one('b', { area: 'x' }), one('c', { area: 'x' }), one('d', { area: 'x', anytime: true })));
+    assert.deepEqual(targets(found, 'loose-in-flow'), ['j:c']);
+    assert.equal(found.find((f) => f.check === 'loose-in-flow').severity, 'low');
+  });
+
+  it('reports one order-unknown finding counting every container with no order', () => {
+    const found = healthChecks(withAreas([area('x'), area('y')], one('a', { area: 'x' }), one('b', { area: 'x' }), one('c', { area: 'y' }), one('d', { area: 'y' })));
+    const unknown = found.filter((f) => f.check === 'order-unknown');
+    assert.equal(unknown.length, 1);
+    assert.match(unknown[0].message, /^3 parts of the map have no known order yet; run the order pass/);
+    assert.deepEqual(targets(found, 'loose-in-flow'), []);
+  });
+
+  it('counts a link between journeys in sibling areas as order at the top level', () => {
+    const found = healthChecks(withAreas([area('x'), area('y')], one('a', { area: 'x', next: ['b'] }), one('b', { area: 'y' })));
+    assert.deepEqual(targets(found, 'order-unknown'), []);
+    assert.deepEqual(targets(found, 'loose-in-flow'), []);
   });
 });

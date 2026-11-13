@@ -3,7 +3,7 @@ description: Draw (or resume) a live, zoomable map of this whole app's user jour
 argument-hint: "[budget, e.g. 10% of 5-hour usage, or 2M tokens]"
 ---
 
-Map this entire app for a non-technical builder in seven stages, **chop → stir → check → organise → polish → health → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
+Map this entire app for a non-technical builder in eight stages, **chop → stir → check → organise → order → polish → health → plate**, and never go over the usage budget. Work through the stages yourself; let the helpers read the code. Keep your own context small, because a big codebase doesn't fit in one conversation.
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
@@ -66,6 +66,17 @@ The helpers wrote journeys one part of the app at a time, so the areas can be lo
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORGANISED or the errors.
 3. **`ORGANISE_INVALID`:** give the helper one retry with the errors. If it fails again, keep the map as it is and tell the builder it wasn't regrouped.
 
+## 5b. Order
+
+One cheap helper says what follows what at every level (areas, then journeys), so the whole map reads as a flow. It reads titles only, so it costs very little.
+
+1. Run `journeys order brief`. It prints `ORDER_BRIEF <brief> tokens~<n>`.
+2. Start one helper with the Agent tool, **model `haiku`**, using this prompt with the marker as its first line:
+
+   > [chefs-table unit order]
+   > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORDERED or the errors.
+3. **`ORDER_INVALID`:** give the helper one retry with the errors. If it fails again, keep the map as it is; health will say the order is unknown.
+
 ## 6. Polish
 
 Helpers worked on separate parts of the app, so one goal can appear as several journeys (a popup version, a redirect version) and step text can be long. One helper per area now merges variants into a single journey with branches, shortens titles, and gives every step a short label. Skip this step when the budget has been reached.
@@ -96,6 +107,7 @@ Tell the builder, in plain words:
 - coverage (the `COVERAGE` %), and the important pages and features still missing
 - which apps are on the map (each journey is tagged with the app or apps it happens in)
 - how the map was grouped (the `ORGANISED` line: areas, and how many journeys moved)
+- how it was ordered (the `ORDERED` line)
 - what polish did (the `POLISHED` line: journeys merged, step labels written)
 - what health found (the `FINDINGS` counts, and the most serious few in plain words)
 - usage spent (`journeys budget`)

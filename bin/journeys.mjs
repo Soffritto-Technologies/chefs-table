@@ -19,6 +19,7 @@
  *   journeys check --coverage
  *   journeys sync [--budget-percent P] [--budget-tokens T] [--start-percent S]
  *   journeys organise brief  |  organise apply         regroup the finished map into a business-level tree
+ *   journeys order brief  |  order apply <file>      say what follows what, so every level reads as a flow
  *   journeys polish start [budget flags] [--areas a,b|touched]   merge variants, shorten titles, write step labels (then stir next/submit)
  *
  * The session id defaults to $CLAUDE_CODE_SESSION_ID, which Claude Code sets for every Bash call.
@@ -991,6 +992,27 @@ function cmdOrganise(args) {
   }
 }
 
+/** CLI: order brief | apply <file> — say what follows what at every level, using one cheap helper. */
+function cmdOrder(args) {
+  const projectDir = requireProject();
+  if (args[0] === 'brief') {
+    const doc = S.readJson(S.paths(projectDir).doc, null);
+    if (!doc || !Array.isArray(doc.journeys) || !doc.journeys.length) throw new Error('There are no journeys to order yet. Run /chefs-table:map-app first.');
+    const { brief, tokens } = M.writeOrderBrief(projectDir, doc, CLI);
+    console.log(`ORDER_BRIEF ${brief} tokens~${tokens}`);
+  } else if (args[0] === 'apply') {
+    const result = M.applyOrder(projectDir, args[1] ? resolve(args[1]) : undefined);
+    if (result.ok) {
+      console.log(`ORDERED areas=${result.areas} journeys=${result.journeys} links=${result.links}`);
+      return;
+    }
+    console.log(`ORDER_INVALID\n${result.errors.map((e) => `- ${e}`).join('\n')}`);
+    process.exitCode = 1;
+  } else {
+    throw new Error('Usage: journeys order <brief|apply <file>>');
+  }
+}
+
 /** CLI: budget — print tokens used and the usage limits. */
 function cmdBudget(args) {
   const projectDir = requireProject();
@@ -1155,13 +1177,14 @@ function main(argv) {
     budget: cmdBudget,
     sync: cmdSync,
     organise: cmdOrganise,
+    order: cmdOrder,
     polish: cmdPolish,
     apps: cmdApps,
     health: cmdHealth,
     rebase: cmdRebase,
   };
   if (!commands[cmd]) {
-    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|apps|chop|stir|budget|organise|polish|rebase|health|sync|hook <Event>> [--session id]');
+    console.log('Usage: journeys <init|check [--coverage]|plan|build --render|render --canonical|apps|chop|stir|budget|organise|order|polish|rebase|health|sync|hook <Event>> [--session id]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }
