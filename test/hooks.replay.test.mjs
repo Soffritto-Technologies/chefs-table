@@ -1992,7 +1992,7 @@ describe('Stop: quiet sharing', () => {
 describe('share command', () => {
   it('commands/share.md exists, has a description and runs the share subcommand', () => {
     const text = readFileSync(new URL('../commands/share.md', import.meta.url), 'utf8');
-    assert.match(text, /^---\ndescription: .+\n---/);
+    assert.match(text, /^---\r?\ndescription: .+\r?\n---/);
     assert.ok(text.includes('journeys share'));
     assert.ok(text.includes('Artifact tool'));
   });
