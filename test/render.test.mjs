@@ -295,7 +295,11 @@ describe('buildViewModel: nested areas and flows', () => {
     doc.journeys[1].next = ['browse'];
     const known = buildViewModel({ mode: 'canonical', doc }).root.children[0];
     assert.deepEqual(known.edges, [['j:signup', 'j:browse']]);
-    assert.deepEqual(known.anytime, ['j:help']);
+    assert.deepEqual(known.anytime, ['j:prefs', 'j:help']);
+    doc.journeys.push({ ...journey('track', 'all', [step('e')]), title: 'Track an order' }, { ...journey('review', 'all', [step('f')]), title: 'Leave a review' });
+    const partial = buildViewModel({ mode: 'canonical', doc }).root.children[0];
+    assert.deepEqual(partial.edges, [['j:signup', 'j:browse'], ['j:browse', 'j:track', '', 'guess'], ['j:track', 'j:review', '', 'guess']]);
+    assert.deepEqual(partial.depths, { 'j:browse': 1, 'j:signup': 0, 'j:track': 2, 'j:review': 3 });
   });
 
   it('builds identical output for the same nested input', () => {

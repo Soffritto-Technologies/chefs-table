@@ -47,8 +47,9 @@ describe('guessOrder', () => {
     assert.deepEqual(guess.anytime, ['settings', 'help']);
   });
 
-  it('gives no edges without a start item, and checks start before anytime', () => {
-    assert.deepEqual(guessOrder([item('a', 'Book'), item('b', 'Pricing')]).edges, []);
+  it('chains items in display order without a start item, and checks start before anytime', () => {
+    assert.deepEqual(guessOrder([item('a', 'Book'), item('b', 'Pricing')]).edges, [{ from: 'a', to: 'b' }]);
+    assert.deepEqual(guessOrder([item('p', 'Checkout'), item('a', 'Book'), item('b', 'Browse')]).edges, [{ from: 'a', to: 'b' }, { from: 'b', to: 'p' }]);
     assert.deepEqual(guessOrder([item('a', 'Account settings')]), { edges: [], anytime: ['a'] });
     const guess = guessOrder([item('a', 'Create an account'), item('b', 'Sign up', 'create your account'), item('c', 'Book')]);
     assert.deepEqual(guess, { edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }], anytime: [] });
