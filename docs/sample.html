@@ -603,6 +603,8 @@ svg text { font-family: var(--font); }
   var openers = new WeakMap();
   var nodesOf = new WeakMap();
   var vm = readData();
+  var LIVE_STATE_KEY = 'chefs-table-live-state';
+  var LIVE_POLL_MS = 3000;
   var appsById = new Map(vm && Array.isArray(vm.apps) ? vm.apps.map(function (app) { return [app.id, app]; }) : []);
   var appFilter = '';
   var visible = new Map();
@@ -626,6 +628,49 @@ svg text { font-family: var(--font); }
       return null;
     }
   }
+
+  /** Remembers where the reader is, so a self-reload lands on the same spot (the hash keeps the level). */
+  function saveLiveState() {
+    try {
+      var state = { scroll: window.scrollY };
+      if (canvas) state.camera = { key: canvas.key, kind: canvas.kind, x: canvas.x, y: canvas.y, k: canvas.k, atFit: canvas.atFit };
+      sessionStorage.setItem(LIVE_STATE_KEY, JSON.stringify(state));
+    } catch (err) { /* storage can be blocked */ }
+  }
+
+  /** Reads and clears the state saved before a self-reload. */
+  function takeLiveState() {
+    try {
+      var state = JSON.parse(sessionStorage.getItem(LIVE_STATE_KEY));
+      sessionStorage.removeItem(LIVE_STATE_KEY);
+      return state && typeof state === 'object' ? state : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /**
+   * On a local copy of this chat's live map only: asks view-stamp.js (written next to it) which render is
+   * newest every few seconds, and reloads when it is not this one. Never runs in the published copy.
+   */
+  function startLiveReload(live) {
+    if (!live || typeof live.id !== 'string' || !/^[0-9a-f]{8,64}$/.test(live.id) || location.protocol !== 'file:') return;
+    var tag = null;
+    window.__chefsTableStamp = function (next) {
+      if (next === live.id) return;
+      saveLiveState();
+      location.reload();
+    };
+    setInterval(function () {
+      if (document.hidden) return;
+      if (tag) tag.remove();
+      tag = document.createElement('script');
+      tag.setAttribute('src', 'view-stamp.js?t=' + Date.now());
+      document.head.appendChild(tag);
+    }, LIVE_POLL_MS);
+  }
+  var restoredLive = vm && vm.live ? takeLiveState() : null;
+  startLiveReload(vm && vm.live);
 
   function txt(value) { return document.createTextNode(value == null ? '' : String(value)); }
 
@@ -1078,6 +1123,7 @@ svg text { font-family: var(--font); }
     var saved = pendingCamera;
     pendingCamera = null;
     canvas = { world: world, kind: kind, W: W, H: H, x: 0, y: 0, k: 1, fitK: 1, overviewK: 1, atFit: true, key: hashOf(current) };
+    if (!saved && restoredLive && restoredLive.camera && restoredLive.camera.key === canvas.key) saved = restoredLive.camera;
     measureFit();
     if (saved && saved.kind === kind && !saved.atFit) {
       canvas.x = saved.x;
@@ -2239,6 +2285,8 @@ svg text { font-family: var(--font); }
     }, 120);
   });
   render();
+  if (restoredLive && restoredLive.scroll) window.scrollTo(0, restoredLive.scroll);
+  restoredLive = null;
 })();
 </script>
 </body>

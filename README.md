@@ -37,7 +37,7 @@ If a change would rewire a screen another journey depends on, for example a new 
 - **Matches the code.** The map stays honest, because every step is tied to real code.
 
 **Keep stakeholders in the loop.**
-The map publishes to a private link that updates itself as you build. Share it with a co-founder or client instead of writing a status update.
+The map publishes to a private link. It updates when you run `/chefs-table:share`, and by itself when something important happens: a plan waiting for your OK, a clash with an existing journey, a step that no longer matches the code, a journey added or removed. Your chat gets a one-line notice at the same moment. The map you have open in Chrome, Safari or Firefox refreshes itself every turn (the Claude app's preview pane shows a still copy). Share the link with a co-founder or client instead of writing a status update.
 
 **Keep your agent strategic.**
 Plans are framed as user goals ("Customer books a call"), not files. That keeps the agent, and you, focused on what the product does.
@@ -79,6 +79,8 @@ Then start a new Claude Code chat in your project and run:
 
 Claude surveys your app, draws the first map and asks you to correct anything that's wrong. From then on the map keeps itself up to date while you build.
 
+`/chefs-table:share` updates the share link with the map as it is right now.
+
 Already have a map from an earlier version? `/chefs-table:order` adds the order between areas and journeys with one small, cheap helper. It reads titles only, not your code.
 
 **Needs:** Claude Code and Node.js 20+ ([nodejs.org](https://nodejs.org)).
@@ -90,7 +92,8 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
                                                       │
                       clashes with an existing journey? ─► Claude Code asks you before any edit
                                                       ▼
-                          Claude builds ─► end of turn: map checked against the code, redrawn, republished
+                          Claude builds ─► end of turn: map checked against the code and redrawn;
+                                      important news: one-line notice in chat, share link refreshed
 ```
 
 - **`.journeys/journeys.json`** is the map's data: areas, journeys and steps, each tied to a file or route. Claude writes it in plain language; you never have to.
@@ -102,6 +105,7 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
 - The five hooks are plain Node: no AI calls and no network.
 - They take about 0.1s even on a 50,000-file repo.
 - They never block a turn more than once, and they never break your session.
+- In the default `on-request` mode, a turn is only held up for the share link when something important is new.
 
 ### Settings
 
@@ -113,6 +117,7 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
 | `routeDirs` | `app`, `pages`, `src/app`, `src/pages`, `src/routes` | Where file-based routes live (Next.js style). |
 | `sourceGlobs` | `src/**`, `app/**`, `pages/**` | Where to look for route definitions (React Router, Vite and others). |
 | `ignore` | tests, docs, lockfiles… | Files that never count as flow changes. |
+| `share` | `on-request` | When Claude refreshes the share link without being asked. `on-request`: only when something important is new (see above); otherwise the map shows "Share link out of date" and `/chefs-table:share` updates it. `every-change`: after every change, which costs an extra step each turn. |
 
 Environment variable `CHEFS_TABLE_GATE`:
 - `on` (default): ask before risky edits.

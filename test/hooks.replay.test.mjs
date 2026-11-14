@@ -1,7 +1,7 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
   BIN, Chat, DEFAULT_SID, HOSTILE, baseDoc, cleanupProjects, docOf, extractViewModel, fileAnchor, hookPayload, journey,
@@ -557,7 +557,8 @@ describe('Stop', () => {
     assert.equal(chat.json('approval.json').state, 'approved');
 
     const result = chat.stop();
-    assert.equal(result.stdout, null);
+    assert.deepEqual(Object.keys(result.stdout), ['systemMessage']);
+    assert.match(result.stdout.systemMessage, /Journey "Send a gift" was added/);
     const saved = project.json('.journeys/journeys.json');
     assert.deepEqual(saved.journeys.map((j) => j.id), ['browse', 'pay', 'gift']);
     assert.equal(chat.has('plan.json'), false);
@@ -574,7 +575,7 @@ describe('Stop', () => {
     project.write(GIFT_PAGE, 'export default function Gift() {\n  return null;\n}\n');
     chat.post(GIFT_PAGE);
     assert.equal(chat.json('approval.json').state, 'unconfirmed');
-    assert.equal(chat.stop().stdout, null);
+    assert.match(chat.stop().stdout.systemMessage, /"Send a gift" was built without your approval/);
     assert.deepEqual(project.json('.journeys/journeys.json').journeys.map((j) => j.id), ['browse', 'pay', 'gift']);
     assert.deepEqual(chat.json('flags.json')['j:gift'], ['unconfirmed']);
     assert.equal(chat.has('plan.json'), false);
@@ -585,7 +586,7 @@ describe('Stop', () => {
     chat.writePlan(soloPlan());
     project.write(SEARCH_PAGE, 'export default function Search() {\n  return null;\n}\n');
     chat.post(SEARCH_PAGE);
-    assert.equal(chat.stop().stdout, null);
+    assert.match(chat.stop().stdout.systemMessage, /Journey "Search the shop" was added/);
     assert.deepEqual(project.json('.journeys/journeys.json').journeys.map((j) => j.id), ['browse', 'pay', 'search']);
     assert.equal(chat.has('plan.json'), false);
   });
@@ -605,7 +606,8 @@ describe('Stop', () => {
     project.writeDoc(docOf([...baseDoc().journeys, journey('extra', 'Extra journey', [step('x', '/extra', { anchor: fileAnchor('app/page.tsx') })])]));
 
     const result = chat.stop();
-    assert.equal(result.stdout, null);
+    assert.deepEqual(Object.keys(result.stdout), ['systemMessage']);
+    assert.match(result.stdout.systemMessage, /A plan is waiting for your OK: Add gift sending · "Send a gift" clashes with "Pay for the order" on the \/checkout screen/);
     assert.equal(chat.has('plan.json'), true);
     assert.equal(chat.text('last.json'), lastBefore);
     assert.equal(chat.text('touched.json'), touchedBefore);
@@ -691,7 +693,7 @@ describe('Stop', () => {
   });
 
   it('share link out of date on pass 2: no block, and the map says so', () => {
-    const { project, chat } = started();
+    const { project, chat } = started({ config: { share: 'every-change' } });
     chat.artifact();
     project.writeDoc(docOf([...baseDoc().journeys, journey('extra', 'Extra journey', [step('x', '/extra')])]));
     const result = chat.stop({ active: true });
@@ -707,7 +709,7 @@ describe('Stop', () => {
   });
 
   it('several problems: exactly one block, listing them in order', () => {
-    const { project, chat } = started();
+    const { project, chat } = started({ config: { share: 'every-change' } });
     chat.artifact({ url: 'https://claude.ai/artifact/abc123' });
     project.writeDoc('{ broken');
     project.write('app/promo/page.tsx', 'export default () => null;\n');
@@ -725,7 +727,7 @@ describe('Stop', () => {
   });
 
   it('pass 2 never blocks, however many problems remain', () => {
-    const { project, chat } = started();
+    const { project, chat } = started({ config: { share: 'every-change' } });
     chat.artifact({ url: 'https://claude.ai/artifact/abc123' });
     project.writeDoc('{ broken');
     project.write('app/promo/page.tsx', 'export default () => null;\n');
@@ -738,7 +740,7 @@ describe('Stop', () => {
   });
 
   it('pass 2 shows every unresolved problem as a chip on the map', () => {
-    const { project, chat } = started();
+    const { project, chat } = started({ config: { share: 'every-change' } });
     chat.artifact({ url: 'https://claude.ai/artifact/abc123' });
     project.writeDoc('{ broken');
     project.write('app/promo/page.tsx', 'export default () => null;\n');
@@ -804,7 +806,7 @@ describe('hostile labels', () => {
     const { project, chat } = started({ doc });
     chat.writePlan({ summary: HOSTILE, upsert: [], remove: [] });
     project.write(`.journeys/.session/${DEFAULT_SID}/no-flow-change`, HOSTILE);
-    assert.equal(chat.stop().stdout, null);
+    assert.equal(chat.stop().stdout?.decision, undefined, 'hostile text never causes a block');
 
     for (const [name, html] of [['session map', chat.text('view.html')], ['saved map', project.read('journeys.html')]]) {
       assert.ok(!html.includes('</script><img'), `${name} has no raw </script><img`);
@@ -1822,5 +1824,216 @@ describe('health', () => {
     project.remove('.journeys/findings.json');
     run(project, 'render', '--canonical');
     assert.deepEqual(extractViewModel(project.read('journeys.html')).findings, [], 'no stored findings, no layer');
+  });
+});
+
+describe('Stop: quiet sharing', () => {
+  const URL = 'https://claude.ai/artifact/abc123';
+  const CHIP = 'Share link out of date: /chefs-table:share updates it';
+  const HIGH = { id: 'dead-end:s:pay/receipt', check: 'dead-end', severity: 'high', target: 's:pay/receipt', message: 'The receipt step leads nowhere.' };
+  const LOW = { id: 'unmapped-action:s:pay/receipt', check: 'unmapped-action', severity: 'low', target: 's:pay/receipt', message: 'A button is not on the map.' };
+
+  /**
+   * A chat with a share link that is up to date with the starting map.
+   *
+   * @param {object} [config] - Extra config.
+   * @returns {{ project: import('./helpers/project.mjs').Project, chat: Chat }} The chat.
+   */
+  function shared(config) {
+    const ctx = started(config ? { config } : {});
+    ctx.chat.artifact({ url: URL });
+    return ctx;
+  }
+
+  /**
+   * Rewords the first step of "browse" (not important: no journey added or removed).
+   *
+   * @param {import('./helpers/project.mjs').Project} project - The project.
+   * @param {string} say - New wording.
+   * @returns {void}
+   */
+  function reword(project, say) {
+    const doc = baseDoc();
+    doc.journeys[0].steps[0].say = say;
+    project.writeDoc(doc);
+  }
+
+  it('a stale share link on a wording change: no block, no notice, only a chip', () => {
+    const { project, chat } = shared();
+    reword(project, 'Sees the home page again');
+    const result = chat.stop();
+    assert.equal(result.stdout, null);
+    assert.ok(extractViewModel(chat.text('view.html')).chips.includes(CHIP));
+    assert.equal(chat.stop({ active: true }).stdout, null);
+    assert.ok(extractViewModel(chat.text('view.html')).chips.includes(CHIP), 'the chip shows on pass 2 too');
+  });
+
+  it('the chip never reaches the published copy: share redraws clean and the hash matches', () => {
+    const { project, chat } = shared();
+    reword(project, 'Sees the home page again');
+    chat.stop();
+    const out = runCli(project, ['share']);
+    assert.equal(out.status, 0, out.stderr);
+    assert.ok(out.stdout.includes(`SHARE_FILE ${chat.file('view.html')}`));
+    assert.ok(out.stdout.includes(`SHARE_URL ${URL}`));
+    assert.deepEqual(extractViewModel(chat.text('view.html')).chips, []);
+    chat.artifact({ url: URL });
+    assert.equal(chat.text('published').trim(), sha1(chat.text('view.html')));
+    assert.equal(chat.stop().stdout, null);
+    assert.deepEqual(extractViewModel(chat.text('view.html')).chips, [], 'nothing stale, no chip');
+  });
+
+  it('share prints SHARE_URL none when the chat has no link', () => {
+    const { project } = started();
+    assert.ok(runCli(project, ['share']).stdout.includes('SHARE_URL none'));
+  });
+
+  it('every-change keeps the old behaviour: a wording change blocks asking to republish', () => {
+    const { project, chat } = shared({ share: 'every-change' });
+    reword(project, 'Sees the home page again');
+    const result = chat.stop();
+    assert.equal(result.stdout.decision, 'block');
+    assert.equal(result.stdout.systemMessage, undefined);
+    assert.ok(result.stdout.reason.includes('1. Republish the map: Artifact tool'));
+  });
+
+  it('an unknown share value falls back to on-request', () => {
+    const { project, chat } = shared({ share: 'always' });
+    reword(project, 'Sees the home page again');
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('a pending plan: notice and one republish block, once; quiet the next turn', () => {
+    const { chat } = shared();
+    chat.writePlan(conflictPlan());
+    const first = chat.stop();
+    assert.equal(first.stdout.decision, 'block');
+    assert.ok(first.stdout.reason.includes('Republish the map'));
+    assert.ok(!first.stdout.reason.includes('MAP_CHANGED'));
+    assert.match(first.stdout.systemMessage, /^Chef's Table: A plan is waiting for your OK: Add gift sending · "Send a gift" clashes with "Pay for the order" on the \/checkout screen\. Map: /);
+    chat.artifact({ url: URL });
+    assert.equal(chat.stop().stdout, null, 'already reported, and the link is current');
+  });
+
+  it('with no share link a notice is shown and nothing blocks', () => {
+    const { chat } = started();
+    chat.writePlan(conflictPlan());
+    const result = chat.stop();
+    assert.equal(result.stdout.decision, undefined);
+    assert.match(result.stdout.systemMessage, /A plan is waiting for your OK/);
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('a journey added or removed in the saved map is reported once', () => {
+    const { project, chat } = started();
+    project.writeDoc(docOf([...baseDoc().journeys, journey('extra', 'Extra journey', [step('x', '/extra', { anchor: fileAnchor('app/page.tsx') })])]));
+    assert.match(chat.stop().stdout.systemMessage, /Journey "Extra journey" was added/);
+    assert.equal(chat.stop().stdout, null);
+    project.writeDoc(docOf(baseDoc().journeys.filter((j) => j.id !== 'pay')));
+    assert.match(chat.stop().stdout.systemMessage, /Journey "Pay for the order" was removed/);
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('a step whose page is gone is reported once, and again if it breaks again', () => {
+    const { project, chat } = started();
+    const withAnchor = (anchor) => docOf([...baseDoc().journeys, journey('extra', 'Extra journey', [step('x', null, { say: 'Opens it', label: 'Open it', anchor })])]);
+    project.writeDoc(withAnchor(fileAnchor('app/gone/page.tsx')));
+    assert.match(chat.stop().stdout.systemMessage, /The step "Open it" no longer matches the code/);
+    assert.equal(chat.stop().stdout, null);
+    project.writeDoc(withAnchor(fileAnchor('app/page.tsx')));
+    chat.stop();
+    assert.equal(chat.stop().stdout, null, 'fixed: quiet');
+    project.writeDoc(withAnchor(fileAnchor('app/gone/page.tsx')));
+    assert.match(chat.stop().stdout.systemMessage, /The step "Open it" no longer matches the code/);
+  });
+
+  it('high findings are reported once; low ones stay quiet', () => {
+    const { project, chat } = started();
+    project.write('.journeys/findings.json', JSON.stringify([LOW]));
+    assert.equal(chat.stop().stdout, null);
+    project.write('.journeys/findings.json', JSON.stringify([LOW, HIGH]));
+    assert.match(chat.stop().stdout.systemMessage, /The receipt step leads nowhere\./);
+    assert.equal(chat.stop().stdout, null);
+    project.write('.journeys/findings.json', JSON.stringify([LOW]));
+    chat.stop();
+    project.write('.journeys/findings.json', JSON.stringify([LOW, HIGH]));
+    assert.match(chat.stop().stdout.systemMessage, /The receipt step leads nowhere\./, 'returned, so reported again');
+  });
+
+  it('built without approval is reported once', () => {
+    const { project, chat } = withConflictingPlan({ permissionMode: 'acceptEdits' });
+    project.write(GIFT_PAGE, 'export default function Gift() {\n  return null;\n}\n');
+    chat.post(GIFT_PAGE);
+    const first = chat.stop().stdout.systemMessage;
+    assert.match(first, /"Send a gift" was built without your approval/);
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('a long list is cut to three items plus a count', () => {
+    const { project, chat } = started();
+    const extras = ['a', 'b', 'c', 'd', 'e'].map((id) => journey(id, `Journey ${id}`, [step('s', `/${id}`, { anchor: fileAnchor('app/page.tsx') })]));
+    project.writeDoc(docOf([...baseDoc().journeys, ...extras]));
+    const message = chat.stop().stdout.systemMessage;
+    assert.equal(message.match(/ was added/g).length, 3);
+    assert.match(message, /and 2 more\. Map: /);
+  });
+
+  it('the notice is also shown together with a block for another reason', () => {
+    const { project, chat } = started();
+    project.writeDoc(docOf([...baseDoc().journeys, journey('extra', 'Extra journey', [step('x', '/extra', { anchor: fileAnchor('app/page.tsx') })])]));
+    project.write('app/promo/page.tsx', 'export default () => null;\n');
+    const result = chat.stop();
+    assert.equal(result.stdout.decision, 'block');
+    assert.ok(result.stdout.reason.includes(`2. Then run: node "${BIN}" build --render.`));
+    assert.match(result.stdout.systemMessage, /Journey "Extra journey" was added/);
+  });
+});
+
+describe('share command', () => {
+  it('commands/share.md exists, has a description and runs the share subcommand', () => {
+    const text = readFileSync(new URL('../commands/share.md', import.meta.url), 'utf8');
+    assert.match(text, /^---\ndescription: .+\n---/);
+    assert.ok(text.includes('journeys share'));
+    assert.ok(text.includes('Artifact tool'));
+  });
+});
+
+describe('live map', () => {
+  it('the template only polls on a file:// copy that carries a live id', () => {
+    const template = readFileSync(new URL('../templates/journeys.html', import.meta.url), 'utf8');
+    assert.ok(template.includes("location.protocol !== 'file:'"));
+    assert.ok(template.includes('!live ||') || template.includes('if (!live'));
+  });
+
+  it('writes a stamp file with the id embedded in the page', () => {
+    const { chat } = started();
+    chat.stop();
+    const vm = extractViewModel(chat.text('view.html'));
+    assert.match(vm.live.id, /^[0-9a-f]{40}$/);
+    assert.equal(chat.text('view-stamp.js'), `window.__chefsTableStamp&&window.__chefsTableStamp("${vm.live.id}");\n`);
+  });
+
+  it('identical content gives an identical page, and a change gives a new id and stamp', () => {
+    const { project, chat } = started();
+    chat.stop();
+    const html = chat.text('view.html');
+    const stamp = chat.text('view-stamp.js');
+    chat.stop();
+    assert.equal(chat.text('view.html'), html);
+    assert.equal(chat.text('view-stamp.js'), stamp);
+    const doc = baseDoc();
+    doc.journeys[0].steps[0].say = 'A new sentence';
+    project.writeDoc(doc);
+    chat.stop();
+    assert.notEqual(chat.text('view-stamp.js'), stamp);
+    assert.notEqual(chat.text('view.html'), html);
+  });
+
+  it('the saved map and the docs sample never carry the live id', () => {
+    const { project, chat } = started();
+    chat.stop();
+    assert.equal(extractViewModel(project.read('journeys.html')).live, undefined);
+    const sample = readFileSync(new URL('../docs/sample.html', import.meta.url), 'utf8');
+    assert.equal(extractViewModel(sample).live, undefined);
   });
 });

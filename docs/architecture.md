@@ -21,7 +21,7 @@ Chef's Table is a Claude Code plugin made of four parts:
     ├── build/                       gitignored · resumable map/sync/polish job, unit briefs and outputs
     └── .session/<session_id>/       gitignored · one folder per chat, swept after 7 days
         start.json  last.json  routes.json  touched.json  plan.json  approval.json
-        view.html   view.hash  published    anchor-cache.json  flags.json  turn.json  errors.log
+        view.html   view.hash  view-stamp.js  published  notable.json  flags.json  turn.json  errors.log
 ```
 
 `journeys.json` holds areas, then journeys, then steps.
@@ -62,7 +62,7 @@ PreToolUse    plan needs approval?  GATE=on → permissionDecision "ask" (Claude
               no plan, editing a mapped file → one non-blocking reminder (additionalContext)
 PostToolUse   edit → record touched file; first edit while approval pending → approved (default mode) / unconfirmed
               Artifact publish of view.html → remember share link + published hash
-Stop          apply plan (check-then-save) → diff → anchors → conflicts → drift → render → maybe block once
+Stop          apply plan (check-then-save) → diff → anchors → conflicts → drift → render → important news (systemMessage) → maybe block once
 ```
 
 ## Stop policy
@@ -73,9 +73,23 @@ Stop          apply plan (check-then-save) → diff → anchors → conflicts �
 | 1 | Unmapped change: a new page nobody mapped, or a mapped file edited while its journey didn't change | Block: map it, or write `no-flow-change` with a reason |
 | 1 | Plan approved, auto or unconfirmed, and code was edited | Apply the plan to `journeys.json` and delete `plan.json` |
 | 1 | Plan pending and not approved | No block. Keep the overlay. Don't advance. |
-| 1 | Share link set but the published map is out of date | Block: republish |
+| 1 | Share link set, published map out of date, `share: every-change` | Block: republish |
+| 1 | Share link set, published map out of date, `share: on-request` (default), and something important is new | Block: republish |
+| 1, 2 | Share link out of date, nothing important new (or pass 2) | No block. Chip "Share link out of date: /chefs-table:share updates it" on the map. |
+| 1, 2 | Something important is new (default mode) | `systemMessage` one-line notice in chat (no model call), alongside any block |
 | 1 | Several of the above | **One** block that lists them all |
 | 2 (`stop_hook_active`) | Anything | Never block. Show leftovers on the map as chips. |
+
+**Important** (`lib/notable.mjs`), reported once per chat via `notable.json`, which keeps only the keys still present, so an item that is fixed and returns is reported again:
+- a plan waiting for approval, and any clash it has with existing journeys
+- a step built without approval (`unconfirmed`) or edited in two chats
+- a step of the saved map whose anchor is `broken`
+- a high-severity health finding (low ones such as `unmapped-action` never count)
+- a journey added to or removed from the saved map (not wording or colour changes)
+
+The chip is added after the first render, so the hash compared with the published one (`view.hash`) never contains it. `journeys share` (used by `/chefs-table:share`) redraws without chips before publishing.
+
+**Live map.** `renderSession` embeds a render id (sha1 of the view model; no timestamps) as `live.id` and writes `view-stamp.js` next to `view.html` with the same id. Only the per-chat view carries `live`. On a `file:` copy, the template adds a `<script src="view-stamp.js?t=…">` every 3 s (paused while the tab is hidden) and reloads when the id differs; the level stays in `location.hash`, and zoom, pan and scroll are kept in `sessionStorage`. The saved `journeys.html`, `docs/sample.html` and the published copy never poll.
 
 Hooks never fail a session. Errors go to `errors.log` and show as a chip on the map.
 
@@ -100,6 +114,7 @@ Hooks never fail a session. Errors go to `errors.log` and show as a chip on the 
 | `lib/anchors.mjs` | Route and file checks (Next.js file routes, `path:` / `<Route path>` definitions), cached |
 | `lib/glob.mjs` | Small glob matcher and file walker |
 | `lib/session.mjs` | Per-chat state, atomic writes, cleanup |
+| `lib/notable.mjs` | Important-news items (stable keys) and the one-line chat notice |
 | `lib/render.mjs` | View-model tree and HTML rendering (escaped) |
 | `lib/facts.mjs` | Facts scan: per-file summaries with the project's own TypeScript compiler (map runs only) |
 | `bin/journeys.mjs` | CLI and hook dispatcher |

@@ -440,6 +440,21 @@ describe('small helpers', () => {
     assert.deepEqual(config.routeDirs, DEFAULT_CONFIG.routeDirs);
   });
 
+  it('loadConfig defaults share to on-request, accepts every-change and ignores unknown values', () => {
+    const dir = journeysProject();
+    assert.equal(S.loadConfig(dir).share, 'on-request');
+    writeFileSync(path.join(dir, '.journeys', 'config.json'), JSON.stringify({ share: 'every-change' }));
+    assert.equal(S.loadConfig(dir).share, 'every-change');
+    writeFileSync(path.join(dir, '.journeys', 'config.json'), JSON.stringify({ share: 'sometimes' }));
+    assert.equal(S.loadConfig(dir).share, 'on-request');
+  });
+
+  it('session paths include the live stamp and the reported-items file', () => {
+    const p = S.paths(tempDir(), 'chat-1');
+    assert.ok(p.viewStamp.endsWith(path.join('chat-1', 'view-stamp.js')));
+    assert.ok(p.notable.endsWith(path.join('chat-1', 'notable.json')));
+  });
+
   it('readTurn fills in missing fields', () => {
     const p = S.paths(tempDir(), 'chat-1');
     assert.deepEqual(S.readTurn(p), { blocked: false, nudged: [] });

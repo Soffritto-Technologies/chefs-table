@@ -911,6 +911,11 @@ describe('templates/journeys.html', () => {
     assert.doesNotMatch(script, /\bfetch\(|XMLHttpRequest|import\(/);
   });
 
+  it('loads nothing but the sibling stamp file, and only for a live local copy', () => {
+    assert.deepEqual(template.match(/setAttribute\('src', [^;]*;/g), ["setAttribute('src', 'view-stamp.js?t=' + Date.now());"]);
+    assert.ok(script.includes("location.protocol !== 'file:'"));
+  });
+
   it('reads its data from the jm-data script', () => {
     assert.ok(template.includes('<script type="application/json" id="jm-data">null</script>'));
     assert.ok(template.includes("JSON.parse(document.getElementById('jm-data').textContent)"));
