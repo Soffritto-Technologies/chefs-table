@@ -37,7 +37,7 @@ If a change would rewire a screen another journey depends on, for example a new 
 - **Matches the code.** The map stays honest, because every step is tied to real code.
 
 **Keep stakeholders in the loop.**
-The map publishes to a private link. It updates when you run `/chefs-table:share`, and by itself when something important happens: a plan waiting for your OK, a clash with an existing journey, a step that no longer matches the code, a journey added or removed. Your chat gets a one-line notice at the same moment. The map you have open in Chrome, Safari or Firefox refreshes itself every turn (the Claude app's preview pane shows a still copy). Share the link with a co-founder or client instead of writing a status update.
+The map publishes to a private link. It catches up by itself: when something important happens (a plan waiting for your OK, a clash with an existing journey, a step that no longer matches the code, a journey added or removed), and after each commit, including one made between chats. `/chefs-table:share` updates it right now. Your chat gets a one-line notice at the same moment. The map you have open in Chrome, Safari or Firefox refreshes itself every turn (the Claude app's preview pane shows a still copy). Share the link with a co-founder or client instead of writing a status update.
 
 **Keep your agent strategic.**
 Plans are framed as user goals ("Customer books a call"), not files. That keeps the agent, and you, focused on what the product does.
@@ -117,7 +117,7 @@ you ask for a change ─► Claude draws the plan on the map ─► you see the 
 | `routeDirs` | `app`, `pages`, `src/app`, `src/pages`, `src/routes` | Where file-based routes live (Next.js style). |
 | `sourceGlobs` | `src/**`, `app/**`, `pages/**` | Where to look for route definitions (React Router, Vite and others). |
 | `ignore` | tests, docs, lockfiles… | Files that never count as flow changes. |
-| `share` | `on-request` | When Claude refreshes the share link without being asked. `on-request`: only when something important is new (see above); otherwise the map shows "Share link out of date" and `/chefs-table:share` updates it. `every-change`: after every change, which costs an extra step each turn. |
+| `share` | `on-request` | When Claude refreshes the share link without being asked. `on-request`: when something important is new, after a commit (including one made between chats), or when the turn is being held up anyway; otherwise the map says "Share link updates at the next commit" and `/chefs-table:share` updates it now. `every-change`: after every change, which costs an extra step each turn. |
 
 Environment variable `CHEFS_TABLE_GATE`:
 - `on` (default): ask before risky edits.

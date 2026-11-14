@@ -1829,7 +1829,7 @@ describe('health', () => {
 
 describe('Stop: quiet sharing', () => {
   const URL = 'https://claude.ai/artifact/abc123';
-  const CHIP = 'Share link out of date: /chefs-table:share updates it';
+  const CHIP = 'Share link updates at the next commit';
   const HIGH = { id: 'dead-end:s:pay/receipt', check: 'dead-end', severity: 'high', target: 's:pay/receipt', message: 'The receipt step leads nowhere.' };
   const LOW = { id: 'unmapped-action:s:pay/receipt', check: 'unmapped-action', severity: 'low', target: 's:pay/receipt', message: 'A button is not on the map.' };
 
@@ -1901,6 +1901,102 @@ describe('Stop: quiet sharing', () => {
     const { project, chat } = shared({ share: 'always' });
     reword(project, 'Sees the home page again');
     assert.equal(chat.stop().stdout, null);
+  });
+
+  /**
+   * Points the project's fake .git at a commit.
+   *
+   * @param {import('./helpers/project.mjs').Project} project - The project.
+   * @param {string} sha - 40-character commit id.
+   * @returns {void}
+   */
+  function commit(project, sha) {
+    project.write('.git/HEAD', 'ref: refs/heads/main\n');
+    project.write('.git/refs/heads/main', `${sha}\n`);
+  }
+
+  it('publishing records the commit it was published at', () => {
+    const { project, chat } = started();
+    commit(project, 'c'.repeat(40));
+    chat.artifact({ url: URL });
+    assert.equal(project.json('.journeys/.local.json').publishedCommit, 'c'.repeat(40));
+  });
+
+  it('stale link and a new commit: blocks once asking to republish', () => {
+    const { project, chat } = started();
+    commit(project, 'c'.repeat(40));
+    chat.artifact({ url: URL });
+    reword(project, 'Sees the home page again');
+    assert.equal(chat.stop().stdout, null, 'same commit: quiet');
+    commit(project, 'd'.repeat(40));
+    const result = chat.stop();
+    assert.equal(result.stdout.decision, 'block');
+    assert.ok(result.stdout.reason.includes('1. Republish the map'));
+    assert.equal(chat.stop({ active: true }).stdout, null);
+    chat.artifact({ url: URL });
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('stale link, same commit: no block, and the chip says when it catches up', () => {
+    const { project, chat } = started();
+    commit(project, 'c'.repeat(40));
+    chat.artifact({ url: URL });
+    reword(project, 'Sees the home page again');
+    assert.equal(chat.stop().stdout, null);
+    assert.deepEqual(extractViewModel(chat.text('view.html')).chips, [CHIP]);
+  });
+
+  it('a commit while the link is already current is recorded, so a later edit does not republish', () => {
+    const { project, chat } = started();
+    commit(project, 'c'.repeat(40));
+    chat.artifact({ url: URL });
+    commit(project, 'd'.repeat(40));
+    assert.equal(chat.stop().stdout, null);
+    assert.equal(project.json('.journeys/.local.json').publishedCommit, 'd'.repeat(40));
+    reword(project, 'Sees the home page again');
+    assert.equal(chat.stop().stdout, null);
+    assert.deepEqual(extractViewModel(chat.text('view.html')).chips, [CHIP]);
+  });
+
+  it('an unreadable repository counts as unknown and never blocks', () => {
+    const { project, chat } = started();
+    project.write('.git/HEAD', 'garbage\n');
+    chat.artifact({ url: URL });
+    reword(project, 'Sees the home page again');
+    assert.equal(chat.stop().stdout, null);
+  });
+
+  it('a new chat with an inherited link and no commit since the publish: no block, chip', () => {
+    const { project } = started();
+    commit(project, 'c'.repeat(40));
+    project.write('.journeys/.local.json', JSON.stringify({ artifactUrl: URL, publishedCommit: 'c'.repeat(40) }));
+    const next = new Chat(project, 'sess-bbbb-2222');
+    next.start();
+    assert.equal(next.stop().stdout, null);
+    assert.deepEqual(extractViewModel(next.text('view.html')).chips, [CHIP]);
+  });
+
+  it('a new chat with an inherited link and a commit since the publish: blocks once', () => {
+    const { project } = started();
+    commit(project, 'd'.repeat(40));
+    project.write('.journeys/.local.json', JSON.stringify({ artifactUrl: URL, publishedCommit: 'c'.repeat(40) }));
+    const next = new Chat(project, 'sess-bbbb-2222');
+    next.start();
+    const result = next.stop();
+    assert.equal(result.stdout.decision, 'block');
+    assert.ok(result.stdout.reason.includes(`url ${URL}`));
+    assert.equal(next.stop({ active: true }).stdout, null);
+  });
+
+  it('a stale link rides along in a block that is happening anyway', () => {
+    const { project, chat } = shared();
+    reword(project, 'Sees the home page again');
+    project.write('app/promo/page.tsx', 'export default () => null;\n');
+    const result = chat.stop();
+    assert.equal(result.stdout.decision, 'block');
+    const lines = result.stdout.reason.split('\n');
+    assert.match(lines[1], /^1\. Unmapped change/);
+    assert.match(lines[2], /^2\. Republish the map/);
   });
 
   it('a pending plan: notice and one republish block, once; quiet the next turn', () => {

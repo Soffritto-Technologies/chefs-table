@@ -74,8 +74,8 @@ Stop          apply plan (check-then-save) → diff → anchors → conflicts �
 | 1 | Plan approved, auto or unconfirmed, and code was edited | Apply the plan to `journeys.json` and delete `plan.json` |
 | 1 | Plan pending and not approved | No block. Keep the overlay. Don't advance. |
 | 1 | Share link set, published map out of date, `share: every-change` | Block: republish |
-| 1 | Share link set, published map out of date, `share: on-request` (default), and something important is new | Block: republish |
-| 1, 2 | Share link out of date, nothing important new (or pass 2) | No block. Chip "Share link out of date: /chefs-table:share updates it" on the map. |
+| 1 | Share link set, published map out of date, `share: on-request` (default), and any of: something important is new, HEAD moved since the link was last published (in any chat), another block is happening anyway | Block (or join that block): republish |
+| 1, 2 | Share link out of date, nothing important new (or pass 2) | No block. Chip "Share link updates at the next commit" on the map. |
 | 1, 2 | Something important is new (default mode) | `systemMessage` one-line notice in chat (no model call), alongside any block |
 | 1 | Several of the above | **One** block that lists them all |
 | 2 (`stop_hook_active`) | Anything | Never block. Show leftovers on the map as chips. |
@@ -86,6 +86,8 @@ Stop          apply plan (check-then-save) → diff → anchors → conflicts �
 - a step of the saved map whose anchor is `broken`
 - a high-severity health finding (low ones such as `unmapped-action` never count)
 - a journey added to or removed from the saved map (not wording or colour changes)
+
+HEAD is read from `.git` files only by `lib/git.mjs` (loose ref, then `packed-refs`; detached HEAD; `.git` files and `commondir` for worktrees), never by running git. The PostToolUse publish hook stores it as `publishedCommit` in `.local.json`, next to the link; an unreadable repository counts as unknown and never triggers. The link and `publishedCommit` are per project, so a new chat catches up only if a commit landed since the last publish anywhere; uncommitted work from an earlier chat waits for the next commit.
 
 The chip is added after the first render, so the hash compared with the published one (`view.hash`) never contains it. `journeys share` (used by `/chefs-table:share`) redraws without chips before publishing.
 
@@ -114,6 +116,7 @@ Hooks never fail a session. Errors go to `errors.log` and show as a chip on the 
 | `lib/anchors.mjs` | Route and file checks (Next.js file routes, `path:` / `<Route path>` definitions), cached |
 | `lib/glob.mjs` | Small glob matcher and file walker |
 | `lib/session.mjs` | Per-chat state, atomic writes, cleanup |
+| `lib/git.mjs` | Current commit read from `.git` files (no git process) |
 | `lib/notable.mjs` | Important-news items (stable keys) and the one-line chat notice |
 | `lib/render.mjs` | View-model tree and HTML rendering (escaped) |
 | `lib/facts.mjs` | Facts scan: per-file summaries with the project's own TypeScript compiler (map runs only) |

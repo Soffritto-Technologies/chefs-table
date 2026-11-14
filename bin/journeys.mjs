@@ -38,6 +38,7 @@ import { collectNotable, formatNotice, splitFresh } from '../lib/notable.mjs';
 import * as S from '../lib/session.mjs';
 import * as M from '../lib/mapjob.mjs';
 import * as H from '../lib/health.mjs';
+import { readHeadCommit } from '../lib/git.mjs';
 import { findApps } from '../lib/apps.mjs';
 import { buildFacts, hasFacts, loadTypeScript, withFacts } from '../lib/facts.mjs';
 import {
@@ -458,7 +459,7 @@ function onPostToolUse(payload) {
     if (html !== null) S.writeTextAtomic(p.published, S.sha1(html));
     const url = payload.tool_response?.url;
     if (typeof url === 'string' && /^https:\/\//.test(url)) {
-      S.writeJson(p.local, { ...(S.readJson(p.local, {}) || {}), artifactUrl: url });
+      S.writeJson(p.local, { ...(S.readJson(p.local, {}) || {}), artifactUrl: url, publishedCommit: readHeadCommit(projectDir) || undefined });
     }
     return;
   }
@@ -527,9 +528,12 @@ function onStop(payload) {
   const everyChange = config.share === 'every-change';
   const notice = everyChange || error ? null : buildNotice({ p, doc, status, view });
   const stale = Boolean(local.artifactUrl) && published !== view.hash;
-  const republish = stale && (everyChange || notice !== null);
+  const head = readHeadCommit(projectDir);
+  const moved = Boolean(local.publishedCommit && head && local.publishedCommit !== head);
+  if (local.artifactUrl && !stale && moved) S.writeJson(p.local, { ...local, publishedCommit: head });
+  const republish = stale && (everyChange || notice !== null || reasons.length > 0 || moved);
   if (republish && !secondPass) reasons.push(`Republish the map: Artifact tool, action publish, file_path ${p.view}, url ${local.artifactUrl}.`);
-  else if (stale) leftovers.push(everyChange ? 'Share link out of date' : 'Share link out of date: /chefs-table:share updates it');
+  else if (stale) leftovers.push(everyChange ? 'Share link out of date' : 'Share link updates at the next commit');
   if (leftovers.length) renderSession({ p, config, doc, status, chips: [...chips, ...leftovers] });
 
   const systemMessage = notice ? { systemMessage: notice } : {};
