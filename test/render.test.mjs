@@ -913,7 +913,7 @@ describe('templates/journeys.html', () => {
   });
 
   it('draws every level as a flow and routes areas at any depth', () => {
-    assert.ok(script.includes("} else if (node.kind !== 'step') {\n      drawFlow(trail);"));
+    assert.match(script, /\} else if \(node\.kind !== 'step'\) \{\r?\n\s*drawFlow\(trail\);/);
     assert.ok(script.includes("seg.t === 'a' && (node.kind === 'app' || node.kind === 'area')"));
     assert.ok(script.includes("boxShell(node, p, BW, BH, nodeClass(node) + ' part'"));
     assert.ok(script.includes("'class': 'anytime-region'"));
