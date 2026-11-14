@@ -7,7 +7,7 @@ Add order to the existing journey map so every level (the whole app, each area, 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`).
 
 1. Run `journeys order brief`. It prints `ORDER_BRIEF <brief> tokens~<n>`. Tell the builder the size in one short sentence.
-2. Start one helper with the Agent tool, **model `haiku`**, using this prompt with the marker as its first line:
+2. Start one helper with the Agent tool as subagent type `chefs-table:mapper` (or `general-purpose` if that type isn't available), **model `haiku`**, using this prompt with the marker as its first line:
 
    > [chefs-table unit order]
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORDERED or the errors.

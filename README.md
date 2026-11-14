@@ -127,6 +127,8 @@ A plugin is code that runs on your computer, so here is exactly what this one do
 - **No network, no packages, no shell commands:** zero dependencies. The hooks never contact the internet, never start other programs and never call an AI.
 - **Map text is treated as data:** whatever the hooks pass to Claude from the map is cleaned, capped in length and labelled as data, so a booby-trapped `journeys.json` in someone else's repo can't slip instructions to Claude.
 - **Your map stays yours:** Claude publishes the live map as a private claude.ai Artifact, which only you see until you share it. `journeys.json` and `journeys.html` describe your app's flows and are committed with your code, so in a public repo they're public too.
+- **Reading your code during a map run:** `/chefs-table:map-app` and `/chefs-table:sync` first summarise your JavaScript and TypeScript files with the TypeScript compiler your project already has installed, so helpers read about a fifteenth as much. That runs your project's own copy of TypeScript, the same code your build runs. Without one, or with `CHEFS_TABLE_FACTS=off`, helpers read the files whole. The hooks never load it.
+- **Helpers:** map helpers run as `chefs-table:mapper`, which can only read, write, search and run commands in your project. They don't get your other connected tools, which also keeps each one small.
 - **Usage:** `/chefs-table:map-app` uses helper agents, which spends your Claude usage. It stops at the budget you give it.
 - **Updates:** installing or updating pulls the latest `main` from this repo. To audit what you run, read `hooks/hooks.json` and `bin/`.
 

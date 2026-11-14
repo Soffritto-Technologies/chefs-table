@@ -576,6 +576,22 @@ describe('planUnits', () => {
     assert.equal(unit.estTokens, 20);
   });
 
+  test('with a facts scan, files count at their summary size and the budget is the facts budget', () => {
+    const inventory = handBuilt({
+      pages: [['/a', 'src/A.tsx', 'a'], ['/b', 'src/B.tsx', 'a']],
+      sizes: { 'src/A.tsx': 160000, 'src/B.tsx': 160000 },
+    });
+    assert.equal(planUnits(inventory).length, 2, 'whole files: one unit per page');
+    inventory.files['src/A.tsx'].facts = 8000;
+    inventory.files['src/B.tsx'].facts = 8000;
+    const [unit, ...rest] = planUnits(inventory);
+    assert.equal(rest.length, 0, 'summaries: both pages in one unit');
+    assert.equal(unit.estTokens, 4000);
+    assert.ok(unit.estTokens <= PIPELINE.FACTS_UNIT_MAX_TOKENS);
+    inventory.files['src/B.tsx'].readFull = 'its steps are decided by a reducer or state machine';
+    assert.equal(planUnits(inventory).length, 2, 'a file to read in full counts at its full size');
+  });
+
   test('a single page larger than the budget still gets its file', () => {
     const inventory = handBuilt({ pages: [['/p', 'p.tsx', 'p']], sizes: { 'p.tsx': 4000 } });
     const [unit] = planUnits(inventory, { maxTokens: 10 });

@@ -7,6 +7,8 @@ Map this entire app for a non-technical builder in eight stages, **chop → stir
 
 CLI: `node "${CLAUDE_PLUGIN_ROOT}/bin/journeys.mjs"` (written below as `journeys`). It's safe to run `journeys init` first, every time.
 
+Helpers: start every helper with the Agent tool as subagent type **`chefs-table:mapper`**, with the model each step names. It carries only the few tools a helper needs, so each one starts far smaller. If that type isn't available, use `general-purpose`.
+
 ## 0. Find the apps
 
 Run `journeys apps`.
@@ -43,10 +45,10 @@ Repeat until the CLI prints `STIR_DONE` or `BUDGET_REACHED`:
 
 1. If you can read plan usage, read NOW first. Then run `journeys stir next --count 3 --now-percent <NOW>`. Leave out `--now-percent` when you can't read it.
 2. **`BUDGET_REACHED <reason>`:** stop stirring immediately and go to step 4 to keep what's done.
-3. **For each `UNIT <id> <brief>` line,** start one helper with the Agent tool, **model `sonnet`**, all of the wave's units in parallel. Use exactly this prompt, with the marker as its first line (that's how usage is metered):
+3. **For each `UNIT <id> <brief>` line,** start one helper with the Agent tool (`chefs-table:mapper`), **model `sonnet`**, all of the wave's units in parallel. Use exactly this prompt, with the marker as its first line (that's how usage is metered):
 
    > [chefs-table unit <id>]
-   > Read the brief at <brief> and follow it exactly. Read the files it lists (open others only when you need them to understand a flow). Write the JSON it asks for, run the submit command it gives, and reply with UNIT_OK or the errors.
+   > Read the brief at <brief> and follow it exactly. Read the files it says to read (open others only when you need them to understand a flow). Write the JSON it asks for, run the submit command it gives, and reply with UNIT_OK or the errors.
 4. **If a helper reports `UNIT_INVALID`,** give it one retry with the errors. If it fails again, run `journeys stir fail <id> "<short reason>"`.
 
 ## 4. Check (no AI)
@@ -60,7 +62,7 @@ Run `journeys check --coverage`.
 The helpers wrote journeys one part of the app at a time, so the areas can be lopsided and the roles generic. One more helper regroups the whole map into a tree the owner would recognise. Do this even when the budget stopped the run: it reads one short list.
 
 1. Run `journeys organise brief`. It prints `ORGANISE_BRIEF <brief>`.
-2. Start one helper with the Agent tool, **model `sonnet`**, using this prompt with the marker as its first line (that's how its usage is metered):
+2. Start one helper with the Agent tool (`chefs-table:mapper`), **model `sonnet`**, using this prompt with the marker as its first line (that's how its usage is metered):
 
    > [chefs-table unit organise]
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORGANISED or the errors.
@@ -71,7 +73,7 @@ The helpers wrote journeys one part of the app at a time, so the areas can be lo
 One cheap helper says what follows what at every level (areas, then journeys), so the whole map reads as a flow. It reads titles only, so it costs very little.
 
 1. Run `journeys order brief`. It prints `ORDER_BRIEF <brief> tokens~<n>`.
-2. Start one helper with the Agent tool, **model `haiku`**, using this prompt with the marker as its first line:
+2. Start one helper with the Agent tool (`chefs-table:mapper`), **model `haiku`**, using this prompt with the marker as its first line:
 
    > [chefs-table unit order]
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the apply command it gives, and reply with ORDERED or the errors.
@@ -84,7 +86,7 @@ Helpers worked on separate parts of the app, so one goal can appear as several j
 1. Run `journeys polish start` with the budget flags for what is left of the budget (a fresh `--budget-percent <P> --start-percent <NOW>`, or `--budget-tokens <what is left>`).
    - **`POLISH_NOTHING`:** go to step 7.
    - **`RESUMED d/n`:** you're picking up an earlier polish.
-2. Repeat until `STIR_DONE` or `BUDGET_REACHED`, exactly like step 3: `journeys stir next --count 3` (with `--now-percent` when you can read it), one helper per `UNIT` line (model `sonnet`, all of the wave in parallel), and one retry on `UNIT_INVALID` before `journeys stir fail`. Use this prompt, marker first:
+2. Repeat until `STIR_DONE` or `BUDGET_REACHED`, exactly like step 3: `journeys stir next --count 3` (with `--now-percent` when you can read it), one helper per `UNIT` line (`chefs-table:mapper`, model `sonnet`, all of the wave in parallel), and one retry on `UNIT_INVALID` before `journeys stir fail`. Use this prompt, marker first:
 
    > [chefs-table unit <id>]
    > Read the brief at <brief> and follow it exactly. Write the JSON it asks for, run the submit command it gives, and reply with UNIT_OK or the errors.

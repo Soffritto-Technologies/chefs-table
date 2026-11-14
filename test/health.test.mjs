@@ -15,6 +15,25 @@ const targets = (findings, check) => findings.filter((finding) => finding.check 
 const tempDirs = [];
 after(() => tempDirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
+describe('unmapped-action', () => {
+  const withActions = (...labels) => ({ items: labels.map((detail, i) => ({ kind: 'action', file: 'src/Account.tsx', line: i + 1, detail })) });
+
+  it('reports labelled buttons whose words are on no step, one finding per file', () => {
+    const map = doc(journey('j', [step('a', { label: 'Sign out', say: 'They download their data' })]));
+    const found = healthChecks(map, withActions('Delete my account', 'Download your data', 'Sign out', 'Cancel', 'Pay invoice'));
+    const [finding, ...rest] = found.filter((entry) => entry.check === 'unmapped-action');
+    assert.equal(rest.length, 0);
+    assert.equal(finding.target, 'file:src/Account.tsx');
+    assert.equal(finding.severity, 'low');
+    assert.deepEqual(finding.evidence, ['Delete my account', 'Pay invoice']);
+    assert.match(finding.message, /^"Delete my account", "Pay invoice" are in the code but on no journey/);
+  });
+
+  it('stays quiet without a facts scan', () => {
+    assert.deepEqual(targets(healthChecks(doc(journey('j', [step('a')])), { items: [] }), 'unmapped-action'), []);
+  });
+});
+
 describe('dead-end', () => {
   it('flags a step with nowhere to go that is not an outcome, as high', () => {
     const found = healthChecks(doc(journey('j', [step('a', { next: ['b'] }), step('b')])));

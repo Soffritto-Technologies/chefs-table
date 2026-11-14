@@ -51,7 +51,8 @@ function writeOut(project, unitId, out) {
 describe('jobPaths, startJob and loadJob', () => {
   it('puts everything under .journeys/', () => {
     const paths = M.jobPaths('/proj');
-    assert.deepEqual(Object.keys(paths).sort(), ['build', 'coverage', 'inventory', 'job', 'units']);
+    assert.deepEqual(Object.keys(paths).sort(), ['build', 'coverage', 'facts', 'inventory', 'job', 'units']);
+    assert.equal(paths.facts, join('/proj', '.journeys', 'build', 'facts.json'));
     assert.equal(paths.job, join('/proj', '.journeys', 'build', 'job.json'));
     assert.equal(paths.inventory, join('/proj', '.journeys', 'inventory.json'));
   });
@@ -202,6 +203,28 @@ describe('budgetStatus', () => {
 });
 
 describe('writeBrief', () => {
+  it('with summaries, puts them in the brief and lists only the rest to read', () => {
+    const { dir } = jobProject();
+    const unit = sampleUnits()[1];
+    const inventory = sampleInventory();
+    inventory.files['app/(shop)/checkout/page.tsx'].facts = 80;
+    const sheets = { 'app/(shop)/checkout/page.tsx': '### app/(shop)/checkout/page.tsx\nbuttons: "Pay now" → pay' };
+    const text = readBrief(M.writeBrief(dir, unit, inventory, baseDoc(), CLI_PATH, sheets));
+    assert.match(text, /## What the code says\n.*\n### app\/\(shop\)\/checkout\/page\.tsx\nbuttons: "Pay now" → pay/);
+    assert.match(text, /## Read these files in full\n- pages\/api\/pay\.ts \(~50 tokens\)\n/);
+    assert.match(text, /Every button, link and message in "What the code says"/);
+    assert.doesNotMatch(text, /## Files to read/);
+    assert.doesNotMatch(text, /form with card number/, 'scan items of a summarised file are not repeated');
+  });
+
+  it('a summarised file that must be read in full is listed to read, with the reason', () => {
+    const { dir } = jobProject();
+    const inventory = sampleInventory();
+    inventory.files['app/page.tsx'].readFull = 'its steps are decided by a reducer or state machine';
+    const text = readBrief(M.writeBrief(dir, sampleUnits()[0], inventory, baseDoc(), CLI_PATH, { 'app/page.tsx': '### app/page.tsx' }));
+    assert.match(text, /## Files to read \(about 100 tokens in all\)\n- app\/page\.tsx \(~100 tokens\)/);
+  });
+
   it('starts with the unit marker and tells the helper what to read and write', () => {
     const { dir } = jobProject();
     const unit = sampleUnits()[1];

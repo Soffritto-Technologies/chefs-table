@@ -33,7 +33,8 @@ Chef's Table is a Claude Code plugin made of four parts:
 ## First map: chop → stir → check → organise → polish → plate
 
 - **chop** (no AI): inventory of pages, links, forms, endpoints; work units sized for one helper (big single pages split by feature folder).
-- **stir**: one helper per unit writes journeys; metered from SubagentStop transcripts; stops at the budget and resumes later.
+  - **Facts scan** (`lib/facts.mjs`, no AI): when the project has a TypeScript compiler installed, each JS/TS file becomes a short summary (on-screen words, buttons and where they lead, data calls, show-only-when conditions, state changes), about a fifteenth of the code. Units are then sized by summary (`FACTS_UNIT_MAX_TOKENS`), briefs carry the summaries, and labelled buttons become `action` items. Summaries live in `build/facts.json`. No compiler, or `CHEFS_TABLE_FACTS=off`: helpers read whole files as before.
+- **stir**: one helper per unit writes journeys; metered from SubagentStop transcripts; stops at the budget and resumes later. Helpers run as the plugin's `mapper` agent (Read, Write, Bash, Glob, Grep only), so each starts without the session's other tools.
 - **check** (no AI): merge units, coverage; gap units for missing pages.
 - **organise**: one helper regroups the whole map into ≤8 areas with sections, real roles, same-goal variants side by side.
 - **polish**: one helper per area merges same-goal variants into one journey with branches and writes short step labels; rejected if any code anchor is lost.
@@ -100,4 +101,5 @@ Hooks never fail a session. Errors go to `errors.log` and show as a chip on the 
 | `lib/glob.mjs` | Small glob matcher and file walker |
 | `lib/session.mjs` | Per-chat state, atomic writes, cleanup |
 | `lib/render.mjs` | View-model tree and HTML rendering (escaped) |
+| `lib/facts.mjs` | Facts scan: per-file summaries with the project's own TypeScript compiler (map runs only) |
 | `bin/journeys.mjs` | CLI and hook dispatcher |

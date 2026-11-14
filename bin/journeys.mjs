@@ -37,6 +37,7 @@ import * as S from '../lib/session.mjs';
 import * as M from '../lib/mapjob.mjs';
 import * as H from '../lib/health.mjs';
 import { findApps } from '../lib/apps.mjs';
+import { buildFacts, hasFacts, loadTypeScript, withFacts } from '../lib/facts.mjs';
 import {
   buildInventory, coverage, diffInventory, planUnits, readGitHead,
 } from '../lib/inventory.mjs';
@@ -704,7 +705,8 @@ function printJobSummary(job, inventory) {
     const apps = inventory.apps?.length > 1 ? ` across ${inventory.apps.length} apps` : '';
     const features = inventory.features?.length ? `, plus ${inventory.features.length} features without a web address` : '';
     console.log(`Found ${inventory.pages.length} pages in ${inventory.areas.length} areas${apps}${features}${found ? `; ${found}` : ''}.`);
-    console.log(`Work to do: ${todo.length} of ${job.units.length} units, about ${sumTokens(todo).toLocaleString('en-US')} tokens of code to read.`);
+    const what = hasFacts(inventory) ? 'code summaries (a code scan summarised the files)' : 'code';
+    console.log(`Work to do: ${todo.length} of ${job.units.length} units, about ${sumTokens(todo).toLocaleString('en-US')} tokens of ${what} to read.`);
   }
   console.log(`Budget: ${limits.length ? `up to ${limits.join(' or ')}` : 'no limit set'}.`);
   if (percent !== null && startPercent === null) console.log('Note: no --start-percent was given, so the percent limit cannot be enforced. Pass the current 5-hour usage percentage.');
@@ -775,6 +777,22 @@ function appsToScan(found, onMap, chosen = []) {
   return mapped.length ? mapped.map((app) => found.find((candidate) => candidate.id === app.id) ?? app) : found;
 }
 
+/**
+ * Scans the code for a map run: the inventory, plus the facts scan when the project has a TypeScript compiler
+ * (its summaries are kept for the briefs).
+ *
+ * @param {string} projectDir - Absolute project directory.
+ * @param {object[]} apps - Apps to scan (from appsToScan).
+ * @returns {object} The inventory, with summary sizes when there was a facts scan.
+ */
+function scanCode(projectDir, apps) {
+  const inventory = buildInventory(projectDir, S.loadConfig(projectDir), { apps });
+  const ts = loadTypeScript([projectDir, ...(apps ?? []).map((app) => join(projectDir, app.root ?? '.'))]);
+  const scan = ts ? buildFacts(projectDir, inventory, ts) : null;
+  M.saveFacts(projectDir, scan);
+  return withFacts(inventory, scan);
+}
+
 /** CLI: apps — list the apps in this project with their size, so the builder can choose what to map. */
 function cmdApps() {
   const projectDir = requireProject();
@@ -809,12 +827,12 @@ function cmdChop(args) {
   const found = findApps(projectDir);
   const chosen = chooseApps(args, found);
   const multiApp = isMultiApp(found) || Boolean(doc?.apps?.length);
-  const inventory = buildInventory(projectDir, S.loadConfig(projectDir), { apps: appsToScan(found, doc?.apps, chosen) });
+  const inventory = scanCode(projectDir, appsToScan(found, doc?.apps, chosen));
   M.saveInventory(projectDir, inventory);
   const mapped = M.mergeApps(doc?.apps, chosen);
   if (multiApp && doc && mapped.length !== (doc.apps?.length ?? 0)) saveApps(p.doc, doc, mapped);
   const wanted = new Set(chosen.map((app) => app.id));
-  const units = planUnits(inventory, { maxTokens: numberFlag(args, 'max-unit-tokens') ?? PIPELINE.UNIT_MAX_TOKENS })
+  const units = planUnits(inventory, { maxTokens: numberFlag(args, 'max-unit-tokens') ?? undefined })
     .filter((unit) => !multiApp || !unit.app || wanted.has(unit.app));
   const { job } = M.startJob(projectDir, { kind: 'first-map', units, budget, restart });
   printJobSummary(job, inventory);
@@ -880,10 +898,11 @@ function stirNext(projectDir, args) {
   const nowPercent = numberFlag(args, 'now-percent');
   const inventory = S.readJson(M.jobPaths(projectDir).inventory, null);
   const doc = S.readJson(S.paths(projectDir).doc, null) || emptyDoc(basename(projectDir));
+  const sheets = M.loadSheets(projectDir);
   const briefFor = (unit) => {
     if (unit.kind === 'polish') return M.writePolishBrief(projectDir, unit, doc, CLI);
     if (!inventory) throw new Error('No inventory yet. Run: journeys chop');
-    return M.writeBrief(projectDir, unit, inventory, doc, CLI);
+    return M.writeBrief(projectDir, unit, inventory, doc, CLI, sheets);
   };
   const lines = M.updateJob(projectDir, (job) => {
     M.budgetStatus(job, { nowPercent });
@@ -1113,7 +1132,7 @@ function cmdSync(args) {
   const before = S.readJson(p.inventory, null);
   if (!before) throw new Error('There is no saved inventory to compare with. Run /chefs-table:map-app first.');
   const doc = S.readJson(p.doc, null);
-  const after = buildInventory(projectDir, S.loadConfig(projectDir), { apps: appsToScan(findApps(projectDir), doc?.apps) });
+  const after = scanCode(projectDir, appsToScan(findApps(projectDir), doc?.apps));
   const diff = diffInventory(before, after);
   const targets = M.refreshTargets(doc, after, diff);
   const units = targets.routes.length ? planUnits(after, { routes: targets.routes, kind: 'refresh', idPrefix: 'refresh' }) : [];

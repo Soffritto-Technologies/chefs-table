@@ -10,6 +10,6 @@
     "test": "node --test",
     "test:perf": "CHEFS_TABLE_PERF=1 node --test test/perf.test.mjs"
   },
-  "files": ["bin", "lib", "templates", "hooks", "skills", "commands", ".claude-plugin"],
+  "files": ["bin", "lib", "templates", "hooks", "skills", "commands", "agents", ".claude-plugin"],
   "keywords": ["claude-code", "plugin", "user-journeys", "visualization", "qa"]
 }
