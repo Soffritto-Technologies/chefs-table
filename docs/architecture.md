@@ -1,10 +1,15 @@
 # Architecture
 
-Chef's Table is a Claude Code plugin made of four parts:
+Chef's Table is a Claude Code plugin made of five parts:
 
 - a skill (`skills/chefs-table/SKILL.md`)
-- a slash command (`commands/map-app.md`)
-- four hooks (`hooks/hooks.json`)
+- four slash commands (`commands/`)
+  - `map-app.md`: draw (or resume) the map of the whole app inside a budget
+  - `sync.md`: refresh the map after code changed outside a chat, redoing only what's stale
+  - `order.md`: work out what follows what in an existing map
+  - `share.md`: publish the map as it is now to the project's share link
+- five hooks (`hooks/hooks.json`: SessionStart, PreToolUse, PostToolUse, SubagentStop, Stop), all run through `bin/run.sh`
+- a helper agent (`agents/mapper.md`) that runs the AI work units
 - a zero-dependency Node CLI (`bin/journeys.mjs`)
 
 ## Data
@@ -18,10 +23,13 @@ Chef's Table is a Claude Code plugin made of four parts:
     ├── .local.json                  gitignored · this person's share link
     ├── inventory.json               committed · the chop (no-AI) inventory, baseline for sync
     ├── aliases.json                 committed · old journey id → merged journey id (from polish)
+    ├── findings.json                committed · health findings (from `journeys health`)
+    ├── .anchor-cache.json           gitignored · route/file scan shared by every chat
     ├── build/                       gitignored · resumable map/sync/polish job, unit briefs and outputs
     └── .session/<session_id>/       gitignored · one folder per chat, swept after 7 days
-        start.json  last.json  routes.json  touched.json  plan.json  approval.json
-        view.html   view.hash  view-stamp.js  published  notable.json  flags.json  turn.json  errors.log
+        start.json  last.json  routes.json  touched.json  step-files.json  plan.json  approval.json
+        view.html   view.hash  view-stamp.js  published  notable.json  flags.json  turn.json
+        no-flow-change  errors.log
 ```
 
 `journeys.json` holds areas, then journeys, then steps.
@@ -30,14 +38,20 @@ Chef's Table is a Claude Code plugin made of four parts:
 - **Sub-flows.** Steps can carry a `subflow` pointing at another journey that zooms in on them.
 - **Derived, not stored.** States like new, changed or conflict are never stored. They're computed by diffing snapshots.
 
-## First map: chop → stir → check → organise → polish → plate
+## First map: chop → stir → check → organise → order → polish → health → plate
 
+`/chefs-table:map-app` runs these stages (after finding the apps and setting the stopper). `/chefs-table:sync` reuses them: `journeys sync` re-scans, diffs against the saved `inventory.json` and queues units only for new or changed journeys. Then it runs stir to plate, skipping organise and order unless journeys were added, and polishing only the touched areas.
+
+- **find the apps** (no AI, `lib/apps.mjs`): `journeys apps` lists the apps a repo ships (web, desktop, mobile, server, agent) from workspace settings and package files. The builder picks which to map (`--apps`); journeys are tagged with their app.
+- **stopper**: the budget is `--budget-percent` of the 5-hour window when usage can be read, else `--budget-tokens`. Checked before every wave.
 - **chop** (no AI): inventory of pages, links, forms, endpoints; work units sized for one helper (big single pages split by feature folder).
   - **Facts scan** (`lib/facts.mjs`, no AI): when the project has a TypeScript compiler installed, each JS/TS file becomes a short summary (on-screen words, buttons and where they lead, data calls, show-only-when conditions, state changes), about a fifteenth of the code. Units are then sized by summary (`FACTS_UNIT_MAX_TOKENS`), briefs carry the summaries, and labelled buttons become `action` items. Summaries live in `build/facts.json`. No compiler, or `CHEFS_TABLE_FACTS=off`: helpers read whole files as before.
 - **stir**: one helper per unit writes journeys; metered from SubagentStop transcripts; stops at the budget and resumes later. Helpers run as the plugin's `mapper` agent (Read, Write, Bash, Glob, Grep only), so each starts without the session's other tools.
 - **check** (no AI): merge units, coverage; gap units for missing pages.
 - **organise**: one helper regroups the whole map into ≤8 areas with sections, real roles, same-goal variants side by side.
+- **order** (`lib/order.mjs`): one cheap helper (haiku, reads titles only) says what follows what, as `next` on areas and journeys.
 - **polish**: one helper per area merges same-goal variants into one journey with branches and writes short step labels; rejected if any code anchor is lost.
+- **health** (no AI, `lib/health.mjs`): flags dead ends, journeys with no ending, steps nothing leads to, unmapped pages and the like. Writes `findings.json`; the map shows them as a layer.
 - **plate**: render and publish.
 
 ## Zoom levels
@@ -62,6 +76,7 @@ PreToolUse    plan needs approval?  GATE=on → permissionDecision "ask" (Claude
               no plan, editing a mapped file → one non-blocking reminder (additionalContext)
 PostToolUse   edit → record touched file; first edit while approval pending → approved (default mode) / unconfirmed
               Artifact publish of view.html → remember share link + published hash
+SubagentStop  map-job helper finished → count its transcript tokens toward the budget, once per helper (only while stirring, or just after `organise brief`)
 Stop          apply plan (check-then-save) → diff → anchors → conflicts → drift → render → important news (systemMessage) → maybe block once
 ```
 
@@ -120,4 +135,13 @@ Hooks never fail a session. Errors go to `errors.log` and show as a chip on the 
 | `lib/notable.mjs` | Important-news items (stable keys) and the one-line chat notice |
 | `lib/render.mjs` | View-model tree and HTML rendering (escaped) |
 | `lib/facts.mjs` | Facts scan: per-file summaries with the project's own TypeScript compiler (map runs only) |
+| `lib/apps.mjs` | Find the apps a repo ships, and tag files and journeys with them |
+| `lib/inventory.mjs` | Chop: no-AI scan of pages, links, forms, endpoints; sizes the work units |
+| `lib/mapjob.mjs` | Resumable map/sync/polish job: units, budget, merging helper output, rebase, aliases |
+| `lib/order.mjs` | Order of areas, journeys and steps (`next`, `continues`, "Any time" parts) |
+| `lib/health.mjs` | No-AI health findings, stored in `findings.json` |
+| `lib/util.mjs` | Sorted-key JSON, atomic writes, sha1 |
 | `bin/journeys.mjs` | CLI and hook dispatcher |
+| `bin/run.sh` | Hook launcher: checks for Node 20+, never breaks the session |
+| `templates/journeys.html` | The map page; draws the view model one level at a time |
+| `agents/mapper.md` | Helper agent for map units (Read, Write, Bash, Glob, Grep only) |
