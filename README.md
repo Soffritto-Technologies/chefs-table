@@ -143,6 +143,7 @@ Early (v0.1), and Claude Code only for now. Route checking understands Next.js f
 
 ## Works well with
 
+- **[Recipe](https://github.com/Soffritto-Technologies/recipe)**, the sister project. Chef's Table shows the menu: what people can do in your app. Recipe shows how each dish is made: a step-by-step board of how a piece of code makes its decisions, for reviewing what your AI built.
 - **[graphify](https://github.com/safishamsi/graphify)** by Safi Shamsi (MIT). It indexes a codebase so Claude can answer "what uses this?" without reading everything. It's a separate tool: Chef's Table doesn't need it or call it.
 
 ## Contributing
