@@ -141,6 +141,10 @@ A plugin is code that runs on your computer, so here is exactly what this one do
 
 Early (v0.1), and Claude Code only for now. Route checking understands Next.js file routes and `path:` / `<Route path>` definitions. Other frameworks show as "unverified" rather than wrong. See [TODOS.md](TODOS.md) for what's next, and [docs/architecture.md](docs/architecture.md) for how it fits together.
 
+## Works well with
+
+- **[graphify](https://github.com/safishamsi/graphify)** by Safi Shamsi (MIT). It indexes a codebase so Claude can answer "what uses this?" without reading everything. It's a separate tool: Chef's Table doesn't need it or call it.
+
 ## Contributing
 
 Small, focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately: [SECURITY.md](SECURITY.md).
